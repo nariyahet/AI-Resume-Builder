@@ -6,6 +6,13 @@ import ResumePreview from './components/ResumePreview';
 import ATSScoreModal from './components/ATSScoreModal';
 import AuthModal from './components/AuthModal';
 import AiKeyModal from './components/AiKeyModal';
+import Dashboard from './components/Dashboard';
+import JDMatcherModal from './components/JDMatcherModal';
+import CoverLetterModal from './components/CoverLetterModal';
+import InterviewPrepModal from './components/InterviewPrepModal';
+import ResumeParserModal from './components/ResumeParserModal';
+import ShareModal from './components/ShareModal';
+import PricingModal from './components/PricingModal';
 import { sampleResume, emptyResume } from './data/sampleResume';
 import axiosClient from './api/axiosClient';
 import { useAuth } from './context/AuthContext';
@@ -13,7 +20,10 @@ import { useAuth } from './context/AuthContext';
 export default function App() {
   const { user } = useAuth();
   
-  // Load saved resume from localStorage or default to sample
+  // View mode: 'editor' or 'dashboard'
+  const [currentView, setCurrentView] = useState('editor');
+
+  // Resume state
   const [resume, setResume] = useState(() => {
     const saved = localStorage.getItem('ai_resume_current_draft');
     if (saved) {
@@ -26,11 +36,38 @@ export default function App() {
     return sampleResume;
   });
 
+  // UI Modal States
   const [isDownloading, setIsDownloading] = useState(false);
   const [showAtsModal, setShowAtsModal] = useState(false);
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [showAiKeyModal, setShowAiKeyModal] = useState(false);
+  const [showJDMatcher, setShowJDMatcher] = useState(false);
+  const [showCoverLetter, setShowCoverLetter] = useState(false);
+  const [showInterviewPrep, setShowInterviewPrep] = useState(false);
+  const [showParser, setShowParser] = useState(false);
+  const [showShare, setShowShare] = useState(false);
+  const [shareResumeId, setShareResumeId] = useState(null);
+  const [showPricing, setShowPricing] = useState(false);
   const [saveStatus, setSaveStatus] = useState('');
+
+  // Check URL params for public web resume view (?view=ID)
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const viewId = params.get('view');
+    if (viewId) {
+      async function loadPublicResume() {
+        try {
+          const res = await axiosClient.get(`/resumes/public/${viewId}`);
+          if (res.data?.success && res.data.resume) {
+            setResume(res.data.resume);
+          }
+        } catch (err) {
+          console.warn('Public view load failed, using local resume.');
+        }
+      }
+      loadPublicResume();
+    }
+  }, []);
 
   // Auto-save draft in localStorage
   useEffect(() => {
@@ -41,33 +78,39 @@ export default function App() {
   const handleLoadSample = () => {
     if (window.confirm('Load demo profile? This will populate the editor with a complete developer resume.')) {
       setResume(sampleResume);
+      setCurrentView('editor');
     }
   };
 
   // Reset to empty
-  const handleReset = () => {
-    if (window.confirm('Clear all resume fields?')) {
-      setResume(emptyResume);
-    }
+  const handleCreateNew = () => {
+    setResume(emptyResume);
+    setCurrentView('editor');
   };
 
-  // Save to MySQL backend
-  const handleSaveToBackend = async () => {
-    setSaveStatus('Saving to Database...');
-    try {
-      const res = await axiosClient.post('/resumes', resume);
-      if (res.data?.success) {
-        setSaveStatus('✅ Saved in MySQL!');
-        setTimeout(() => setSaveStatus(''), 3000);
-      } else {
-        setSaveStatus('⚠️ Saved locally (MySQL check pending)');
-        setTimeout(() => setSaveStatus(''), 3000);
-      }
-    } catch (err) {
-      console.warn('Backend save notice:', err.message);
-      setSaveStatus('✅ Saved locally in browser storage');
-      setTimeout(() => setSaveStatus(''), 3000);
-    }
+  // Select resume from Dashboard
+  const handleSelectResume = (selected) => {
+    setResume(selected);
+    setCurrentView('editor');
+  };
+
+  // Open share modal
+  const handleOpenShare = (resumeId) => {
+    setShareResumeId(resumeId || resume.id);
+    setShowShare(true);
+  };
+
+  // Successful parse from old resume file
+  const handleParsedSuccess = (parsedData) => {
+    setResume(prev => ({
+      ...prev,
+      ...parsedData,
+      template_id: prev.template_id,
+      theme_color: prev.theme_color
+    }));
+    setSaveStatus('🎉 Resume parsed and imported successfully!');
+    setTimeout(() => setSaveStatus(''), 4000);
+    setCurrentView('editor');
   };
 
   // 1-Click High-Quality PDF Export
@@ -78,7 +121,6 @@ export default function App() {
     setIsDownloading(true);
 
     try {
-      // Configuration for crisp A4 PDF
       const opt = {
         margin: 0,
         filename: `${(resume.personal_info?.fullName || 'Resume').replace(/\s+/g, '_')}_Resume.pdf`,
@@ -105,11 +147,17 @@ export default function App() {
     <div className="app-root">
       {/* Navbar Header */}
       <Navbar
+        currentView={currentView}
+        onToggleView={(view) => setCurrentView(view)}
         onLoadSample={handleLoadSample}
-        onReset={handleReset}
         onOpenATS={() => setShowAtsModal(true)}
         onOpenAuth={() => setShowAuthModal(true)}
         onOpenAiKey={() => setShowAiKeyModal(true)}
+        onOpenJDMatcher={() => setShowJDMatcher(true)}
+        onOpenCoverLetter={() => setShowCoverLetter(true)}
+        onOpenInterviewPrep={() => setShowInterviewPrep(true)}
+        onOpenParser={() => setShowParser(true)}
+        onOpenPricing={() => setShowPricing(true)}
         onDownloadPDF={handleDownloadPDF}
         isDownloading={isDownloading}
         atsScore={resume.ats_score}
@@ -118,38 +166,86 @@ export default function App() {
       {/* Save indicator banner */}
       {saveStatus && (
         <div style={{
-          background: '#1e293b',
-          borderBottom: '1px solid #334155',
+          background: 'rgba(56, 189, 248, 0.15)',
+          borderBottom: '1px solid rgba(56, 189, 248, 0.3)',
           textAlign: 'center',
-          padding: '0.35rem',
-          fontSize: '0.785rem',
+          padding: '0.45rem',
+          fontSize: '0.825rem',
+          fontWeight: 600,
           color: '#38bdf8'
         }}>
           {saveStatus}
         </div>
       )}
 
-      {/* Split-Screen Workspace */}
-      <main className="workspace-container">
-        {/* Left Side: Form Editor & AI Magic */}
-        <ResumeForm 
-          resume={resume} 
-          setResume={setResume} 
+      {/* VIEW 1: MY RESUMES DASHBOARD */}
+      {currentView === 'dashboard' ? (
+        <Dashboard
+          onSelectResume={handleSelectResume}
+          onCreateNew={handleCreateNew}
+          onBackToEditor={() => setCurrentView('editor')}
+          onOpenShare={handleOpenShare}
         />
+      ) : (
+        /* VIEW 2: SPLIT-SCREEN WORKSPACE */
+        <main className="workspace-container">
+          {/* Left Side: Form Editor & AI Magic */}
+          <ResumeForm 
+            resume={resume} 
+            setResume={setResume} 
+          />
 
-        {/* Right Side: Live A4 Resume Preview */}
-        <ResumePreview 
-          resume={resume} 
-          setResume={setResume} 
-        />
-      </main>
+          {/* Right Side: Live A4 Resume Preview */}
+          <ResumePreview 
+            resume={resume} 
+            setResume={setResume} 
+          />
+        </main>
+      )}
 
-      {/* Modals */}
+      {/* MODALS */}
       <ATSScoreModal 
         isOpen={showAtsModal} 
         onClose={() => setShowAtsModal(false)} 
         resume={resume} 
         setResume={setResume}
+      />
+
+      <JDMatcherModal
+        isOpen={showJDMatcher}
+        onClose={() => setShowJDMatcher(false)}
+        resume={resume}
+        setResume={setResume}
+      />
+
+      <CoverLetterModal
+        isOpen={showCoverLetter}
+        onClose={() => setShowCoverLetter(false)}
+        resume={resume}
+      />
+
+      <InterviewPrepModal
+        isOpen={showInterviewPrep}
+        onClose={() => setShowInterviewPrep(false)}
+        resume={resume}
+      />
+
+      <ResumeParserModal
+        isOpen={showParser}
+        onClose={() => setShowParser(false)}
+        onParsedSuccess={handleParsedSuccess}
+      />
+
+      <ShareModal
+        isOpen={showShare}
+        onClose={() => setShowShare(false)}
+        resumeId={shareResumeId || resume.id}
+        resumeTitle={resume.title}
+      />
+
+      <PricingModal
+        isOpen={showPricing}
+        onClose={() => setShowPricing(false)}
       />
 
       <AuthModal 

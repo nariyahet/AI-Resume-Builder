@@ -174,3 +174,89 @@ export async function deleteResume(req, res) {
     res.status(500).json({ success: false, message: 'Server error deleting resume.' });
   }
 }
+
+// Clone an existing resume
+export async function cloneResume(req, res) {
+  try {
+    const { id } = req.params;
+    const userId = req.user ? req.user.id : null;
+
+    if (!getIsConnected()) {
+      return res.status(503).json({ success: false, message: 'Database not connected.' });
+    }
+
+    const db = getDB();
+    const [rows] = await db.query('SELECT * FROM resumes WHERE id = ?', [id]);
+    if (rows.length === 0) {
+      return res.status(404).json({ success: false, message: 'Source resume not found.' });
+    }
+
+    const source = rows[0];
+    const newTitle = `${source.title || 'My Resume'} (Copy)`;
+
+    const [result] = await db.query(
+      `INSERT INTO resumes (
+        user_id, title, target_role, personal_info, summary,
+        experience, education, skills, projects, certifications,
+        template_id, theme_color, ats_score, ats_feedback
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        userId,
+        newTitle,
+        source.target_role,
+        typeof source.personal_info === 'string' ? source.personal_info : JSON.stringify(source.personal_info),
+        source.summary,
+        typeof source.experience === 'string' ? source.experience : JSON.stringify(source.experience),
+        typeof source.education === 'string' ? source.education : JSON.stringify(source.education),
+        typeof source.skills === 'string' ? source.skills : JSON.stringify(source.skills),
+        typeof source.projects === 'string' ? source.projects : JSON.stringify(source.projects),
+        typeof source.certifications === 'string' ? source.certifications : JSON.stringify(source.certifications),
+        source.template_id,
+        source.theme_color,
+        source.ats_score,
+        typeof source.ats_feedback === 'string' ? source.ats_feedback : JSON.stringify(source.ats_feedback)
+      ]
+    );
+
+    res.status(201).json({
+      success: true,
+      message: 'Resume cloned successfully!',
+      clonedId: result.insertId
+    });
+  } catch (error) {
+    console.error('Clone resume error:', error);
+    res.status(500).json({ success: false, message: 'Server error cloning resume.' });
+  }
+}
+
+// Public web resume view
+export async function getPublicResume(req, res) {
+  try {
+    const { id } = req.params;
+    if (!getIsConnected()) {
+      return res.status(404).json({ success: false, message: 'Database not connected.' });
+    }
+
+    const db = getDB();
+    const [rows] = await db.query('SELECT * FROM resumes WHERE id = ?', [id]);
+    if (rows.length === 0) {
+      return res.status(404).json({ success: false, message: 'Resume not found.' });
+    }
+
+    const r = rows[0];
+    const resume = {
+      ...r,
+      personal_info: typeof r.personal_info === 'string' ? JSON.parse(r.personal_info) : r.personal_info,
+      experience: typeof r.experience === 'string' ? JSON.parse(r.experience) : r.experience,
+      education: typeof r.education === 'string' ? JSON.parse(r.education) : r.education,
+      skills: typeof r.skills === 'string' ? JSON.parse(r.skills) : r.skills,
+      projects: typeof r.projects === 'string' ? JSON.parse(r.projects) : r.projects,
+      certifications: typeof r.certifications === 'string' ? JSON.parse(r.certifications) : r.certifications,
+    };
+
+    res.json({ success: true, resume });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Server error fetching public resume.' });
+  }
+}
+

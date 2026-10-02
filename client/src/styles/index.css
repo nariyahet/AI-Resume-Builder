@@ -568,6 +568,60 @@ body {
 }
 
 /* ============================================================== */
+/* TEMPLATE: HARVARD CLASSIC ATS (100% Recruiter Compliance)      */
+/* ============================================================== */
+.template-harvard .resume-header {
+  text-align: center;
+  border-bottom: 2px solid #0f172a;
+  padding-bottom: 0.65rem;
+  margin-bottom: 1rem;
+}
+
+.template-harvard .resume-name {
+  font-family: 'Merriweather', 'Times New Roman', serif;
+  font-size: 1.85rem;
+  font-weight: 700;
+  color: #000000;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.template-harvard .resume-role {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #334155;
+  margin-top: 0.15rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.template-harvard .resume-contacts {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-top: 0.35rem;
+  font-size: 0.775rem;
+  color: #334155;
+}
+
+.template-harvard .resume-section {
+  margin-bottom: 1rem;
+}
+
+.template-harvard .resume-section-title {
+  font-family: 'Merriweather', 'Times New Roman', serif;
+  font-size: 0.85rem;
+  font-weight: 800;
+  color: #000000;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  border-bottom: 1px solid #000000;
+  padding-bottom: 0.15rem;
+  margin-bottom: 0.45rem;
+}
+
+/* ============================================================== */
 /* TEMPLATE 3: MINIMALIST ELEGANT                                 */
 /* ============================================================== */
 .template-minimal {
