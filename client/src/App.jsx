@@ -22,6 +22,7 @@ import PricingModal from './components/PricingModal';
 import { sampleResume, emptyResume } from './data/sampleResume';
 import axiosClient from './api/axiosClient';
 import { useAuth } from './context/AuthContext';
+import { exportResumeToDocx } from './utils/docxExport';
 
 export default function App() {
   const { user } = useAuth();
@@ -60,6 +61,20 @@ export default function App() {
   const [showAccountSettings, setShowAccountSettings] = useState(false);
   const [showAdminMetrics, setShowAdminMetrics] = useState(false);
   const [saveStatus, setSaveStatus] = useState('');
+
+  // ☀️ / 🌙 Theme Mode ('dark' | 'light')
+  const [theme, setTheme] = useState(() => {
+    return localStorage.getItem('ai_resume_theme') || 'dark';
+  });
+
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme);
+    localStorage.setItem('ai_resume_theme', theme);
+  }, [theme]);
+
+  const toggleTheme = () => {
+    setTheme(prev => (prev === 'light' ? 'dark' : 'light'));
+  };
 
   // Check URL params for public web resume view (?view=ID)
   useEffect(() => {
@@ -162,6 +177,67 @@ export default function App() {
     }
   };
 
+  // Real Editable Word (.docx) Export
+  const handleDownloadDocx = async () => {
+    try {
+      setIsDownloading(true);
+      await exportResumeToDocx(resume);
+      setSaveStatus('✓ Word (.docx) resume downloaded successfully!');
+      setTimeout(() => setSaveStatus(''), 3000);
+    } catch (err) {
+      console.error('Docx export error:', err);
+      alert('Failed to generate Word document. Please try again.');
+    } finally {
+      setIsDownloading(false);
+    }
+  };
+
+  // Clean Plain Text (.txt) Export
+  const handleDownloadTxt = () => {
+    const { personal_info = {}, target_role = '', summary = '', experience = [], skills = [], education = [], projects = [] } = resume;
+    let content = `${personal_info.fullName || 'RESUME'}\n`;
+    content += `${target_role || ''}\n`;
+    content += `${personal_info.email || ''} | ${personal_info.phone || ''} | ${personal_info.location || ''}\n\n`;
+
+    if (summary) {
+      content += `PROFESSIONAL SUMMARY\n${summary}\n\n`;
+    }
+    if (experience && experience.length > 0) {
+      content += `WORK EXPERIENCE\n`;
+      experience.forEach(exp => {
+        content += `${exp.role || ''} - ${exp.company || ''} (${exp.startDate || ''} - ${exp.endDate || ''})\n`;
+        content += `${exp.description || ''}\n\n`;
+      });
+    }
+    if (skills && skills.length > 0) {
+      content += `SKILLS\n${skills.join(', ')}\n\n`;
+    }
+    if (education && education.length > 0) {
+      content += `EDUCATION\n`;
+      education.forEach(edu => {
+        content += `${edu.degree || ''} - ${edu.institution || ''} (${edu.year || ''})\n`;
+      });
+      content += '\n';
+    }
+    if (projects && projects.length > 0) {
+      content += `PROJECTS\n`;
+      projects.forEach(p => {
+        content += `${p.name || ''}: ${p.description || ''}\n`;
+      });
+    }
+    const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${(personal_info.fullName || 'Resume').replace(/\s+/g, '_')}_Resume.txt`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    setSaveStatus('✓ Plain text (.txt) resume downloaded!');
+    setTimeout(() => setSaveStatus(''), 3000);
+  };
+
   return (
     <div className="app-root">
       {/* Navbar Header */}
@@ -184,8 +260,12 @@ export default function App() {
         onOpenAccountSettings={() => setShowAccountSettings(true)}
         onOpenAdminMetrics={() => setShowAdminMetrics(true)}
         onDownloadPDF={handleDownloadPDF}
+        onDownloadDocx={handleDownloadDocx}
+        onDownloadTxt={handleDownloadTxt}
         isDownloading={isDownloading}
         atsScore={resume.ats_score}
+        theme={theme}
+        onToggleTheme={toggleTheme}
       />
 
       {/* Save indicator banner */}

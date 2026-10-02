@@ -18,7 +18,10 @@ import {
   Award,
   Settings,
   ShieldCheck,
-  FolderOpen
+  FolderOpen,
+  Sun,
+  Moon,
+  FileSpreadsheet
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
@@ -41,12 +44,17 @@ export default function Navbar({
   onOpenAccountSettings,
   onOpenAdminMetrics,
   onDownloadPDF,
+  onDownloadDocx,
+  onDownloadTxt,
   isDownloading,
-  atsScore
+  atsScore,
+  theme,
+  onToggleTheme
 }) {
   const { user, logout, geminiKey } = useAuth();
   const [showAiDropdown, setShowAiDropdown] = useState(false);
   const [showUserDropdown, setShowUserDropdown] = useState(false);
+  const [showDownloadDropdown, setShowDownloadDropdown] = useState(false);
 
   return (
     <header className="navbar">
@@ -108,10 +116,10 @@ export default function Navbar({
               top: '100%',
               left: 0,
               marginTop: '6px',
-              background: '#1e293b',
-              border: '1px solid #334155',
+              background: 'var(--bg-card)',
+              border: '1px solid var(--border-color)',
               borderRadius: 'var(--radius-md)',
-              boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.5)',
+              boxShadow: 'var(--shadow-lg)',
               minWidth: '230px',
               zIndex: 60,
               display: 'flex',
@@ -206,16 +214,81 @@ export default function Navbar({
           <span>Pro Tier</span>
         </button>
 
-        {/* PDF Download Button */}
+        {/* ☀️/🌙 Theme Toggle Button */}
         <button 
-          className="btn btn-primary btn-sm"
-          onClick={onDownloadPDF}
-          disabled={isDownloading}
-          id="btn-download-pdf"
+          className="btn btn-outline btn-sm"
+          onClick={onToggleTheme}
+          title={theme === 'light' ? 'Switch to Dark Mode' : 'Switch to Light Mode'}
+          style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}
         >
-          <Download size={14} />
-          <span>{isDownloading ? 'Exporting...' : 'PDF'}</span>
+          {theme === 'light' ? (
+            <Moon size={14} style={{ color: '#6366f1' }} />
+          ) : (
+            <Sun size={14} style={{ color: '#fbbf24' }} />
+          )}
+          <span>{theme === 'light' ? 'Dark' : 'Light'}</span>
         </button>
+
+        {/* Unified Download Dropdown Menu */}
+        <div style={{ position: 'relative' }}>
+          <button 
+            className="btn btn-primary btn-sm"
+            onClick={() => setShowDownloadDropdown(!showDownloadDropdown)}
+            onBlur={() => setTimeout(() => setShowDownloadDropdown(false), 250)}
+            disabled={isDownloading}
+            id="btn-download-menu"
+            style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}
+          >
+            <Download size={14} />
+            <span>{isDownloading ? 'Exporting...' : 'Download'}</span>
+            <ChevronDown size={13} />
+          </button>
+
+          {showDownloadDropdown && (
+            <div style={{
+              position: 'absolute',
+              top: '100%',
+              right: 0,
+              marginTop: '6px',
+              background: 'var(--bg-card)',
+              border: '1px solid var(--border-color)',
+              borderRadius: 'var(--radius-md)',
+              boxShadow: 'var(--shadow-lg)',
+              minWidth: '205px',
+              zIndex: 60,
+              display: 'flex',
+              flexDirection: 'column',
+              padding: '0.4rem'
+            }}>
+              <button 
+                className="btn btn-outline btn-sm" 
+                style={{ justifyContent: 'flex-start', border: 'none', padding: '0.5rem 0.75rem', width: '100%' }}
+                onClick={() => { setShowDownloadDropdown(false); onDownloadPDF(); }}
+              >
+                <Download size={14} style={{ color: '#ef4444' }} />
+                <span>PDF Document (.pdf)</span>
+              </button>
+
+              <button 
+                className="btn btn-outline btn-sm" 
+                style={{ justifyContent: 'flex-start', border: 'none', padding: '0.5rem 0.75rem', width: '100%' }}
+                onClick={() => { setShowDownloadDropdown(false); onDownloadDocx(); }}
+              >
+                <FileSpreadsheet size={14} style={{ color: '#38bdf8' }} />
+                <span>Word Document (.docx)</span>
+              </button>
+
+              <button 
+                className="btn btn-outline btn-sm" 
+                style={{ justifyContent: 'flex-start', border: 'none', padding: '0.5rem 0.75rem', width: '100%' }}
+                onClick={() => { setShowDownloadDropdown(false); onDownloadTxt(); }}
+              >
+                <FileText size={14} style={{ color: '#10b981' }} />
+                <span>Plain Text (.txt)</span>
+              </button>
+            </div>
+          )}
+        </div>
 
         {/* Auth / Settings Dropdown */}
         {user ? (
@@ -226,7 +299,7 @@ export default function Navbar({
               onBlur={() => setTimeout(() => setShowUserDropdown(false), 250)}
             >
               <User size={13} />
-              <strong style={{ color: '#fff' }}>{user.name.split(' ')[0]}</strong>
+              <strong style={{ color: 'var(--text-main)' }}>{user.name.split(' ')[0]}</strong>
               <ChevronDown size={12} />
             </button>
 
@@ -236,10 +309,10 @@ export default function Navbar({
                 top: '100%',
                 right: 0,
                 marginTop: '6px',
-                background: '#1e293b',
-                border: '1px solid #334155',
+                background: 'var(--bg-card)',
+                border: '1px solid var(--border-color)',
                 borderRadius: 'var(--radius-md)',
-                boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.5)',
+                boxShadow: 'var(--shadow-lg)',
                 minWidth: '190px',
                 zIndex: 60,
                 display: 'flex',
@@ -273,7 +346,7 @@ export default function Navbar({
                   <span>Gemini API Key</span>
                 </button>
 
-                <div style={{ borderTop: '1px solid #334155', margin: '0.2rem 0' }} />
+                <div style={{ borderTop: '1px solid var(--border-color)', margin: '0.2rem 0' }} />
 
                 <button 
                   className="btn btn-outline btn-sm"

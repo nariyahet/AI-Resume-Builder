@@ -11,7 +11,8 @@ import {
   Wand2, 
   Loader2,
   FileSpreadsheet,
-  Award
+  Award,
+  ArrowRight
 } from 'lucide-react';
 import axiosClient from '../api/axiosClient';
 
@@ -235,50 +236,50 @@ export default function ResumeForm({ resume, setResume }) {
           className={`tab-btn ${activeTab === 'magic' ? 'active' : ''}`}
           onClick={() => setActiveTab('magic')}
         >
-          <Wand2 size={14} />
-          <span>⚡ 1-Click AI</span>
+          <Wand2 size={13} />
+          <span>⚡ AI Auto-Fill</span>
         </button>
         <button 
           className={`tab-btn ${activeTab === 'personal' ? 'active' : ''}`}
           onClick={() => setActiveTab('personal')}
         >
-          <User size={14} />
-          <span>Profile</span>
+          <User size={13} />
+          <span>1. Profile</span>
         </button>
         <button 
           className={`tab-btn ${activeTab === 'experience' ? 'active' : ''}`}
           onClick={() => setActiveTab('experience')}
         >
-          <Briefcase size={14} />
-          <span>Experience</span>
+          <Briefcase size={13} />
+          <span>2. Experience</span>
         </button>
         <button 
           className={`tab-btn ${activeTab === 'skills' ? 'active' : ''}`}
           onClick={() => setActiveTab('skills')}
         >
-          <Code size={14} />
-          <span>Skills</span>
+          <Code size={13} />
+          <span>3. Skills</span>
         </button>
         <button 
           className={`tab-btn ${activeTab === 'education' ? 'active' : ''}`}
           onClick={() => setActiveTab('education')}
         >
-          <GraduationCap size={14} />
-          <span>Education</span>
+          <GraduationCap size={13} />
+          <span>4. Education</span>
         </button>
         <button 
           className={`tab-btn ${activeTab === 'projects' ? 'active' : ''}`}
           onClick={() => setActiveTab('projects')}
         >
-          <FolderGit2 size={14} />
-          <span>Projects</span>
+          <FolderGit2 size={13} />
+          <span>5. Projects</span>
         </button>
         <button 
           className={`tab-btn ${activeTab === 'custom' ? 'active' : ''}`}
           onClick={() => setActiveTab('custom')}
         >
-          <Award size={14} />
-          <span>Custom</span>
+          <Award size={13} />
+          <span>6. Custom</span>
         </button>
       </div>
 
@@ -453,6 +454,19 @@ export default function ResumeForm({ resume, setResume }) {
                 onChange={(e) => setResume(prev => ({ ...prev, summary: e.target.value }))}
               />
             </div>
+
+            {/* Step Navigation */}
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '1.25rem', paddingTop: '1rem', borderTop: '1px solid var(--border-color)' }}>
+              <button 
+                type="button"
+                className="btn btn-primary"
+                onClick={() => setActiveTab('experience')}
+                style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem' }}
+              >
+                <span>Next: 2. Experience</span>
+                <ArrowRight size={16} />
+              </button>
+            </div>
           </div>
         )}
 
@@ -557,6 +571,26 @@ export default function ResumeForm({ resume, setResume }) {
                 No work experience added yet. Click "+ Add Job" above or use 1-Click AI.
               </p>
             )}
+
+            {/* Step Navigation */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '1.25rem', paddingTop: '1rem', borderTop: '1px solid var(--border-color)' }}>
+              <button 
+                type="button" 
+                className="btn btn-outline btn-sm"
+                onClick={() => setActiveTab('personal')}
+              >
+                ← 1. Profile
+              </button>
+              <button 
+                type="button"
+                className="btn btn-primary"
+                onClick={() => setActiveTab('skills')}
+                style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem' }}
+              >
+                <span>Next: 3. Skills</span>
+                <ArrowRight size={16} />
+              </button>
+            </div>
           </div>
         )}
 
@@ -611,6 +645,26 @@ export default function ResumeForm({ resume, setResume }) {
                   </button>
                 ))}
               </div>
+            </div>
+
+            {/* Step Navigation */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '1.25rem', paddingTop: '1rem', borderTop: '1px solid var(--border-color)' }}>
+              <button 
+                type="button" 
+                className="btn btn-outline btn-sm"
+                onClick={() => setActiveTab('experience')}
+              >
+                ← 2. Experience
+              </button>
+              <button 
+                type="button"
+                className="btn btn-primary"
+                onClick={() => setActiveTab('education')}
+                style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem' }}
+              >
+                <span>Next: 4. Education</span>
+                <ArrowRight size={16} />
+              </button>
             </div>
           </div>
         )}
@@ -683,6 +737,26 @@ export default function ResumeForm({ resume, setResume }) {
                 </div>
               </div>
             ))}
+
+            {/* Step Navigation */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '1.25rem', paddingTop: '1rem', borderTop: '1px solid var(--border-color)' }}>
+              <button 
+                type="button" 
+                className="btn btn-outline btn-sm"
+                onClick={() => setActiveTab('skills')}
+              >
+                ← 3. Skills
+              </button>
+              <button 
+                type="button"
+                className="btn btn-primary"
+                onClick={() => setActiveTab('projects')}
+                style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem' }}
+              >
+                <span>Next: 5. Projects</span>
+                <ArrowRight size={16} />
+              </button>
+            </div>
           </div>
         )}
 
@@ -743,6 +817,26 @@ export default function ResumeForm({ resume, setResume }) {
                 </div>
               </div>
             ))}
+
+            {/* Step Navigation */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '1.25rem', paddingTop: '1rem', borderTop: '1px solid var(--border-color)' }}>
+              <button 
+                type="button" 
+                className="btn btn-outline btn-sm"
+                onClick={() => setActiveTab('education')}
+              >
+                ← 4. Education
+              </button>
+              <button 
+                type="button"
+                className="btn btn-primary"
+                onClick={() => setActiveTab('custom')}
+                style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem' }}
+              >
+                <span>Next: 6. Custom</span>
+                <ArrowRight size={16} />
+              </button>
+            </div>
           </div>
         )}
 
@@ -831,6 +925,20 @@ export default function ResumeForm({ resume, setResume }) {
                 No custom sections added yet. Click "+ Add Section" above.
               </div>
             )}
+
+            {/* Step Navigation */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '1.25rem', paddingTop: '1rem', borderTop: '1px solid var(--border-color)' }}>
+              <button 
+                type="button" 
+                className="btn btn-outline btn-sm"
+                onClick={() => setActiveTab('projects')}
+              >
+                ← 5. Projects
+              </button>
+              <span style={{ fontSize: '0.825rem', color: 'var(--success)', fontWeight: 600 }}>
+                ✓ Resume Setup Complete
+              </span>
+            </div>
           </div>
         )}
 
