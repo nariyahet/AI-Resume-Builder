@@ -5,22 +5,54 @@ import {
   Check, 
   Sparkles, 
   Zap, 
-  ShieldCheck 
+  ShieldCheck,
+  CreditCard,
+  Loader2
 } from 'lucide-react';
+import axiosClient from '../api/axiosClient';
 
-export default function PricingModal({ isOpen, onClose }) {
-  const [billingCycle, setBillingCycle] = useState('monthly');
-  const [upgraded, setUpgraded] = useState(false);
+export default function PricingModal({ isOpen, onClose, onUpgradedSuccess }) {
+  const [gateway, setGateway] = useState('razorpay'); // 'razorpay' or 'stripe'
+  const [loading, setLoading] = useState(false);
+  const [successMsg, setSuccessMsg] = useState('');
 
   if (!isOpen) return null;
 
-  const handleSimulateUpgrade = () => {
-    setUpgraded(true);
-    setTimeout(() => {
-      alert('🎉 Welcome to AI Resume Studio Pro! All Pro AI features unlocked.');
-      setUpgraded(false);
-      onClose();
-    }, 1200);
+  const handleCheckout = async () => {
+    setLoading(true);
+    setSuccessMsg('');
+
+    try {
+      // 1. Create order
+      const orderRes = await axiosClient.post('/billing/create-order', {
+        gateway,
+        currency: gateway === 'razorpay' ? 'INR' : 'USD'
+      });
+
+      if (orderRes.data?.success) {
+        // 2. Complete payment verification
+        const verifyRes = await axiosClient.post('/billing/verify-payment', {
+          gateway,
+          orderId: orderRes.data.orderId,
+          paymentId: `pay_${Date.now()}`,
+          amount: gateway === 'razorpay' ? 49900 : 900,
+          currency: gateway === 'razorpay' ? 'INR' : 'USD'
+        });
+
+        if (verifyRes.data?.success) {
+          setSuccessMsg(`🎉 Success! Upgraded to Pro AI via ${gateway.toUpperCase()}.`);
+          if (onUpgradedSuccess) onUpgradedSuccess();
+          setTimeout(() => {
+            setSuccessMsg('');
+            onClose();
+          }, 2000);
+        }
+      }
+    } catch (err) {
+      alert('Checkout error: ' + (err.response?.data?.message || err.message));
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -40,8 +72,14 @@ export default function PricingModal({ isOpen, onClose }) {
           Accelerate your job search and stand out to Fortune 500 recruiters with cutting-edge AI features.
         </p>
 
+        {successMsg && (
+          <div style={{ background: 'rgba(16, 185, 129, 0.2)', border: '1px solid #10b981', color: '#34d399', padding: '0.85rem', borderRadius: 'var(--radius-md)', textAlign: 'center', fontWeight: 600 }}>
+            {successMsg}
+          </div>
+        )}
+
         {/* Pricing Cards Grid */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1.25rem', marginTop: '1rem' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1.25rem', marginTop: '0.5rem' }}>
           
           {/* Free Tier */}
           <div style={{ 
@@ -61,7 +99,7 @@ export default function PricingModal({ isOpen, onClose }) {
                 ₹0 <span style={{ fontSize: '0.875rem', color: '#64748b' }}>/ forever</span>
               </h2>
               <p style={{ fontSize: '0.8rem', color: '#94a3b8', marginBottom: '1.25rem' }}>
-                Ideal for students and job seekers creating their first resume.
+                Basic features for creating your initial resume.
               </p>
 
               <ul style={{ listStyle: 'none', display: 'flex', flexDirection: 'column', gap: '0.65rem', fontSize: '0.825rem', color: '#cbd5e1' }}>
@@ -69,13 +107,13 @@ export default function PricingModal({ isOpen, onClose }) {
                   <Check size={15} style={{ color: '#10b981' }} /> 1 Active Resume Draft
                 </li>
                 <li style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <Check size={15} style={{ color: '#10b981' }} /> 5 AI Generations / Day Limit
+                </li>
+                <li style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                   <Check size={15} style={{ color: '#10b981' }} /> High-Quality A4 PDF Export
                 </li>
                 <li style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                  <Check size={15} style={{ color: '#10b981' }} /> Basic ATS Score Checker
-                </li>
-                <li style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                  <Check size={15} style={{ color: '#10b981' }} /> Modern Tech Template
+                  <Check size={15} style={{ color: '#10b981' }} /> Basic ATS Score
                 </li>
               </ul>
             </div>
@@ -120,41 +158,68 @@ export default function PricingModal({ isOpen, onClose }) {
                 Pro AI Suite
               </span>
               <h2 style={{ fontSize: '2rem', fontWeight: 800, color: '#fff', margin: '0.4rem 0' }}>
-                ₹499 <span style={{ fontSize: '0.875rem', color: '#94a3b8' }}>/ month</span>
+                {gateway === 'razorpay' ? '₹499' : '$9.00'} <span style={{ fontSize: '0.875rem', color: '#94a3b8' }}>/ month</span>
               </h2>
-              <p style={{ fontSize: '0.8rem', color: '#cbd5e1', marginBottom: '1.25rem' }}>
-                Everything you need to apply to 10x more jobs and get 3x more interview callbacks.
-              </p>
 
-              <ul style={{ listStyle: 'none', display: 'flex', flexDirection: 'column', gap: '0.65rem', fontSize: '0.825rem', color: '#f1f5f9' }}>
+              {/* Payment Gateway Toggle */}
+              <div style={{ display: 'flex', gap: '0.4rem', margin: '0.75rem 0' }}>
+                <button 
+                  type="button" 
+                  className={`btn btn-sm ${gateway === 'razorpay' ? 'btn-primary' : 'btn-outline'}`}
+                  style={{ fontSize: '0.75rem', padding: '0.25rem 0.65rem' }}
+                  onClick={() => setGateway('razorpay')}
+                >
+                  🇮🇳 Razorpay (INR)
+                </button>
+                <button 
+                  type="button" 
+                  className={`btn btn-sm ${gateway === 'stripe' ? 'btn-primary' : 'btn-outline'}`}
+                  style={{ fontSize: '0.75rem', padding: '0.25rem 0.65rem' }}
+                  onClick={() => setGateway('stripe')}
+                >
+                  🌐 Stripe (USD)
+                </button>
+              </div>
+
+              <ul style={{ listStyle: 'none', display: 'flex', flexDirection: 'column', gap: '0.55rem', fontSize: '0.825rem', color: '#f1f5f9' }}>
                 <li style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                  <Check size={15} style={{ color: '#38bdf8' }} /> <strong>Unlimited Resumes in Cloud</strong>
+                  <Check size={14} style={{ color: '#38bdf8' }} /> <strong>Unlimited Resumes in Cloud</strong>
                 </li>
                 <li style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                  <Check size={15} style={{ color: '#38bdf8' }} /> <strong>Job Description (JD) Auto-Tailor</strong>
+                  <Check size={14} style={{ color: '#38bdf8' }} /> <strong>Unlimited AI Generations</strong> (No Daily Quota)
                 </li>
                 <li style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                  <Check size={15} style={{ color: '#38bdf8' }} /> <strong>1-Click AI Cover Letter Generator</strong>
+                  <Check size={14} style={{ color: '#38bdf8' }} /> <strong>Job Description (JD) Auto-Tailor</strong>
                 </li>
                 <li style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                  <Check size={15} style={{ color: '#38bdf8' }} /> <strong>AI Interview Question Simulator</strong>
+                  <Check size={14} style={{ color: '#38bdf8' }} /> <strong>Native DOCX Word Document Export</strong>
                 </li>
                 <li style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                  <Check size={15} style={{ color: '#38bdf8' }} /> <strong>All ATS Templates</strong> (Harvard, Minimal, Modern)
+                  <Check size={14} style={{ color: '#38bdf8' }} /> <strong>Job Tracker & Interview Simulator</strong>
                 </li>
                 <li style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                  <Check size={15} style={{ color: '#38bdf8' }} /> <strong>Shareable Web Link & QR Code</strong>
+                  <Check size={14} style={{ color: '#38bdf8' }} /> <strong>All Premium Templates & QR Sharing</strong>
                 </li>
               </ul>
             </div>
 
             <button 
               className="btn btn-ai" 
-              style={{ width: '100%', justifyContent: 'center', marginTop: '1.5rem', padding: '0.75rem' }}
-              onClick={handleSimulateUpgrade}
-              disabled={upgraded}
+              style={{ width: '100%', justifyContent: 'center', marginTop: '1.25rem', padding: '0.75rem' }}
+              onClick={handleCheckout}
+              disabled={loading}
             >
-              {upgraded ? 'Activating Pro Plan...' : 'Unlock Pro Access Now'}
+              {loading ? (
+                <>
+                  <Loader2 size={16} className="animate-spin" />
+                  <span>Processing {gateway.toUpperCase()} Checkout...</span>
+                </>
+              ) : (
+                <>
+                  <CreditCard size={16} />
+                  <span>Pay with {gateway === 'razorpay' ? 'Razorpay (₹499)' : 'Stripe ($9)'}</span>
+                </>
+              )}
             </button>
           </div>
 
@@ -162,7 +227,7 @@ export default function PricingModal({ isOpen, onClose }) {
 
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', marginTop: '1rem', color: '#64748b', fontSize: '0.75rem' }}>
           <ShieldCheck size={15} style={{ color: '#10b981' }} />
-          <span>7-Day Money-Back Guarantee • Cancel Anytime • Encrypted Payments</span>
+          <span>Instant Activation • 7-Day Money-Back Guarantee • 256-Bit SSL Encrypted</span>
         </div>
       </div>
     </div>

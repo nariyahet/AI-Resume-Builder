@@ -5,6 +5,10 @@ import { initDB } from './config/db.js';
 import authRoutes from './routes/authRoutes.js';
 import resumeRoutes from './routes/resumeRoutes.js';
 import aiRoutes from './routes/aiRoutes.js';
+import jobTrackerRoutes from './routes/jobTrackerRoutes.js';
+import coverLetterRoutes from './routes/coverLetterRoutes.js';
+import billingRoutes from './routes/billingRoutes.js';
+import adminRoutes from './routes/adminRoutes.js';
 
 dotenv.config();
 
@@ -13,7 +17,8 @@ const PORT = process.env.PORT || 5000;
 
 // Middleware
 app.use(cors({ origin: '*' }));
-app.use(express.json({ limit: '10mb' }));
+app.use(express.json({ limit: '15mb' }));
+app.use(express.urlencoded({ extended: true, limit: '15mb' }));
 
 // Health Check
 app.get('/api/health', (req, res) => {
@@ -28,6 +33,10 @@ app.get('/api/health', (req, res) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/resumes', resumeRoutes);
 app.use('/api/ai', aiRoutes);
+app.use('/api/tracker', jobTrackerRoutes);
+app.use('/api/cover-letters', coverLetterRoutes);
+app.use('/api/billing', billingRoutes);
+app.use('/api/admin', adminRoutes);
 
 // Global Error Handler
 app.use((err, req, res, next) => {

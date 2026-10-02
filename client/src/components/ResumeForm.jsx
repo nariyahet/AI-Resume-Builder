@@ -10,7 +10,8 @@ import {
   Trash2, 
   Wand2, 
   Loader2,
-  FileSpreadsheet
+  FileSpreadsheet,
+  Award
 } from 'lucide-react';
 import axiosClient from '../api/axiosClient';
 
@@ -271,6 +272,13 @@ export default function ResumeForm({ resume, setResume }) {
         >
           <FolderGit2 size={14} />
           <span>Projects</span>
+        </button>
+        <button 
+          className={`tab-btn ${activeTab === 'custom' ? 'active' : ''}`}
+          onClick={() => setActiveTab('custom')}
+        >
+          <Award size={14} />
+          <span>Custom</span>
         </button>
       </div>
 
@@ -735,6 +743,94 @@ export default function ResumeForm({ resume, setResume }) {
                 </div>
               </div>
             ))}
+          </div>
+        )}
+
+        {/* CUSTOM SECTIONS TAB (Awards, Volunteer, Languages, Certifications) */}
+        {activeTab === 'custom' && (
+          <div className="form-section">
+            <div className="section-header">
+              <span className="section-title">
+                <Award size={18} style={{ color: '#fbbf24' }} />
+                Custom Sections
+              </span>
+              <button 
+                className="btn btn-outline btn-sm"
+                onClick={() => {
+                  setResume(prev => ({
+                    ...prev,
+                    custom_sections: [
+                      ...(prev.custom_sections || []),
+                      { id: `sec-${Date.now()}`, title: '', content: '' }
+                    ]
+                  }));
+                }}
+              >
+                <Plus size={14} />
+                <span>Add Section</span>
+              </button>
+            </div>
+
+            <p style={{ fontSize: '0.8rem', color: '#94a3b8' }}>
+              Add custom headers such as <em>Awards & Honors</em>, <em>Certifications</em>, <em>Publications</em>, <em>Volunteer Work</em>, or <em>Languages</em>.
+            </p>
+
+            {(resume.custom_sections || []).map((sec, index) => (
+              <div key={sec.id || index} className="item-card">
+                <div className="item-card-header">
+                  <strong style={{ color: '#fff', fontSize: '0.9rem' }}>
+                    {sec.title || `Section #${index + 1}`}
+                  </strong>
+                  <button 
+                    className="delete-btn"
+                    onClick={() => {
+                      setResume(prev => ({
+                        ...prev,
+                        custom_sections: prev.custom_sections.filter((_, i) => i !== index)
+                      }));
+                    }}
+                  >
+                    <Trash2 size={14} />
+                  </button>
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">Section Title</label>
+                  <input 
+                    type="text" 
+                    className="form-input" 
+                    placeholder="e.g. Awards & Honors / Certifications / Languages"
+                    value={sec.title || ''}
+                    onChange={(e) => {
+                      const updated = [...(resume.custom_sections || [])];
+                      updated[index] = { ...updated[index], title: e.target.value };
+                      setResume(prev => ({ ...prev, custom_sections: updated }));
+                    }}
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">Content (Bullets or Text)</label>
+                  <textarea 
+                    className="form-textarea"
+                    rows={4}
+                    placeholder="• Gold Medalist in Hackathon 2024\n• AWS Certified Cloud Solutions Architect"
+                    value={sec.content || ''}
+                    onChange={(e) => {
+                      const updated = [...(resume.custom_sections || [])];
+                      updated[index] = { ...updated[index], content: e.target.value };
+                      setResume(prev => ({ ...prev, custom_sections: updated }));
+                    }}
+                  />
+                </div>
+              </div>
+            ))}
+
+            {(resume.custom_sections || []).length === 0 && (
+              <div style={{ textAlign: 'center', padding: '2rem 1rem', color: '#64748b', fontSize: '0.85rem' }}>
+                No custom sections added yet. Click "+ Add Section" above.
+              </div>
+            )}
           </div>
         )}
 

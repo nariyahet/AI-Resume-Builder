@@ -9,6 +9,7 @@ import {
   generateInterviewPrep,
   parseResumeText
 } from '../controllers/aiController.js';
+import { uploadMiddleware, uploadAndParseResume } from '../controllers/uploadController.js';
 
 const router = express.Router();
 
@@ -20,5 +21,8 @@ router.post('/match-jd', matchJobDescription);
 router.post('/generate-cover-letter', generateCoverLetter);
 router.post('/interview-prep', generateInterviewPrep);
 router.post('/parse-resume', parseResumeText);
+
+// 🔴 Real PDF & DOCX File Upload & Parser Endpoint
+router.post('/upload-parse', uploadMiddleware, uploadAndParseResume);
 
 export default router;

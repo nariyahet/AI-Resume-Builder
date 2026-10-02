@@ -12,7 +12,13 @@ import {
   UploadCloud,
   Crown,
   LayoutDashboard,
-  ChevronDown
+  ChevronDown,
+  Briefcase,
+  History,
+  Award,
+  Settings,
+  ShieldCheck,
+  FolderOpen
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
@@ -25,19 +31,26 @@ export default function Navbar({
   onOpenAiKey,
   onOpenJDMatcher,
   onOpenCoverLetter,
+  onOpenCoverLetterManager,
   onOpenInterviewPrep,
+  onOpenInterviewPractice,
   onOpenParser,
   onOpenPricing,
+  onOpenTracker,
+  onOpenVersionHistory,
+  onOpenAccountSettings,
+  onOpenAdminMetrics,
   onDownloadPDF,
   isDownloading,
   atsScore
 }) {
   const { user, logout, geminiKey } = useAuth();
   const [showAiDropdown, setShowAiDropdown] = useState(false);
+  const [showUserDropdown, setShowUserDropdown] = useState(false);
 
   return (
     <header className="navbar">
-      <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
         <div className="logo-group" style={{ cursor: 'pointer' }} onClick={() => onToggleView('editor')}>
           <div className="logo-badge">
             <Sparkles size={18} />
@@ -49,10 +62,30 @@ export default function Navbar({
         <button 
           className={`btn btn-sm ${currentView === 'dashboard' ? 'btn-primary' : 'btn-outline'}`}
           onClick={() => onToggleView(currentView === 'dashboard' ? 'editor' : 'dashboard')}
-          title="Switch between Resume Editor and My Resumes Dashboard"
+          title="Switch between Editor and My Resumes Dashboard"
         >
           <LayoutDashboard size={14} />
-          <span>{currentView === 'dashboard' ? 'Back to Editor' : 'My Resumes'}</span>
+          <span>{currentView === 'dashboard' ? 'Editor' : 'My Resumes'}</span>
+        </button>
+
+        {/* 🟠 Job Application Tracker Button */}
+        <button 
+          className="btn btn-outline btn-sm"
+          onClick={onOpenTracker}
+          title="Job Application Pipeline Tracker"
+        >
+          <Briefcase size={14} style={{ color: '#38bdf8' }} />
+          <span>Job Tracker</span>
+        </button>
+
+        {/* 🔴 Version History Button */}
+        <button 
+          className="btn btn-outline btn-sm"
+          onClick={onOpenVersionHistory}
+          title="Resume Revision History & Restore"
+        >
+          <History size={14} style={{ color: '#a855f7' }} />
+          <span>Versions</span>
         </button>
       </div>
 
@@ -62,10 +95,10 @@ export default function Navbar({
           <button 
             className="btn btn-ai btn-sm"
             onClick={() => setShowAiDropdown(!showAiDropdown)}
-            onBlur={() => setTimeout(() => setShowAiDropdown(false), 200)}
+            onBlur={() => setTimeout(() => setShowAiDropdown(false), 250)}
           >
             <Sparkles size={14} />
-            <span>AI Power Tools</span>
+            <span>AI Suite</span>
             <ChevronDown size={13} />
           </button>
 
@@ -79,7 +112,7 @@ export default function Navbar({
               border: '1px solid #334155',
               borderRadius: 'var(--radius-md)',
               boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.5)',
-              minWidth: '220px',
+              minWidth: '230px',
               zIndex: 60,
               display: 'flex',
               flexDirection: 'column',
@@ -91,7 +124,7 @@ export default function Navbar({
                 onClick={() => { setShowAiDropdown(false); onOpenJDMatcher(); }}
               >
                 <Target size={14} style={{ color: '#38bdf8' }} />
-                <span>🎯 Match with Job (JD)</span>
+                <span>🎯 Safe JD Auto-Tailor</span>
               </button>
 
               <button 
@@ -106,10 +139,28 @@ export default function Navbar({
               <button 
                 className="btn btn-outline btn-sm" 
                 style={{ justifyContent: 'flex-start', border: 'none', padding: '0.5rem 0.75rem' }}
+                onClick={() => { setShowAiDropdown(false); onOpenCoverLetterManager(); }}
+              >
+                <FolderOpen size={14} style={{ color: '#c084fc' }} />
+                <span>📂 Cover Letter Library</span>
+              </button>
+
+              <button 
+                className="btn btn-outline btn-sm" 
+                style={{ justifyContent: 'flex-start', border: 'none', padding: '0.5rem 0.75rem' }}
+                onClick={() => { setShowAiDropdown(false); onOpenInterviewPractice(); }}
+              >
+                <Award size={14} style={{ color: '#fbbf24' }} />
+                <span>🎤 Interview Practice Mode</span>
+              </button>
+
+              <button 
+                className="btn btn-outline btn-sm" 
+                style={{ justifyContent: 'flex-start', border: 'none', padding: '0.5rem 0.75rem' }}
                 onClick={() => { setShowAiDropdown(false); onOpenInterviewPrep(); }}
               >
                 <MessageSquare size={14} style={{ color: '#10b981' }} />
-                <span>🎤 AI Interview Prep</span>
+                <span>📋 Recruiter Q&A Prep</span>
               </button>
 
               <button 
@@ -118,17 +169,17 @@ export default function Navbar({
                 onClick={() => { setShowAiDropdown(false); onOpenParser(); }}
               >
                 <UploadCloud size={14} style={{ color: '#fbbf24' }} />
-                <span>📄 Import Old Resume</span>
+                <span>📄 Real PDF/DOCX Parser</span>
               </button>
             </div>
           )}
         </div>
 
-        {/* ATS Score Checker */}
+        {/* Advanced ATS Score Checker */}
         <button 
           className="btn btn-outline btn-sm"
           onClick={onOpenATS}
-          title="Check ATS Compatibility Score"
+          title="Check 4-Dimension ATS Compatibility Score"
         >
           <BarChart3 size={14} style={{ color: '#10b981' }} />
           <span>ATS Check {atsScore ? `(${atsScore}%)` : ''}</span>
@@ -138,7 +189,7 @@ export default function Navbar({
         <button 
           className="btn btn-outline btn-sm" 
           onClick={onLoadSample}
-          title="Load rich demo data to test all features"
+          title="Load rich demo profile"
         >
           <FileText size={14} />
           <span>Demo Data</span>
@@ -149,42 +200,90 @@ export default function Navbar({
           className="btn btn-outline btn-sm"
           onClick={onOpenPricing}
           style={{ borderColor: '#eab308', color: '#fef08a' }}
-          title="View Pro AI Plans & Pricing"
+          title="Razorpay / Stripe Subscriptions"
         >
           <Crown size={14} style={{ color: '#fbbf24' }} />
-          <span>Pro Suite</span>
-        </button>
-
-        {/* AI Key config button */}
-        <button 
-          className="btn btn-outline btn-sm"
-          onClick={onOpenAiKey}
-          title="Configure Google Gemini API Key"
-        >
-          <Key size={14} style={{ color: geminiKey ? '#10b981' : '#f59e0b' }} />
-          <span>{geminiKey ? 'Gemini Active' : 'AI Key'}</span>
+          <span>Pro Tier</span>
         </button>
 
         {/* PDF Download Button */}
         <button 
-          className="btn btn-primary"
+          className="btn btn-primary btn-sm"
           onClick={onDownloadPDF}
           disabled={isDownloading}
           id="btn-download-pdf"
         >
-          <Download size={16} />
-          <span>{isDownloading ? 'Generating...' : 'Download PDF'}</span>
+          <Download size={14} />
+          <span>{isDownloading ? 'Exporting...' : 'PDF'}</span>
         </button>
 
-        {/* Auth status / Login */}
+        {/* Auth / Settings Dropdown */}
         {user ? (
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <span style={{ fontSize: '0.825rem', color: '#94a3b8' }}>
-              Hi, <strong style={{ color: '#fff' }}>{user.name}</strong>
-            </span>
-            <button className="btn btn-outline btn-sm" onClick={logout}>
-              Logout
+          <div style={{ position: 'relative' }}>
+            <button 
+              className="btn btn-outline btn-sm"
+              onClick={() => setShowUserDropdown(!showUserDropdown)}
+              onBlur={() => setTimeout(() => setShowUserDropdown(false), 250)}
+            >
+              <User size={13} />
+              <strong style={{ color: '#fff' }}>{user.name.split(' ')[0]}</strong>
+              <ChevronDown size={12} />
             </button>
+
+            {showUserDropdown && (
+              <div style={{
+                position: 'absolute',
+                top: '100%',
+                right: 0,
+                marginTop: '6px',
+                background: '#1e293b',
+                border: '1px solid #334155',
+                borderRadius: 'var(--radius-md)',
+                boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.5)',
+                minWidth: '190px',
+                zIndex: 60,
+                display: 'flex',
+                flexDirection: 'column',
+                padding: '0.4rem'
+              }}>
+                <button 
+                  className="btn btn-outline btn-sm"
+                  style={{ justifyContent: 'flex-start', border: 'none', padding: '0.45rem 0.65rem' }}
+                  onClick={() => { setShowUserDropdown(false); onOpenAccountSettings(); }}
+                >
+                  <Settings size={13} />
+                  <span>Account & Quotas</span>
+                </button>
+
+                <button 
+                  className="btn btn-outline btn-sm"
+                  style={{ justifyContent: 'flex-start', border: 'none', padding: '0.45rem 0.65rem' }}
+                  onClick={() => { setShowUserDropdown(false); onOpenAdminMetrics(); }}
+                >
+                  <ShieldCheck size={13} style={{ color: '#a855f7' }} />
+                  <span>Admin Dashboard</span>
+                </button>
+
+                <button 
+                  className="btn btn-outline btn-sm"
+                  style={{ justifyContent: 'flex-start', border: 'none', padding: '0.45rem 0.65rem' }}
+                  onClick={() => { setShowUserDropdown(false); onOpenAiKey(); }}
+                >
+                  <Key size={13} style={{ color: '#f59e0b' }} />
+                  <span>Gemini API Key</span>
+                </button>
+
+                <div style={{ borderTop: '1px solid #334155', margin: '0.2rem 0' }} />
+
+                <button 
+                  className="btn btn-outline btn-sm"
+                  style={{ justifyContent: 'flex-start', border: 'none', padding: '0.45rem 0.65rem', color: '#ef4444' }}
+                  onClick={logout}
+                >
+                  <span>Sign Out</span>
+                </button>
+              </div>
+            )}
           </div>
         ) : (
           <button className="btn btn-outline btn-sm" onClick={onOpenAuth}>

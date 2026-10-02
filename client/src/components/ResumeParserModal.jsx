@@ -6,54 +6,63 @@ import {
   Sparkles, 
   Loader2, 
   Check, 
-  AlertCircle 
+  AlertCircle,
+  FileCheck
 } from 'lucide-react';
 import axiosClient from '../api/axiosClient';
 
 export default function ResumeParserModal({ isOpen, onClose, onParsedSuccess }) {
+  const [selectedFile, setSelectedFile] = useState(null);
   const [rawText, setRawText] = useState('');
-  const [fileName, setFileName] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
   if (!isOpen) return null;
 
-  const handleFileUpload = (e) => {
+  const handleFileChange = (e) => {
     const file = e.target.files?.[0];
-    if (!file) return;
-    setFileName(file.name);
-    setError('');
-
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const content = event.target?.result;
-      if (typeof content === 'string') {
-        setRawText(content);
-      }
-    };
-    reader.onerror = () => {
-      setError('Failed to read file contents.');
-    };
-    reader.readAsText(file);
+    if (file) {
+      setSelectedFile(file);
+      setError('');
+    }
   };
 
   const handleParse = async () => {
-    if (!rawText.trim()) return;
     setLoading(true);
     setError('');
 
     try {
-      const res = await axiosClient.post('/ai/parse-resume', {
-        resumeText: rawText
-      });
-      if (res.data?.success && res.data.resume) {
-        onParsedSuccess(res.data.resume);
-        onClose();
+      if (selectedFile) {
+        // Send actual binary file to backend multer + pdf-parse + mammoth endpoint
+        const formData = new FormData();
+        formData.append('resumeFile', selectedFile);
+
+        const res = await axiosClient.post('/ai/upload-parse', formData, {
+          headers: { 'Content-Type': 'multipart/form-data' }
+        });
+
+        if (res.data?.success && res.data.resume) {
+          onParsedSuccess(res.data.resume);
+          onClose();
+        } else {
+          setError(res.data?.message || 'Failed to extract structure from file.');
+        }
+      } else if (rawText.trim()) {
+        // Fallback text parser
+        const res = await axiosClient.post('/ai/parse-resume', {
+          resumeText: rawText
+        });
+        if (res.data?.success && res.data.resume) {
+          onParsedSuccess(res.data.resume);
+          onClose();
+        } else {
+          setError('Failed to parse text.');
+        }
       } else {
-        setError('Failed to parse resume structure.');
+        setError('Please select a PDF/DOCX file or paste resume text.');
       }
     } catch (err) {
-      setError('AI Parsing error. Please try again.');
+      setError(err.response?.data?.message || 'Failed to parse resume document.');
     } finally {
       setLoading(false);
     }
@@ -65,7 +74,7 @@ export default function ResumeParserModal({ isOpen, onClose, onParsedSuccess }) 
         <div className="modal-header">
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
             <UploadCloud size={20} style={{ color: '#38bdf8' }} />
-            <h3 className="modal-title">Smart Resume Importer & Parser</h3>
+            <h3 className="modal-title">Real PDF & DOCX Resume Parser</h3>
           </div>
           <button className="delete-btn" onClick={onClose} style={{ color: '#94a3b8' }}>
             <X size={20} />
@@ -73,7 +82,7 @@ export default function ResumeParserModal({ isOpen, onClose, onParsedSuccess }) 
         </div>
 
         <p style={{ fontSize: '0.825rem', color: '#94a3b8' }}>
-          Upload your existing resume file or paste raw text. AI will automatically extract your contact info, experience, skills, and education to populate the editor!
+          Upload your actual <strong>.pdf</strong> or <strong>.docx</strong> file directly. Our backend parser (pdf-parse + mammoth) will extract the raw binary document and AI will auto-populate your entire resume!
         </p>
 
         {error && (
@@ -83,61 +92,78 @@ export default function ResumeParserModal({ isOpen, onClose, onParsedSuccess }) 
           </div>
         )}
 
-        {/* File Drag/Drop or Select */}
+        {/* Real File Upload Drop Zone */}
         <label style={{
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
           justifyContent: 'center',
-          border: '2px dashed #334155',
+          border: selectedFile ? '2px solid #10b981' : '2px dashed #334155',
           borderRadius: 'var(--radius-md)',
           padding: '1.75rem 1rem',
           cursor: 'pointer',
-          background: 'rgba(30, 41, 59, 0.4)',
-          transition: 'border-color 0.2s'
+          background: selectedFile ? 'rgba(16, 185, 129, 0.08)' : 'rgba(30, 41, 59, 0.4)',
+          transition: 'all 0.2s'
         }}>
-          <UploadCloud size={32} style={{ color: '#94a3b8', marginBottom: '0.5rem' }} />
-          <span style={{ fontSize: '0.85rem', fontWeight: 600, color: '#f1f5f9' }}>
-            {fileName ? `Selected: ${fileName}` : 'Click to Upload Resume (.txt, .md, text files)'}
-          </span>
-          <span style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '0.2rem' }}>
-            or paste your text directly in the box below
-          </span>
+          {selectedFile ? (
+            <>
+              <FileCheck size={36} style={{ color: '#10b981', marginBottom: '0.5rem' }} />
+              <span style={{ fontSize: '0.9rem', fontWeight: 700, color: '#fff' }}>
+                {selectedFile.name}
+              </span>
+              <span style={{ fontSize: '0.75rem', color: '#a7f3d0', marginTop: '0.2rem' }}>
+                {(selectedFile.size / 1024).toFixed(1)} KB • Ready for extraction
+              </span>
+            </>
+          ) : (
+            <>
+              <UploadCloud size={36} style={{ color: '#38bdf8', marginBottom: '0.5rem' }} />
+              <span style={{ fontSize: '0.875rem', fontWeight: 600, color: '#f1f5f9' }}>
+                Click to Upload PDF or Word (.docx) File
+              </span>
+              <span style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '0.2rem' }}>
+                Supports standard binary PDF, Word (.docx), and text files
+              </span>
+            </>
+          )}
+
           <input 
             type="file" 
-            accept=".txt,.md,.json,.doc,.docx"
+            accept=".pdf,.docx,.doc,.txt"
             style={{ display: 'none' }}
-            onChange={handleFileUpload}
+            onChange={handleFileChange}
           />
         </label>
 
-        {/* Or Paste Raw Text */}
-        <div className="form-group">
-          <label className="form-label">Or Paste Resume Text</label>
-          <textarea 
-            className="form-textarea"
-            rows={6}
-            placeholder="Paste complete resume text here..."
-            value={rawText}
-            onChange={(e) => setRawText(e.target.value)}
-          />
-        </div>
+        {/* Or Text Alternative */}
+        {!selectedFile && (
+          <div className="form-group">
+            <label className="form-label">Or Paste Raw Resume Text</label>
+            <textarea 
+              className="form-textarea"
+              rows={4}
+              placeholder="Paste plain resume text here if you don't have the file..."
+              value={rawText}
+              onChange={(e) => setRawText(e.target.value)}
+            />
+          </div>
+        )}
 
         <button 
           className="btn btn-ai"
           style={{ width: '100%', justifyContent: 'center', padding: '0.75rem' }}
           onClick={handleParse}
-          disabled={loading || !rawText.trim()}
+          disabled={loading || (!selectedFile && !rawText.trim())}
         >
           {loading ? (
             <>
               <Loader2 size={16} className="animate-spin" />
-              <span>Extracting Experience, Skills & Education...</span>
+              <span>Parsing Binary Document & Mapping Resume Fields...</span>
             </>
           ) : (
             <>
               <Sparkles size={16} />
-              <span>Parse & Populate Editor</span>
+              <span>Extract & Populate Editor</span>
             </>
           )}
         </button>

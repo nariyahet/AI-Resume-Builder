@@ -9,8 +9,14 @@ import AiKeyModal from './components/AiKeyModal';
 import Dashboard from './components/Dashboard';
 import JDMatcherModal from './components/JDMatcherModal';
 import CoverLetterModal from './components/CoverLetterModal';
+import CoverLetterManagerModal from './components/CoverLetterManagerModal';
 import InterviewPrepModal from './components/InterviewPrepModal';
+import InterviewPracticeModal from './components/InterviewPracticeModal';
 import ResumeParserModal from './components/ResumeParserModal';
+import VersionHistoryModal from './components/VersionHistoryModal';
+import JobTrackerModal from './components/JobTrackerModal';
+import AccountSettingsModal from './components/AccountSettingsModal';
+import AdminDashboardModal from './components/AdminDashboardModal';
 import ShareModal from './components/ShareModal';
 import PricingModal from './components/PricingModal';
 import { sampleResume, emptyResume } from './data/sampleResume';
@@ -43,11 +49,16 @@ export default function App() {
   const [showAiKeyModal, setShowAiKeyModal] = useState(false);
   const [showJDMatcher, setShowJDMatcher] = useState(false);
   const [showCoverLetter, setShowCoverLetter] = useState(false);
+  const [showCoverLetterManager, setShowCoverLetterManager] = useState(false);
   const [showInterviewPrep, setShowInterviewPrep] = useState(false);
+  const [showInterviewPractice, setShowInterviewPractice] = useState(false);
   const [showParser, setShowParser] = useState(false);
   const [showShare, setShowShare] = useState(false);
-  const [shareResumeId, setShareResumeId] = useState(null);
   const [showPricing, setShowPricing] = useState(false);
+  const [showTracker, setShowTracker] = useState(false);
+  const [showVersionHistory, setShowVersionHistory] = useState(false);
+  const [showAccountSettings, setShowAccountSettings] = useState(false);
+  const [showAdminMetrics, setShowAdminMetrics] = useState(false);
   const [saveStatus, setSaveStatus] = useState('');
 
   // Check URL params for public web resume view (?view=ID)
@@ -95,20 +106,28 @@ export default function App() {
   };
 
   // Open share modal
-  const handleOpenShare = (resumeId) => {
-    setShareResumeId(resumeId || resume.id);
+  const handleOpenShare = () => {
     setShowShare(true);
   };
 
-  // Successful parse from old resume file
+  // Successful parse from old binary PDF/DOCX file
   const handleParsedSuccess = (parsedData) => {
+    // 🔴 Save version history snapshot before replacing
+    const snapshot = {
+      id: `v-pre-import-${Date.now()}`,
+      timestamp: new Date().toISOString(),
+      label: 'Pre-Import Original Version',
+      data: { ...resume }
+    };
+
     setResume(prev => ({
       ...prev,
       ...parsedData,
       template_id: prev.template_id,
-      theme_color: prev.theme_color
+      theme_color: prev.theme_color,
+      version_history: [snapshot, ...(prev.version_history || [])]
     }));
-    setSaveStatus('🎉 Resume parsed and imported successfully!');
+    setSaveStatus('🎉 Real Document parsed and imported successfully!');
     setTimeout(() => setSaveStatus(''), 4000);
     setCurrentView('editor');
   };
@@ -155,9 +174,15 @@ export default function App() {
         onOpenAiKey={() => setShowAiKeyModal(true)}
         onOpenJDMatcher={() => setShowJDMatcher(true)}
         onOpenCoverLetter={() => setShowCoverLetter(true)}
+        onOpenCoverLetterManager={() => setShowCoverLetterManager(true)}
         onOpenInterviewPrep={() => setShowInterviewPrep(true)}
+        onOpenInterviewPractice={() => setShowInterviewPractice(true)}
         onOpenParser={() => setShowParser(true)}
         onOpenPricing={() => setShowPricing(true)}
+        onOpenTracker={() => setShowTracker(true)}
+        onOpenVersionHistory={() => setShowVersionHistory(true)}
+        onOpenAccountSettings={() => setShowAccountSettings(true)}
+        onOpenAdminMetrics={() => setShowAdminMetrics(true)}
         onDownloadPDF={handleDownloadPDF}
         isDownloading={isDownloading}
         atsScore={resume.ats_score}
@@ -203,7 +228,7 @@ export default function App() {
         </main>
       )}
 
-      {/* MODALS */}
+      {/* 🔴 P1 ADVANCED ATS MODAL */}
       <ATSScoreModal 
         isOpen={showAtsModal} 
         onClose={() => setShowAtsModal(false)} 
@@ -211,6 +236,7 @@ export default function App() {
         setResume={setResume}
       />
 
+      {/* 🔴 P1 SAFE JD MATCHER & AUTO-TAILOR */}
       <JDMatcherModal
         isOpen={showJDMatcher}
         onClose={() => setShowJDMatcher(false)}
@@ -218,34 +244,81 @@ export default function App() {
         setResume={setResume}
       />
 
-      <CoverLetterModal
-        isOpen={showCoverLetter}
-        onClose={() => setShowCoverLetter(false)}
+      {/* 🔴 P1 VERSION HISTORY & RESTORE */}
+      <VersionHistoryModal
+        isOpen={showVersionHistory}
+        onClose={() => setShowVersionHistory(false)}
         resume={resume}
+        setResume={setResume}
       />
 
-      <InterviewPrepModal
-        isOpen={showInterviewPrep}
-        onClose={() => setShowInterviewPrep(false)}
-        resume={resume}
-      />
-
+      {/* 🔴 P1 REAL PDF/DOCX BINARY PARSER */}
       <ResumeParserModal
         isOpen={showParser}
         onClose={() => setShowParser(false)}
         onParsedSuccess={handleParsedSuccess}
       />
 
+      {/* 🟠 P2 JOB APPLICATION TRACKER */}
+      <JobTrackerModal
+        isOpen={showTracker}
+        onClose={() => setShowTracker(false)}
+      />
+
+      {/* 🟠 P2 INTERVIEW PRACTICE MODE */}
+      <InterviewPracticeModal
+        isOpen={showInterviewPractice}
+        onClose={() => setShowInterviewPractice(false)}
+        resume={resume}
+      />
+
+      {/* 🟠 P2 COVER LETTER GENERATOR & LIBRARY */}
+      <CoverLetterModal
+        isOpen={showCoverLetter}
+        onClose={() => setShowCoverLetter(false)}
+        resume={resume}
+      />
+
+      <CoverLetterManagerModal
+        isOpen={showCoverLetterManager}
+        onClose={() => setShowCoverLetterManager(false)}
+        onOpenGenerator={() => setShowCoverLetter(true)}
+      />
+
+      {/* 🟠 P2 RESUME ANALYTICS & PUBLIC LINK CONTROLS */}
       <ShareModal
         isOpen={showShare}
         onClose={() => setShowShare(false)}
-        resumeId={shareResumeId || resume.id}
-        resumeTitle={resume.title}
+        resume={resume}
+        setResume={setResume}
       />
 
+      {/* 🟡 P3 REAL FREE/PRO & RAZORPAY + STRIPE */}
       <PricingModal
         isOpen={showPricing}
         onClose={() => setShowPricing(false)}
+        onUpgradedSuccess={() => {
+          setSaveStatus('🎉 Pro Plan Activated! All limits removed.');
+          setTimeout(() => setSaveStatus(''), 4000);
+        }}
+      />
+
+      {/* 🟡 P3 ACCOUNT SETTINGS & BILLING HISTORY */}
+      <AccountSettingsModal
+        isOpen={showAccountSettings}
+        onClose={() => setShowAccountSettings(false)}
+      />
+
+      {/* 🟡 P3 ADMIN DASHBOARD */}
+      <AdminDashboardModal
+        isOpen={showAdminMetrics}
+        onClose={() => setShowAdminMetrics(false)}
+      />
+
+      <InterviewPrepModal
+        isOpen={showInterviewPrep}
+        onClose={() => setShowInterviewPrep(false)}
+        resume={resume}
       />
 
       <AuthModal 

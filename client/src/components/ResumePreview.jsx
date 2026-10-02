@@ -11,8 +11,10 @@ import {
   Type, 
   MoveVertical,
   Download,
+  FileText,
   Link as LinkIcon
 } from 'lucide-react';
+import { exportResumeToDocx } from '../utils/docxExport';
 
 export default function ResumePreview({ resume, setResume }) {
   const [scale, setScale] = useState(1);
@@ -204,6 +206,15 @@ export default function ResumePreview({ resume, setResume }) {
             title="Zoom In"
           >
             <ZoomIn size={12} />
+          </button>
+
+          <button 
+            className="btn btn-outline btn-sm"
+            onClick={() => exportResumeToDocx(resume)}
+            title="Export editable Microsoft Word document (.docx)"
+            style={{ borderColor: '#38bdf8', color: '#38bdf8', fontWeight: 600 }}
+          >
+            <FileText size={12} /> .DOCX
           </button>
 
           <button 
@@ -501,6 +512,20 @@ export default function ResumePreview({ resume, setResume }) {
                     </div>
                   ))}
                 </section>
+              )}
+
+              {/* CUSTOM SECTIONS (Awards, Publications, Volunteer, etc.) */}
+              {resume.custom_sections && resume.custom_sections.length > 0 && (
+                resume.custom_sections.map((sec, i) => (
+                  <section key={sec.id || i} className="resume-section">
+                    <h2 className="resume-section-title">
+                      {template_id === 'harvard' ? (sec.title || 'ADDITIONAL SECTION').toUpperCase() : (sec.title || 'Additional Section')}
+                    </h2>
+                    <div className="resume-item-desc" style={{ whiteSpace: 'pre-line' }}>
+                      {sec.content}
+                    </div>
+                  </section>
+                ))
               )}
             </>
           )}
