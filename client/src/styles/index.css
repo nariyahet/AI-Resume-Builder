@@ -104,16 +104,67 @@ body {
 /* App Header & Navbar */
 .navbar {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0.85rem 1.75rem;
+  flex-direction: column;
   background: var(--navbar-bg);
   backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
   border-bottom: 1px solid var(--border-color);
   position: sticky;
   top: 0;
   z-index: 50;
   transition: all 0.25s ease;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+.navbar-desktop-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.85rem 1.75rem;
+  width: 100%;
+}
+
+.navbar-compact-container {
+  display: none;
+  width: 100%;
+  flex-direction: column;
+}
+
+.navbar-compact-row1 {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.65rem 1.25rem;
+  width: 100%;
+}
+
+.compact-row1-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.compact-download-menu {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  margin-top: 6px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+  min-width: 185px;
+  max-width: 90vw;
+  z-index: 1100;
+  display: flex;
+  flex-direction: column;
+  padding: 0.35rem;
+}
+
+.navbar-feature-strip {
+  display: none;
 }
 
 .logo-group {
@@ -245,8 +296,9 @@ body {
   border-bottom: 1px solid var(--border-color);
   padding: 0.45rem 0.75rem;
   gap: 0.5rem;
-  position: sticky;
-  top: 56px;
+  position: relative;
+  top: 0;
+  margin: 0;
   z-index: 40;
 }
 
@@ -930,7 +982,13 @@ body {
 /* ============================================================== */
 @media (max-width: 1080px) {
   .navbar {
-    padding: 0.7rem 1rem;
+    padding: 0;
+  }
+  .navbar-desktop-row {
+    display: none !important;
+  }
+  .navbar-compact-container {
+    display: flex !important;
   }
   .logo-group {
     font-size: 1.15rem;
@@ -948,14 +1006,17 @@ body {
   }
   .mobile-view-bar {
     display: flex !important;
+    position: relative !important;
+    top: 0 !important;
+    margin: 0 !important;
   }
   .workspace-wrapper {
-    height: calc(100vh - 60px);
+    height: calc(100vh - 98px);
   }
   .workspace-container {
     display: block !important;
     flex: 1;
-    height: calc(100% - 50px) !important;
+    height: calc(100% - 44px) !important;
     overflow: hidden !important;
     width: 100% !important;
   }
@@ -1005,6 +1066,53 @@ body {
     box-sizing: border-box !important;
   }
 }
+
+/* Tablet / Half-Screen Feature Strip (~600px - 1080px) */
+@media (max-width: 1080px) and (min-width: 600px) {
+  .navbar-feature-strip {
+    display: flex !important;
+    flex-direction: row;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.45rem 1rem;
+    background: var(--bg-pane);
+    border-top: 1px solid var(--border-color);
+    overflow-x: auto;
+    overflow-y: hidden;
+    white-space: nowrap;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+    width: 100%;
+    box-sizing: border-box;
+  }
+  .navbar-feature-strip::-webkit-scrollbar {
+    display: none;
+  }
+  .strip-btn {
+    flex-shrink: 0;
+    white-space: nowrap;
+    font-size: 0.775rem;
+    padding: 0.35rem 0.65rem;
+  }
+  .workspace-wrapper {
+    height: calc(100vh - 98px);
+  }
+}
+
+/* Small Phones (< 600px): Strip hidden, hamburger drawer handles all */
+@media (max-width: 599px) {
+  .navbar-feature-strip {
+    display: none !important;
+  }
+  .navbar-compact-row1 {
+    padding: 0.55rem 0.75rem;
+  }
+  .workspace-wrapper {
+    height: calc(100vh - 56px);
+  }
+}
+
 
 @media (max-width: 640px) {
   .form-grid-2 {
