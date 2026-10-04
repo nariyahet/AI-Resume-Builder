@@ -94,7 +94,7 @@ export default function AccountSettingsModal({ isOpen, onClose }) {
         </div>
 
         {/* Tabs */}
-        <div style={{ display: 'flex', gap: '0.5rem', borderBottom: '1px solid #334155', paddingBottom: '0.5rem' }}>
+        <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', borderBottom: '1px solid #334155', paddingBottom: '0.5rem' }}>
           <button 
             className={`btn btn-sm ${activeTab === 'profile' ? 'btn-primary' : 'btn-outline'}`}
             onClick={() => setActiveTab('profile')}
@@ -175,7 +175,7 @@ export default function AccountSettingsModal({ isOpen, onClose }) {
         {activeTab === 'billing' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
             {/* Current Plan Badge */}
-            <div style={{ background: '#111827', border: '1px solid #334155', borderRadius: 'var(--radius-md)', padding: '1.25rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div style={{ background: '#111827', border: '1px solid #334155', borderRadius: 'var(--radius-md)', padding: '1.25rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.75rem' }}>
               <div>
                 <span style={{ fontSize: '0.75rem', color: '#94a3b8', textTransform: 'uppercase', fontWeight: 700 }}>
                   Active Subscription
@@ -191,7 +191,7 @@ export default function AccountSettingsModal({ isOpen, onClose }) {
 
             {/* AI Quotas Progress Bar */}
             <div style={{ background: '#111827', border: '1px solid #334155', borderRadius: 'var(--radius-md)', padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.825rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.5rem', fontSize: '0.825rem' }}>
                 <span style={{ color: '#cbd5e1', display: 'flex', alignItems: 'center', gap: '4px' }}>
                   <Zap size={14} style={{ color: '#eab308' }} /> Daily AI Generations Quota
                 </span>
@@ -217,7 +217,7 @@ export default function AccountSettingsModal({ isOpen, onClose }) {
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                   {billingData?.payments?.map(p => (
-                    <div key={p.id} style={{ background: '#111827', border: '1px solid #334155', borderRadius: 'var(--radius-sm)', padding: '0.65rem 0.85rem', display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem' }}>
+                    <div key={p.id} style={{ background: '#111827', border: '1px solid #334155', borderRadius: 'var(--radius-sm)', padding: '0.65rem 0.85rem', display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.4rem', fontSize: '0.8rem' }}>
                       <div>
                         <strong style={{ color: '#fff' }}>{p.plan}</strong>
                         <span style={{ color: '#64748b', marginLeft: '6px' }}>({p.gateway})</span>

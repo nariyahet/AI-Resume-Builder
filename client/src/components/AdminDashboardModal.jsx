@@ -56,7 +56,7 @@ export default function AdminDashboardModal({ isOpen, onClose }) {
         </p>
 
         {/* 6 Metric KPI Cards */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: '1rem', marginTop: '1rem' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))', gap: '1rem', marginTop: '1rem' }}>
           
           <div style={{ background: '#111827', border: '1px solid #334155', borderRadius: 'var(--radius-md)', padding: '1.25rem' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', color: '#38bdf8' }}>

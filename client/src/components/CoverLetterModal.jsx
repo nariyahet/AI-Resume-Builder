@@ -147,9 +147,9 @@ export default function CoverLetterModal({ isOpen, onClose, resume }) {
 
         {coverLetter && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginTop: '0.75rem' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
               <span style={{ fontSize: '0.8rem', fontWeight: 600, color: '#94a3b8' }}>Generated Cover Letter (Editable):</span>
-              <div style={{ display: 'flex', gap: '0.4rem' }}>
+              <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
                 <button className="btn btn-outline btn-sm" onClick={handleCopy}>
                   {copied ? <><Check size={13} style={{ color: '#10b981' }} /> Copied!</> : <><Copy size={13} /> Copy</>}
                 </button>

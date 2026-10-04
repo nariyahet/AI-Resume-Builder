@@ -87,9 +87,11 @@ export default function ATSScoreModal({ isOpen, onClose, resume, setResume }) {
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'space-between',
+              flexWrap: 'wrap',
+              gap: '0.75rem',
               background: 'rgba(16, 185, 129, 0.1)',
               border: '1px solid rgba(16, 185, 129, 0.25)',
-              padding: '1.25rem 1.5rem',
+              padding: '1.15rem 1.25rem',
               borderRadius: 'var(--radius-md)'
             }}>
               <div>

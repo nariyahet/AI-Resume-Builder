@@ -17,29 +17,31 @@ import {
 import { exportResumeToDocx } from '../utils/docxExport';
 
 export default function ResumePreview({ resume, setResume }) {
-  // Mobile-responsive default scale
-  const [scale, setScale] = useState(() => {
-    if (typeof window !== 'undefined') {
-      const w = window.innerWidth;
-      if (w <= 420) return 0.44;
-      if (w <= 640) return 0.52;
-      if (w <= 900) return 0.72;
+  // Mobile & desktop auto-fit scale calculator
+  const getAutoFitScale = () => {
+    if (typeof window === 'undefined') return 1;
+    const w = window.innerWidth;
+    if (w <= 900) {
+      const avail = Math.max(260, w - 24);
+      return Math.min(1, Number((avail / 794).toFixed(2)));
+    } else {
+      const avail = Math.max(300, w - 530 - 48);
+      return Math.min(1.1, Math.max(0.65, Number((avail / 794).toFixed(2))));
     }
-    return 1;
-  });
+  };
+
+  const [scale, setScale] = useState(() => getAutoFitScale());
   const [fontFamily, setFontFamily] = useState('Inter');
   const [spacingDensity, setSpacingDensity] = useState('normal'); // 'compact', 'normal', 'relaxed'
 
-  // Auto-adapt scale on screen resize if not explicitly zoomed by user
+  // Auto-adapt scale on screen resize
   React.useEffect(() => {
     const handleResize = () => {
-      const w = window.innerWidth;
-      if (w <= 420 && scale > 0.6) setScale(0.44);
-      else if (w <= 640 && scale > 0.75) setScale(0.52);
+      setScale(getAutoFitScale());
     };
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
-  }, [scale]);
+  }, []);
 
   const colors = [
     { name: 'Royal Blue', hex: '#2563eb' },
@@ -229,13 +231,7 @@ export default function ResumePreview({ resume, setResume }) {
           </button>
           <button 
             className="btn btn-outline btn-sm"
-            onClick={() => {
-              const w = window.innerWidth;
-              if (w <= 420) setScale(0.44);
-              else if (w <= 640) setScale(0.52);
-              else if (w <= 900) setScale(0.72);
-              else setScale(1.0);
-            }}
+            onClick={() => setScale(getAutoFitScale())}
             title="Auto-Fit to Screen"
             style={{ fontSize: '0.7rem', padding: '0.2rem 0.45rem' }}
           >

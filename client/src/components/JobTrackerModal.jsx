@@ -109,8 +109,8 @@ export default function JobTrackerModal({ isOpen, onClose }) {
           </button>
         </div>
 
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <p style={{ fontSize: '0.825rem', color: '#94a3b8' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.75rem' }}>
+          <p style={{ fontSize: '0.825rem', color: '#94a3b8', flex: '1 1 200px' }}>
             Track your job hunt pipeline across applied companies, interview dates, and offer letters.
           </p>
           <button className="btn btn-primary btn-sm" onClick={() => setShowAddForm(!showAddForm)}>
@@ -257,9 +257,9 @@ export default function JobTrackerModal({ isOpen, onClose }) {
                       {app.role} {app.location ? `• ${app.location}` : ''} {app.salary ? `• ${app.salary}` : ''}
                     </div>
 
-                    <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '0.35rem', display: 'flex', gap: '0.75rem' }}>
+                    <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '0.35rem', display: 'flex', gap: '0.5rem', flexWrap: 'wrap', wordBreak: 'break-word' }}>
                       <span>Applied: {app.applied_date}</span>
-                      {app.notes && <span>Notes: {app.notes}</span>}
+                      {app.notes && <span>• Notes: {app.notes}</span>}
                     </div>
                   </div>
 

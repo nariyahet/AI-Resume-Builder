@@ -86,13 +86,14 @@ export default function VersionHistoryModal({
         )}
 
         {/* Create Manual Snapshot */}
-        <div style={{ display: 'flex', gap: '0.5rem', background: '#111827', padding: '0.75rem', borderRadius: 'var(--radius-md)', border: '1px solid #334155' }}>
+        <div style={{ display: 'flex', gap: '0.5rem', background: '#111827', padding: '0.75rem', borderRadius: 'var(--radius-md)', border: '1px solid #334155', flexWrap: 'wrap' }}>
           <input 
             type="text" 
             className="form-input" 
             placeholder="Label for current version (e.g. Original Before AI JD Tailor)"
             value={snapshotLabel}
             onChange={(e) => setSnapshotLabel(e.target.value)}
+            style={{ flex: '1 1 200px' }}
           />
           <button className="btn btn-primary" onClick={handleSaveSnapshot} style={{ flexShrink: 0 }}>
             <BookmarkPlus size={15} />
@@ -126,7 +127,8 @@ export default function VersionHistoryModal({
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'space-between',
-                  gap: '1rem'
+                  flexWrap: 'wrap',
+                  gap: '0.75rem'
                 }}
               >
                 <div>

@@ -434,8 +434,8 @@ export default function ResumeForm({ resume, setResume, onSwitchToPreview }) {
 
             {/* EXECUTIVE SUMMARY */}
             <div className="form-group" style={{ marginTop: '0.5rem' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <label className="form-label">Professional Summary</label>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.4rem' }}>
+                <label className="form-label" style={{ marginBottom: 0 }}>Professional Summary</label>
                 <button 
                   className="btn btn-ai btn-sm"
                   onClick={handleEnhanceSummary}
@@ -456,7 +456,7 @@ export default function ResumeForm({ resume, setResume, onSwitchToPreview }) {
             </div>
 
             {/* Step Navigation */}
-            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '1.25rem', paddingTop: '1rem', borderTop: '1px solid var(--border-color)' }}>
+            <div className="step-nav-bar" style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '1.25rem', paddingTop: '1rem', borderTop: '1px solid var(--border-color)', flexWrap: 'wrap', gap: '0.5rem' }}>
               <button 
                 type="button"
                 className="btn btn-primary"
@@ -543,8 +543,8 @@ export default function ResumeForm({ resume, setResume, onSwitchToPreview }) {
                 </div>
 
                 <div className="form-group">
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <label className="form-label">Key Responsibilities & Achievements</label>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.4rem' }}>
+                    <label className="form-label" style={{ marginBottom: 0 }}>Key Responsibilities & Achievements</label>
                     <button 
                       className="btn btn-ai btn-sm"
                       onClick={() => handleEnhanceBullets(index, exp)}
@@ -573,7 +573,7 @@ export default function ResumeForm({ resume, setResume, onSwitchToPreview }) {
             )}
 
             {/* Step Navigation */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '1.25rem', paddingTop: '1rem', borderTop: '1px solid var(--border-color)' }}>
+            <div className="step-nav-bar" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '1.25rem', paddingTop: '1rem', borderTop: '1px solid var(--border-color)', flexWrap: 'wrap', gap: '0.5rem' }}>
               <button 
                 type="button" 
                 className="btn btn-outline btn-sm"
@@ -648,7 +648,7 @@ export default function ResumeForm({ resume, setResume, onSwitchToPreview }) {
             </div>
 
             {/* Step Navigation */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '1.25rem', paddingTop: '1rem', borderTop: '1px solid var(--border-color)' }}>
+            <div className="step-nav-bar" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '1.25rem', paddingTop: '1rem', borderTop: '1px solid var(--border-color)', flexWrap: 'wrap', gap: '0.5rem' }}>
               <button 
                 type="button" 
                 className="btn btn-outline btn-sm"
@@ -739,7 +739,7 @@ export default function ResumeForm({ resume, setResume, onSwitchToPreview }) {
             ))}
 
             {/* Step Navigation */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '1.25rem', paddingTop: '1rem', borderTop: '1px solid var(--border-color)' }}>
+            <div className="step-nav-bar" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '1.25rem', paddingTop: '1rem', borderTop: '1px solid var(--border-color)', flexWrap: 'wrap', gap: '0.5rem' }}>
               <button 
                 type="button" 
                 className="btn btn-outline btn-sm"
@@ -819,7 +819,7 @@ export default function ResumeForm({ resume, setResume, onSwitchToPreview }) {
             ))}
 
             {/* Step Navigation */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '1.25rem', paddingTop: '1rem', borderTop: '1px solid var(--border-color)' }}>
+            <div className="step-nav-bar" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '1.25rem', paddingTop: '1rem', borderTop: '1px solid var(--border-color)', flexWrap: 'wrap', gap: '0.5rem' }}>
               <button 
                 type="button" 
                 className="btn btn-outline btn-sm"
@@ -927,7 +927,7 @@ export default function ResumeForm({ resume, setResume, onSwitchToPreview }) {
             )}
 
             {/* Step Navigation */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '1.25rem', paddingTop: '1rem', borderTop: '1px solid var(--border-color)', flexWrap: 'wrap', gap: '0.75rem' }}>
+            <div className="step-nav-bar" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '1.25rem', paddingTop: '1rem', borderTop: '1px solid var(--border-color)', flexWrap: 'wrap', gap: '0.75rem' }}>
               <button 
                 type="button" 
                 className="btn btn-outline btn-sm"

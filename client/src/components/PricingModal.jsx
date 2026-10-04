@@ -79,7 +79,7 @@ export default function PricingModal({ isOpen, onClose, onUpgradedSuccess }) {
         )}
 
         {/* Pricing Cards Grid */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1.25rem', marginTop: '0.5rem' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 240px), 1fr))', gap: '1.25rem', marginTop: '0.5rem' }}>
           
           {/* Free Tier */}
           <div style={{ 

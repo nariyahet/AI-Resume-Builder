@@ -83,7 +83,7 @@ export default function InterviewPrepModal({ isOpen, onClose, resume }) {
           </div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
               <span style={{ fontSize: '0.8rem', color: '#94a3b8', fontWeight: 600 }}>
                 {questions.length} Targeted Questions Generated:
               </span>
@@ -114,10 +114,11 @@ export default function InterviewPrepModal({ isOpen, onClose, resume }) {
                     alignItems: 'center', 
                     justifyContent: 'space-between', 
                     cursor: 'pointer',
+                    gap: '0.5rem',
                     background: expandedIndex === idx ? 'rgba(51, 65, 85, 0.4)' : 'transparent'
                   }}
                 >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', flex: 1, minWidth: 0, flexWrap: 'wrap' }}>
                     <span style={{ 
                       fontSize: '0.7rem', 
                       fontWeight: 700, 
@@ -125,15 +126,16 @@ export default function InterviewPrepModal({ isOpen, onClose, resume }) {
                       borderRadius: '4px',
                       background: q.type === 'Technical' ? 'rgba(59, 130, 246, 0.2)' : 'rgba(168, 85, 247, 0.2)',
                       color: q.type === 'Technical' ? '#60a5fa' : '#c084fc',
-                      textTransform: 'uppercase'
+                      textTransform: 'uppercase',
+                      flexShrink: 0
                     }}>
                       {q.type}
                     </span>
-                    <span style={{ fontSize: '0.875rem', fontWeight: 600, color: '#f1f5f9' }}>
+                    <span style={{ fontSize: '0.875rem', fontWeight: 600, color: '#f1f5f9', wordBreak: 'break-word', flex: 1, minWidth: '160px' }}>
                       {idx + 1}. {q.question}
                     </span>
                   </div>
-                  {expandedIndex === idx ? <ChevronUp size={16} style={{ color: '#94a3b8' }} /> : <ChevronDown size={16} style={{ color: '#94a3b8' }} />}
+                  {expandedIndex === idx ? <ChevronUp size={16} style={{ color: '#94a3b8', flexShrink: 0 }} /> : <ChevronDown size={16} style={{ color: '#94a3b8', flexShrink: 0 }} />}
                 </div>
 
                 {expandedIndex === idx && (

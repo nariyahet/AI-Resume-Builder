@@ -128,6 +128,8 @@ export default function InterviewPracticeModal({ isOpen, onClose, resume }) {
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'space-between',
+              flexWrap: 'wrap',
+              gap: '0.75rem',
               background: 'rgba(251, 191, 36, 0.1)',
               border: '1px solid rgba(251, 191, 36, 0.25)',
               padding: '0.9rem 1.25rem',

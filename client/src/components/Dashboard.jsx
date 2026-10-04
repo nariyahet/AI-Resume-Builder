@@ -101,7 +101,7 @@ export default function Dashboard({
   };
 
   return (
-    <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '2rem 1.5rem', width: '100%' }}>
+    <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '1.5rem 1rem', width: '100%', boxSizing: 'border-box' }}>
       {/* Top Bar */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '2rem', flexWrap: 'wrap', gap: '1rem' }}>
         <div>
@@ -120,7 +120,7 @@ export default function Dashboard({
           </p>
         </div>
 
-        <div style={{ display: 'flex', gap: '0.75rem' }}>
+        <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
           <button className="btn btn-primary" onClick={onCreateNew}>
             <Plus size={16} /> Create New Resume
           </button>
@@ -143,7 +143,7 @@ export default function Dashboard({
           <p style={{ color: '#94a3b8', fontSize: '0.875rem', maxWidth: '450px', margin: '0 auto 1.5rem' }}>
             You haven't saved any resumes yet. Start fresh or use our 1-click sample template to get hired faster!
           </p>
-          <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'center' }}>
+          <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'center', flexWrap: 'wrap' }}>
             <button className="btn btn-primary" onClick={onCreateNew}>
               <Plus size={15} /> Create First Resume
             </button>
@@ -155,7 +155,7 @@ export default function Dashboard({
       ) : (
         <div style={{ 
           display: 'grid', 
-          gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', 
+          gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 280px), 1fr))', 
           gap: '1.5rem' 
         }}>
           {resumes.map(r => (
@@ -215,6 +215,8 @@ export default function Dashboard({
                 display: 'flex', 
                 alignItems: 'center', 
                 justifyContent: 'space-between', 
+                flexWrap: 'wrap',
+                gap: '0.5rem',
                 marginTop: '1.5rem', 
                 paddingTop: '1rem', 
                 borderTop: '1px solid rgba(255,255,255,0.06)' 
@@ -227,7 +229,7 @@ export default function Dashboard({
                   <Edit3 size={13} /> Edit
                 </button>
 
-                <div style={{ display: 'flex', gap: '0.35rem' }}>
+                <div style={{ display: 'flex', gap: '0.35rem', flexWrap: 'wrap' }}>
                   <button 
                     className="btn btn-outline btn-sm"
                     onClick={(e) => { e.stopPropagation(); onOpenShare(r.id); }}

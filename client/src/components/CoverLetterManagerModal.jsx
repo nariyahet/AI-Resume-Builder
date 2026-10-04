@@ -74,7 +74,7 @@ export default function CoverLetterManagerModal({ isOpen, onClose, onOpenGenerat
           </button>
         </div>
 
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.75rem' }}>
           <p style={{ fontSize: '0.825rem', color: '#94a3b8' }}>
             Access and manage all cover letters previously generated for your target companies.
           </p>
@@ -106,9 +106,9 @@ export default function CoverLetterManagerModal({ isOpen, onClose, onOpenGenerat
                   gap: '0.65rem'
                 }}
               >
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.75rem' }}>
                   <div>
-                    <h4 style={{ fontSize: '1rem', fontWeight: 700, color: '#fff' }}>
+                    <h4 style={{ fontSize: '1rem', fontWeight: 700, color: '#fff', wordBreak: 'break-word' }}>
                       {letter.company_name} — <span style={{ color: '#38bdf8' }}>{letter.job_role}</span>
                     </h4>
                     <span style={{ fontSize: '0.75rem', color: '#64748b' }}>
@@ -116,7 +116,7 @@ export default function CoverLetterManagerModal({ isOpen, onClose, onOpenGenerat
                     </span>
                   </div>
 
-                  <div style={{ display: 'flex', gap: '0.35rem' }}>
+                  <div style={{ display: 'flex', gap: '0.35rem', flexWrap: 'wrap' }}>
                     <button 
                       className="btn btn-outline btn-sm"
                       onClick={() => handleCopy(letter.id, letter.letter_content)}

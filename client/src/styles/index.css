@@ -1036,6 +1036,17 @@ body {
   }
 }
 
+@media (max-width: 480px) {
+  .step-nav-bar {
+    flex-direction: column-reverse !important;
+    gap: 0.5rem !important;
+  }
+  .step-nav-bar .btn {
+    width: 100% !important;
+    justify-content: center !important;
+  }
+}
+
 /* PRINT MEDIA CSS */
 @media print {
   body, html {

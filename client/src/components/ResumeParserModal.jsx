@@ -108,20 +108,20 @@ export default function ResumeParserModal({ isOpen, onClose, onParsedSuccess }) 
           {selectedFile ? (
             <>
               <FileCheck size={36} style={{ color: '#10b981', marginBottom: '0.5rem' }} />
-              <span style={{ fontSize: '0.9rem', fontWeight: 700, color: '#fff' }}>
+              <span style={{ fontSize: '0.9rem', fontWeight: 700, color: '#fff', wordBreak: 'break-all', textAlign: 'center' }}>
                 {selectedFile.name}
               </span>
-              <span style={{ fontSize: '0.75rem', color: '#a7f3d0', marginTop: '0.2rem' }}>
+              <span style={{ fontSize: '0.75rem', color: '#a7f3d0', marginTop: '0.2rem', textAlign: 'center' }}>
                 {(selectedFile.size / 1024).toFixed(1)} KB • Ready for extraction
               </span>
             </>
           ) : (
             <>
               <UploadCloud size={36} style={{ color: '#38bdf8', marginBottom: '0.5rem' }} />
-              <span style={{ fontSize: '0.875rem', fontWeight: 600, color: '#f1f5f9' }}>
+              <span style={{ fontSize: '0.875rem', fontWeight: 600, color: '#f1f5f9', textAlign: 'center' }}>
                 Click to Upload PDF or Word (.docx) File
               </span>
-              <span style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '0.2rem' }}>
+              <span style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '0.2rem', textAlign: 'center' }}>
                 Supports standard binary PDF, Word (.docx), and text files
               </span>
             </>

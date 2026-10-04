@@ -79,6 +79,8 @@ export default function ShareModal({ isOpen, onClose, resume, setResume }) {
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
+          flexWrap: 'wrap',
+          gap: '0.75rem',
           textAlign: 'left'
         }}>
           <div>
@@ -140,13 +142,13 @@ export default function ShareModal({ isOpen, onClose, resume, setResume }) {
               </button>
             </div>
 
-            <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.65rem' }}>
+            <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.65rem', flexWrap: 'wrap' }}>
               <a 
                 href={shareUrl} 
                 target="_blank" 
                 rel="noreferrer"
                 className="btn btn-outline"
-                style={{ flex: 1, justifyContent: 'center' }}
+                style={{ flex: '1 1 180px', justifyContent: 'center' }}
               >
                 <span>Preview Web Resume</span>
                 <ExternalLink size={14} />
