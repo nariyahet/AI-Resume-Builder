@@ -144,6 +144,132 @@ body {
   gap: 0.65rem;
 }
 
+.desktop-nav-group {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+}
+
+.desktop-nav-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+}
+
+.mobile-nav-actions {
+  display: none;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideLeft {
+  from { transform: translateX(100%); }
+  to { transform: translateX(0); }
+}
+
+/* Mobile Navigation Drawer Overlay */
+.mobile-menu-drawer-backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  z-index: 1000;
+  display: flex;
+  justify-content: flex-end;
+  animation: fadeIn 0.2s ease;
+}
+
+.mobile-menu-drawer {
+  width: 86%;
+  max-width: 330px;
+  height: 100%;
+  background: var(--bg-pane);
+  border-left: 1px solid var(--border-color);
+  box-shadow: -5px 0 30px rgba(0, 0, 0, 0.5);
+  display: flex;
+  flex-direction: column;
+  animation: slideLeft 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  overflow-y: auto;
+}
+
+.mobile-drawer-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem 1.25rem;
+  border-bottom: 1px solid var(--border-color);
+  background: var(--bg-card);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.mobile-drawer-body {
+  padding: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.mobile-drawer-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.mobile-drawer-section-title {
+  font-size: 0.725rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  letter-spacing: 0.05em;
+  margin-bottom: 0.25rem;
+}
+
+/* Mobile View Switcher Bar */
+.mobile-view-bar {
+  display: none;
+  background: var(--bg-card);
+  border-bottom: 1px solid var(--border-color);
+  padding: 0.45rem 0.75rem;
+  gap: 0.5rem;
+  position: sticky;
+  top: 56px;
+  z-index: 40;
+}
+
+.mobile-tab-btn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  padding: 0.55rem 0.75rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  font-family: var(--font-body);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-color);
+  background: var(--bg-pane);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.mobile-tab-btn.active {
+  background: var(--primary);
+  color: #ffffff;
+  border-color: var(--primary);
+  box-shadow: 0 2px 8px var(--primary-glow);
+}
+
 /* Buttons */
 .btn {
   display: inline-flex;
@@ -220,19 +346,24 @@ body {
 }
 
 /* Main Split-Screen Workspace */
-.workspace-container {
-  display: grid;
-  grid-template-columns: 530px 1fr;
+.workspace-wrapper {
+  display: flex;
+  flex-direction: column;
   height: calc(100vh - 66px);
   overflow: hidden;
 }
 
-@media (max-width: 1100px) {
-  .workspace-container {
-    grid-template-columns: 1fr;
-    height: auto;
-    overflow: visible;
-  }
+.workspace-container {
+  display: grid;
+  grid-template-columns: 530px 1fr;
+  flex: 1;
+  height: 100%;
+  overflow: hidden;
+}
+
+.workspace-pane {
+  height: 100%;
+  overflow: hidden;
 }
 
 /* Left Form Pane */
@@ -480,15 +611,10 @@ body {
   transition: transform 0.2s ease;
 }
 
-/* Scale preview on smaller screens */
-@media (max-width: 1400px) {
+/* Scale preview on desktop screens */
+@media (max-width: 1400px) and (min-width: 901px) {
   .resume-sheet {
     transform: scale(0.85);
-  }
-}
-@media (max-width: 800px) {
-  .resume-sheet {
-    transform: scale(0.65);
   }
 }
 
@@ -792,6 +918,122 @@ body {
   display: flex;
   align-items: center;
   gap: 0.4rem;
+}
+
+/* ============================================================== */
+/* MOBILE & TABLET RESPONSIVE MEDIA QUERIES                       */
+/* ============================================================== */
+@media (max-width: 900px) {
+  .navbar {
+    padding: 0.7rem 1rem;
+  }
+  .logo-group {
+    font-size: 1.15rem;
+    gap: 0.5rem;
+  }
+  .desktop-nav-group,
+  .desktop-nav-actions,
+  .desktop-only-btn {
+    display: none !important;
+  }
+  .mobile-nav-actions {
+    display: flex !important;
+    align-items: center;
+    gap: 0.4rem;
+  }
+  .mobile-view-bar {
+    display: flex !important;
+  }
+  .workspace-wrapper {
+    height: calc(100vh - 60px);
+  }
+  .workspace-container {
+    display: block !important;
+    flex: 1;
+    height: calc(100% - 50px) !important;
+    overflow: hidden !important;
+  }
+  .workspace-container.mobile-tab-editor .pane-editor {
+    display: flex !important;
+    height: 100% !important;
+    width: 100% !important;
+  }
+  .workspace-container.mobile-tab-editor .pane-preview {
+    display: none !important;
+  }
+  .workspace-container.mobile-tab-preview .pane-editor {
+    display: none !important;
+  }
+  .workspace-container.mobile-tab-preview .pane-preview {
+    display: flex !important;
+    height: 100% !important;
+    width: 100% !important;
+  }
+  .editor-pane {
+    border-right: none !important;
+    width: 100% !important;
+    height: 100% !important;
+  }
+  .preview-pane {
+    width: 100% !important;
+    height: 100% !important;
+  }
+  .editor-scroll {
+    padding: 1.25rem 1rem !important;
+  }
+}
+
+@media (max-width: 640px) {
+  .form-grid-2 {
+    grid-template-columns: 1fr !important;
+    gap: 0.65rem !important;
+  }
+  .editor-tabs {
+    padding: 0.5rem 0.65rem;
+    gap: 0.25rem;
+    -webkit-overflow-scrolling: touch;
+  }
+  .tab-btn {
+    padding: 0.35rem 0.65rem;
+    font-size: 0.75rem;
+  }
+  .editor-scroll {
+    padding: 1rem 0.75rem !important;
+  }
+  .section-header {
+    flex-wrap: wrap;
+    gap: 0.4rem;
+  }
+  .preview-toolbar {
+    padding: 0.5rem 0.65rem;
+    gap: 0.4rem;
+  }
+  .toolbar-group {
+    gap: 0.3rem;
+  }
+  .modal-overlay {
+    padding: 0.5rem !important;
+  }
+  .modal-content {
+    width: 95vw !important;
+    max-width: 95vw !important;
+    padding: 1.15rem !important;
+    max-height: 88vh !important;
+    overflow-y: auto !important;
+  }
+  .preview-scroll-area {
+    padding: 1rem 0.25rem !important;
+  }
+}
+
+@media (max-width: 420px) {
+  .logo-text span {
+    display: none;
+  }
+  .btn {
+    padding: 0.4rem 0.75rem;
+    font-size: 0.775rem;
+  }
 }
 
 /* PRINT MEDIA CSS */

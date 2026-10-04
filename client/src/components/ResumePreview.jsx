@@ -17,9 +17,29 @@ import {
 import { exportResumeToDocx } from '../utils/docxExport';
 
 export default function ResumePreview({ resume, setResume }) {
-  const [scale, setScale] = useState(1);
+  // Mobile-responsive default scale
+  const [scale, setScale] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const w = window.innerWidth;
+      if (w <= 420) return 0.44;
+      if (w <= 640) return 0.52;
+      if (w <= 900) return 0.72;
+    }
+    return 1;
+  });
   const [fontFamily, setFontFamily] = useState('Inter');
   const [spacingDensity, setSpacingDensity] = useState('normal'); // 'compact', 'normal', 'relaxed'
+
+  // Auto-adapt scale on screen resize if not explicitly zoomed by user
+  React.useEffect(() => {
+    const handleResize = () => {
+      const w = window.innerWidth;
+      if (w <= 420 && scale > 0.6) setScale(0.44);
+      else if (w <= 640 && scale > 0.75) setScale(0.52);
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, [scale]);
 
   const colors = [
     { name: 'Royal Blue', hex: '#2563eb' },
@@ -189,36 +209,50 @@ export default function ResumePreview({ resume, setResume }) {
         </div>
 
         {/* Zoom Controls */}
-        <div className="toolbar-group">
+        <div className="toolbar-group zoom-group">
           <button 
             className="btn btn-outline btn-sm"
-            onClick={() => setScale(s => Math.max(0.6, s - 0.1))}
+            onClick={() => setScale(s => Math.max(0.3, Number((s - 0.05).toFixed(2))))}
             title="Zoom Out"
           >
             <ZoomOut size={12} />
           </button>
-          <span style={{ fontSize: '0.75rem', color: '#cbd5e1' }}>
+          <span style={{ fontSize: '0.75rem', color: 'var(--text-main)', minWidth: '36px', textAlign: 'center' }}>
             {Math.round(scale * 100)}%
           </span>
           <button 
             className="btn btn-outline btn-sm"
-            onClick={() => setScale(s => Math.min(1.3, s + 0.1))}
+            onClick={() => setScale(s => Math.min(1.4, Number((s + 0.05).toFixed(2))))}
             title="Zoom In"
           >
             <ZoomIn size={12} />
           </button>
-
           <button 
             className="btn btn-outline btn-sm"
+            onClick={() => {
+              const w = window.innerWidth;
+              if (w <= 420) setScale(0.44);
+              else if (w <= 640) setScale(0.52);
+              else if (w <= 900) setScale(0.72);
+              else setScale(1.0);
+            }}
+            title="Auto-Fit to Screen"
+            style={{ fontSize: '0.7rem', padding: '0.2rem 0.45rem' }}
+          >
+            Fit
+          </button>
+
+          <button 
+            className="btn btn-outline btn-sm desktop-only-btn"
             onClick={() => exportResumeToDocx(resume)}
             title="Export editable Microsoft Word document (.docx)"
-            style={{ borderColor: '#38bdf8', color: '#38bdf8', fontWeight: 600 }}
+            style={{ borderColor: 'var(--accent-cyan)', color: 'var(--accent-cyan)', fontWeight: 600 }}
           >
             <FileText size={12} /> .DOCX
           </button>
 
           <button 
-            className="btn btn-outline btn-sm"
+            className="btn btn-outline btn-sm desktop-only-btn"
             onClick={handleExportTxt}
             title="Export as Text / Word draft"
           >
@@ -230,15 +264,28 @@ export default function ResumePreview({ resume, setResume }) {
       {/* A4 Resume Container Area */}
       <div className="preview-scroll-area">
         <div 
-          id="resume-print-area"
-          className={`resume-sheet template-${template_id}`}
-          style={{ 
-            '--theme-color': theme_color,
-            fontFamily: `${fontFamily}, sans-serif`,
-            transform: `scale(${scale})`,
-            lineHeight: getSpacingStyle().lineHeight
+          className="resume-scale-wrapper"
+          style={{
+            width: `${Math.round(794 * scale)}px`,
+            minHeight: `${Math.round(1123 * scale)}px`,
+            position: 'relative',
+            margin: '0 auto'
           }}
         >
+          <div 
+            id="resume-print-area"
+            className={`resume-sheet template-${template_id}`}
+            style={{ 
+              '--theme-color': theme_color,
+              fontFamily: `${fontFamily}, sans-serif`,
+              transform: `scale(${scale})`,
+              transformOrigin: 'top left',
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              lineHeight: getSpacingStyle().lineHeight
+            }}
+          >
           {/* ========================================================= */}
           {/* TWO-COLUMN SPLIT TEMPLATE                                 */}
           {/* ========================================================= */}
@@ -529,6 +576,7 @@ export default function ResumePreview({ resume, setResume }) {
               )}
             </>
           )}
+        </div>
         </div>
       </div>
     </div>

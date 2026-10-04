@@ -23,12 +23,16 @@ import { sampleResume, emptyResume } from './data/sampleResume';
 import axiosClient from './api/axiosClient';
 import { useAuth } from './context/AuthContext';
 import { exportResumeToDocx } from './utils/docxExport';
+import { Edit3, Eye } from 'lucide-react';
 
 export default function App() {
   const { user } = useAuth();
   
   // View mode: 'editor' or 'dashboard'
   const [currentView, setCurrentView] = useState('editor');
+
+  // Mobile mode tab: 'editor' or 'preview'
+  const [mobileTab, setMobileTab] = useState('editor');
 
   // Resume state
   const [resume, setResume] = useState(() => {
@@ -293,19 +297,46 @@ export default function App() {
         />
       ) : (
         /* VIEW 2: SPLIT-SCREEN WORKSPACE */
-        <main className="workspace-container">
-          {/* Left Side: Form Editor & AI Magic */}
-          <ResumeForm 
-            resume={resume} 
-            setResume={setResume} 
-          />
+        <div className="workspace-wrapper">
+          {/* Mobile Screen Switcher (only displayed on <= 900px screens) */}
+          <div className="mobile-view-bar">
+            <button 
+              type="button"
+              className={`mobile-tab-btn ${mobileTab === 'editor' ? 'active' : ''}`}
+              onClick={() => setMobileTab('editor')}
+            >
+              <Edit3 size={15} />
+              <span>1. Edit Form</span>
+            </button>
+            <button 
+              type="button"
+              className={`mobile-tab-btn ${mobileTab === 'preview' ? 'active' : ''}`}
+              onClick={() => setMobileTab('preview')}
+            >
+              <Eye size={15} />
+              <span>2. View Resume {resume.ats_score ? `(${resume.ats_score}% ATS)` : ''}</span>
+            </button>
+          </div>
 
-          {/* Right Side: Live A4 Resume Preview */}
-          <ResumePreview 
-            resume={resume} 
-            setResume={setResume} 
-          />
-        </main>
+          <main className={`workspace-container mobile-tab-${mobileTab}`}>
+            {/* Left Side: Form Editor & AI Magic */}
+            <div className="workspace-pane pane-editor">
+              <ResumeForm 
+                resume={resume} 
+                setResume={setResume} 
+                onSwitchToPreview={() => setMobileTab('preview')}
+              />
+            </div>
+
+            {/* Right Side: Live A4 Resume Preview */}
+            <div className="workspace-pane pane-preview">
+              <ResumePreview 
+                resume={resume} 
+                setResume={setResume} 
+              />
+            </div>
+          </main>
+        </div>
       )}
 
       {/* 🔴 P1 ADVANCED ATS MODAL */}

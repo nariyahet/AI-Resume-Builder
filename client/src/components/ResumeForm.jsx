@@ -16,7 +16,7 @@ import {
 } from 'lucide-react';
 import axiosClient from '../api/axiosClient';
 
-export default function ResumeForm({ resume, setResume }) {
+export default function ResumeForm({ resume, setResume, onSwitchToPreview }) {
   const [activeTab, setActiveTab] = useState('personal');
   const [aiLoading, setAiLoading] = useState(false);
   const [magicPrompt, setMagicPrompt] = useState('');
@@ -927,7 +927,7 @@ export default function ResumeForm({ resume, setResume }) {
             )}
 
             {/* Step Navigation */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '1.25rem', paddingTop: '1rem', borderTop: '1px solid var(--border-color)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '1.25rem', paddingTop: '1rem', borderTop: '1px solid var(--border-color)', flexWrap: 'wrap', gap: '0.75rem' }}>
               <button 
                 type="button" 
                 className="btn btn-outline btn-sm"
@@ -935,9 +935,21 @@ export default function ResumeForm({ resume, setResume }) {
               >
                 ← 5. Projects
               </button>
-              <span style={{ fontSize: '0.825rem', color: 'var(--success)', fontWeight: 600 }}>
-                ✓ Resume Setup Complete
-              </span>
+              {onSwitchToPreview ? (
+                <button
+                  type="button"
+                  className="btn btn-primary btn-sm"
+                  onClick={onSwitchToPreview}
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}
+                >
+                  <span>View Completed Resume</span>
+                  <ArrowRight size={15} />
+                </button>
+              ) : (
+                <span style={{ fontSize: '0.825rem', color: 'var(--success)', fontWeight: 600 }}>
+                  ✓ Resume Setup Complete
+                </span>
+              )}
             </div>
           </div>
         )}
