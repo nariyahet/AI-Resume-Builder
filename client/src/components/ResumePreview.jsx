@@ -21,12 +21,12 @@ export default function ResumePreview({ resume, setResume }) {
   const getAutoFitScale = () => {
     if (typeof window === 'undefined') return 1;
     const w = window.innerWidth;
-    if (w <= 900) {
+    if (w <= 1080) {
       const avail = Math.max(260, w - 24);
       return Math.min(1, Number((avail / 794).toFixed(2)));
     } else {
       const avail = Math.max(300, w - 530 - 48);
-      return Math.min(1.1, Math.max(0.65, Number((avail / 794).toFixed(2))));
+      return Math.min(1.1, Math.max(0.4, Number((avail / 794).toFixed(2))));
     }
   };
 

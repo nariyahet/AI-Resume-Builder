@@ -375,24 +375,23 @@ export default function Navbar({
         )}
       </div>
 
-      {/* Mobile Navigation Header Actions */}
+      {/* Mobile/Compact Navigation Header Actions */}
       <div className="nav-actions mobile-nav-actions">
-        {/* Mobile Theme Toggle */}
+        {/* Theme Toggle */}
         <button 
           className="btn btn-outline btn-sm mobile-icon-btn"
           onClick={onToggleTheme}
-          title={theme === 'light' ? 'Dark Mode' : 'Light Mode'}
+          title={theme === 'light' ? 'Switch to Dark Mode' : 'Switch to Light Mode'}
           aria-label="Toggle Theme"
         >
           {theme === 'light' ? <Moon size={15} style={{ color: '#6366f1' }} /> : <Sun size={15} style={{ color: '#fbbf24' }} />}
         </button>
 
-        {/* Mobile Download Dropdown */}
+        {/* Compact Export / Download Dropdown */}
         <div style={{ position: 'relative' }}>
           <button 
             className="btn btn-primary btn-sm mobile-download-btn"
             onClick={() => setShowDownloadDropdown(!showDownloadDropdown)}
-            onBlur={() => setTimeout(() => setShowDownloadDropdown(false), 250)}
             disabled={isDownloading}
             aria-label="Download Resume"
             style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', padding: '0.4rem 0.65rem' }}
@@ -403,52 +402,59 @@ export default function Navbar({
           </button>
 
           {showDownloadDropdown && (
-            <div style={{
-              position: 'absolute',
-              top: '100%',
-              right: 0,
-              marginTop: '6px',
-              background: 'var(--bg-card)',
-              border: '1px solid var(--border-color)',
-              borderRadius: 'var(--radius-md)',
-              boxShadow: 'var(--shadow-lg)',
-              minWidth: '185px',
-              zIndex: 70,
-              display: 'flex',
-              flexDirection: 'column',
-              padding: '0.35rem'
-            }}>
-              <button 
-                className="btn btn-outline btn-sm" 
-                style={{ justifyContent: 'flex-start', border: 'none', padding: '0.5rem 0.75rem', width: '100%' }}
-                onClick={() => { setShowDownloadDropdown(false); onDownloadPDF(); }}
-              >
-                <Download size={13} style={{ color: '#ef4444' }} />
-                <span>PDF (.pdf)</span>
-              </button>
+            <>
+              <div 
+                style={{ position: 'fixed', inset: 0, zIndex: 1099 }} 
+                onClick={() => setShowDownloadDropdown(false)} 
+              />
+              <div style={{
+                position: 'absolute',
+                top: '100%',
+                right: 0,
+                marginTop: '6px',
+                background: 'var(--bg-card)',
+                border: '1px solid var(--border-color)',
+                borderRadius: 'var(--radius-md)',
+                boxShadow: 'var(--shadow-lg)',
+                minWidth: '185px',
+                maxWidth: '90vw',
+                zIndex: 1100,
+                display: 'flex',
+                flexDirection: 'column',
+                padding: '0.35rem'
+              }}>
+                <button 
+                  className="btn btn-outline btn-sm" 
+                  style={{ justifyContent: 'flex-start', border: 'none', padding: '0.5rem 0.75rem', width: '100%' }}
+                  onClick={() => { setShowDownloadDropdown(false); onDownloadPDF(); }}
+                >
+                  <Download size={13} style={{ color: '#ef4444' }} />
+                  <span>PDF (.pdf)</span>
+                </button>
 
-              <button 
-                className="btn btn-outline btn-sm" 
-                style={{ justifyContent: 'flex-start', border: 'none', padding: '0.5rem 0.75rem', width: '100%' }}
-                onClick={() => { setShowDownloadDropdown(false); onDownloadDocx(); }}
-              >
-                <FileSpreadsheet size={13} style={{ color: '#38bdf8' }} />
-                <span>Word (.docx)</span>
-              </button>
+                <button 
+                  className="btn btn-outline btn-sm" 
+                  style={{ justifyContent: 'flex-start', border: 'none', padding: '0.5rem 0.75rem', width: '100%' }}
+                  onClick={() => { setShowDownloadDropdown(false); onDownloadDocx(); }}
+                >
+                  <FileSpreadsheet size={13} style={{ color: '#38bdf8' }} />
+                  <span>Word (.docx)</span>
+                </button>
 
-              <button 
-                className="btn btn-outline btn-sm" 
-                style={{ justifyContent: 'flex-start', border: 'none', padding: '0.5rem 0.75rem', width: '100%' }}
-                onClick={() => { setShowDownloadDropdown(false); onDownloadTxt(); }}
-              >
-                <FileText size={13} style={{ color: '#10b981' }} />
-                <span>Text (.txt)</span>
-              </button>
-            </div>
+                <button 
+                  className="btn btn-outline btn-sm" 
+                  style={{ justifyContent: 'flex-start', border: 'none', padding: '0.5rem 0.75rem', width: '100%' }}
+                  onClick={() => { setShowDownloadDropdown(false); onDownloadTxt(); }}
+                >
+                  <FileText size={13} style={{ color: '#10b981' }} />
+                  <span>Text (.txt)</span>
+                </button>
+              </div>
+            </>
           )}
         </div>
 
-        {/* Mobile Menu Hamburger Button */}
+        {/* Hamburger Menu Toggle Button */}
         <button 
           className="btn btn-outline btn-sm mobile-hamburger-btn"
           onClick={() => setShowMobileMenu(!showMobileMenu)}
@@ -459,7 +465,7 @@ export default function Navbar({
         </button>
       </div>
 
-      {/* Mobile Drawer Menu Overlay */}
+      {/* Hamburger Mobile & Tablet Drawer Overlay */}
       {showMobileMenu && (
         <div className="mobile-menu-drawer-backdrop" onClick={closeMobileMenu}>
           <div className="mobile-menu-drawer" onClick={(e) => e.stopPropagation()}>
@@ -476,124 +482,165 @@ export default function Navbar({
             </div>
 
             <div className="mobile-drawer-body">
-              {/* Main Views */}
+              {/* 1. Workspace Section */}
               <div className="mobile-drawer-section">
-                <span className="mobile-drawer-section-title">Navigation</span>
-                <button 
-                  className={`btn btn-sm ${currentView === 'editor' ? 'btn-primary' : 'btn-outline'}`}
-                  style={{ width: '100%', justifyContent: 'flex-start' }}
-                  onClick={() => { onToggleView('editor'); closeMobileMenu(); }}
-                >
-                  <LayoutDashboard size={14} />
-                  <span>Resume Builder Workspace</span>
-                </button>
+                <span className="mobile-drawer-section-title">Workspace</span>
                 <button 
                   className={`btn btn-sm ${currentView === 'dashboard' ? 'btn-primary' : 'btn-outline'}`}
                   style={{ width: '100%', justifyContent: 'flex-start' }}
-                  onClick={() => { onToggleView('dashboard'); closeMobileMenu(); }}
+                  onClick={() => { onToggleView(currentView === 'dashboard' ? 'editor' : 'dashboard'); closeMobileMenu(); }}
                 >
-                  <FolderOpen size={14} />
-                  <span>My Saved Resumes</span>
+                  <LayoutDashboard size={15} />
+                  <span>{currentView === 'dashboard' ? 'Resume Editor' : 'My Resumes'}</span>
                 </button>
                 <button 
                   className="btn btn-outline btn-sm"
                   style={{ width: '100%', justifyContent: 'flex-start' }}
                   onClick={() => { onOpenTracker(); closeMobileMenu(); }}
                 >
-                  <Briefcase size={14} style={{ color: 'var(--accent-cyan)' }} />
-                  <span>Job Application Tracker</span>
+                  <Briefcase size={15} style={{ color: 'var(--accent-cyan)' }} />
+                  <span>Job Tracker</span>
                 </button>
                 <button 
                   className="btn btn-outline btn-sm"
                   style={{ width: '100%', justifyContent: 'flex-start' }}
                   onClick={() => { onOpenVersionHistory(); closeMobileMenu(); }}
                 >
-                  <History size={14} style={{ color: '#a855f7' }} />
-                  <span>Version History & Restore</span>
+                  <History size={15} style={{ color: '#a855f7' }} />
+                  <span>Versions & Restore</span>
                 </button>
               </div>
 
-              {/* AI Suite */}
+              {/* 2. AI Tools Section */}
               <div className="mobile-drawer-section">
-                <span className="mobile-drawer-section-title">⚡ AI Career Tools</span>
+                <span className="mobile-drawer-section-title">AI Tools</span>
                 <button 
                   className="btn btn-outline btn-sm"
                   style={{ width: '100%', justifyContent: 'flex-start' }}
                   onClick={() => { onOpenJDMatcher(); closeMobileMenu(); }}
                 >
-                  <Target size={14} style={{ color: '#38bdf8' }} />
-                  <span>Safe JD Auto-Tailor</span>
+                  <Target size={15} style={{ color: '#38bdf8' }} />
+                  <span>JD Matcher (Auto-Tailor)</span>
                 </button>
                 <button 
                   className="btn btn-outline btn-sm"
                   style={{ width: '100%', justifyContent: 'flex-start' }}
                   onClick={() => { onOpenCoverLetter(); closeMobileMenu(); }}
                 >
-                  <Mail size={14} style={{ color: '#a855f7' }} />
-                  <span>AI Cover Letter Generator</span>
+                  <Mail size={15} style={{ color: '#a855f7' }} />
+                  <span>Cover Letter Generator</span>
                 </button>
                 <button 
                   className="btn btn-outline btn-sm"
                   style={{ width: '100%', justifyContent: 'flex-start' }}
                   onClick={() => { onOpenCoverLetterManager(); closeMobileMenu(); }}
                 >
-                  <FolderOpen size={14} style={{ color: '#c084fc' }} />
+                  <FolderOpen size={15} style={{ color: '#c084fc' }} />
                   <span>Cover Letter Library</span>
-                </button>
-                <button 
-                  className="btn btn-outline btn-sm"
-                  style={{ width: '100%', justifyContent: 'flex-start' }}
-                  onClick={() => { onOpenInterviewPractice(); closeMobileMenu(); }}
-                >
-                  <Award size={14} style={{ color: '#fbbf24' }} />
-                  <span>Mock Interview Practice</span>
                 </button>
                 <button 
                   className="btn btn-outline btn-sm"
                   style={{ width: '100%', justifyContent: 'flex-start' }}
                   onClick={() => { onOpenInterviewPrep(); closeMobileMenu(); }}
                 >
-                  <MessageSquare size={14} style={{ color: '#10b981' }} />
-                  <span>Recruiter Q&A Prep</span>
+                  <MessageSquare size={15} style={{ color: '#10b981' }} />
+                  <span>Interview Prep (STAR Q&A)</span>
+                </button>
+                <button 
+                  className="btn btn-outline btn-sm"
+                  style={{ width: '100%', justifyContent: 'flex-start' }}
+                  onClick={() => { onOpenInterviewPractice(); closeMobileMenu(); }}
+                >
+                  <Award size={15} style={{ color: '#fbbf24' }} />
+                  <span>Interview Practice Mode</span>
                 </button>
                 <button 
                   className="btn btn-outline btn-sm"
                   style={{ width: '100%', justifyContent: 'flex-start' }}
                   onClick={() => { onOpenParser(); closeMobileMenu(); }}
                 >
-                  <UploadCloud size={14} style={{ color: '#fbbf24' }} />
-                  <span>Import Old PDF / Word File</span>
+                  <UploadCloud size={15} style={{ color: '#38bdf8' }} />
+                  <span>Resume Parser (PDF / Word)</span>
                 </button>
+              </div>
+
+              {/* 3. Resume Tools Section */}
+              <div className="mobile-drawer-section">
+                <span className="mobile-drawer-section-title">Resume Tools</span>
                 <button 
                   className="btn btn-outline btn-sm"
                   style={{ width: '100%', justifyContent: 'flex-start' }}
                   onClick={() => { onOpenATS(); closeMobileMenu(); }}
                 >
-                  <BarChart3 size={14} style={{ color: '#10b981' }} />
-                  <span>ATS Score Check {atsScore ? `(${atsScore}%)` : ''}</span>
-                </button>
-              </div>
-
-              {/* Account & Pro */}
-              <div className="mobile-drawer-section">
-                <span className="mobile-drawer-section-title">Account & Settings</span>
-                <button 
-                  className="btn btn-outline btn-sm"
-                  style={{ width: '100%', justifyContent: 'flex-start', borderColor: '#eab308', color: '#fef08a' }}
-                  onClick={() => { onOpenPricing(); closeMobileMenu(); }}
-                >
-                  <Crown size={14} style={{ color: '#fbbf24' }} />
-                  <span>Upgrade to Pro Tier</span>
+                  <BarChart3 size={15} style={{ color: '#10b981' }} />
+                  <span>ATS Check {atsScore ? `(${atsScore}%)` : ''}</span>
                 </button>
                 <button 
                   className="btn btn-outline btn-sm"
                   style={{ width: '100%', justifyContent: 'flex-start' }}
                   onClick={() => { onLoadSample(); closeMobileMenu(); }}
                 >
-                  <FileText size={14} />
-                  <span>Load Demo Profile</span>
+                  <FileText size={15} />
+                  <span>Demo Data</span>
                 </button>
+              </div>
 
+              {/* 4. Plan Section */}
+              <div className="mobile-drawer-section">
+                <span className="mobile-drawer-section-title">Plan</span>
+                <button 
+                  className="btn btn-outline btn-sm"
+                  style={{ width: '100%', justifyContent: 'flex-start', borderColor: '#eab308', color: '#fef08a' }}
+                  onClick={() => { onOpenPricing(); closeMobileMenu(); }}
+                >
+                  <Crown size={15} style={{ color: '#fbbf24' }} />
+                  <span>Pro Tier (Upgrade)</span>
+                </button>
+              </div>
+
+              {/* 5. Download & Theme Section */}
+              <div className="mobile-drawer-section">
+                <span className="mobile-drawer-section-title">Download & Display</span>
+                <button 
+                  className="btn btn-outline btn-sm"
+                  style={{ width: '100%', justifyContent: 'flex-start' }}
+                  onClick={() => { onToggleTheme(); closeMobileMenu(); }}
+                >
+                  {theme === 'light' ? <Moon size={15} style={{ color: '#6366f1' }} /> : <Sun size={15} style={{ color: '#fbbf24' }} />}
+                  <span>{theme === 'light' ? 'Switch to Dark Theme' : 'Switch to Light Theme'}</span>
+                </button>
+                <button 
+                  className="btn btn-outline btn-sm"
+                  style={{ width: '100%', justifyContent: 'flex-start' }}
+                  onClick={() => { onDownloadPDF(); closeMobileMenu(); }}
+                  disabled={isDownloading}
+                >
+                  <Download size={15} style={{ color: '#ef4444' }} />
+                  <span>Download PDF (.pdf)</span>
+                </button>
+                <button 
+                  className="btn btn-outline btn-sm"
+                  style={{ width: '100%', justifyContent: 'flex-start' }}
+                  onClick={() => { onDownloadDocx(); closeMobileMenu(); }}
+                  disabled={isDownloading}
+                >
+                  <FileSpreadsheet size={15} style={{ color: '#38bdf8' }} />
+                  <span>Download Word (.docx)</span>
+                </button>
+                <button 
+                  className="btn btn-outline btn-sm"
+                  style={{ width: '100%', justifyContent: 'flex-start' }}
+                  onClick={() => { onDownloadTxt(); closeMobileMenu(); }}
+                  disabled={isDownloading}
+                >
+                  <FileText size={15} style={{ color: '#10b981' }} />
+                  <span>Download Plain Text (.txt)</span>
+                </button>
+              </div>
+
+              {/* 6. Account Section */}
+              <div className="mobile-drawer-section">
+                <span className="mobile-drawer-section-title">Account</span>
                 {user ? (
                   <>
                     <button 
@@ -601,23 +648,25 @@ export default function Navbar({
                       style={{ width: '100%', justifyContent: 'flex-start' }}
                       onClick={() => { onOpenAccountSettings(); closeMobileMenu(); }}
                     >
-                      <Settings size={14} />
-                      <span>Account & Quotas ({user.name})</span>
+                      <Settings size={15} />
+                      <span>Account Settings ({user.name})</span>
                     </button>
-                    <button 
-                      className="btn btn-outline btn-sm"
-                      style={{ width: '100%', justifyContent: 'flex-start' }}
-                      onClick={() => { onOpenAdminMetrics(); closeMobileMenu(); }}
-                    >
-                      <ShieldCheck size={14} style={{ color: '#a855f7' }} />
-                      <span>Admin Metrics</span>
-                    </button>
+                    {(!user.role || user.role === 'admin' || user.isAdmin) && (
+                      <button 
+                        className="btn btn-outline btn-sm"
+                        style={{ width: '100%', justifyContent: 'flex-start' }}
+                        onClick={() => { onOpenAdminMetrics(); closeMobileMenu(); }}
+                      >
+                        <ShieldCheck size={15} style={{ color: '#a855f7' }} />
+                        <span>Admin Dashboard</span>
+                      </button>
+                    )}
                     <button 
                       className="btn btn-outline btn-sm"
                       style={{ width: '100%', justifyContent: 'flex-start' }}
                       onClick={() => { onOpenAiKey(); closeMobileMenu(); }}
                     >
-                      <Key size={14} style={{ color: '#f59e0b' }} />
+                      <Key size={15} style={{ color: '#f59e0b' }} />
                       <span>Gemini API Key</span>
                     </button>
                     <button 
@@ -634,7 +683,7 @@ export default function Navbar({
                     style={{ width: '100%', justifyContent: 'center' }}
                     onClick={() => { onOpenAuth(); closeMobileMenu(); }}
                   >
-                    <User size={14} />
+                    <User size={15} />
                     <span>Sign In / Create Account</span>
                   </button>
                 )}
