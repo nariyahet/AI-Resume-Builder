@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { 
   Sparkles, 
   Download, 
@@ -13,6 +13,8 @@ import {
   Crown,
   LayoutDashboard,
   ChevronDown,
+  ChevronLeft,
+  ChevronRight,
   Briefcase,
   History,
   Award,
@@ -60,7 +62,124 @@ export default function Navbar({
   const [showDownloadDropdown, setShowDownloadDropdown] = useState(false);
   const [showMobileMenu, setShowMobileMenu] = useState(false);
 
+  // Horizontal scroll & drag states for tablet/half-screen feature strip
+  const stripRef = useRef(null);
+  const [canScrollLeft, setCanScrollLeft] = useState(false);
+  const [canScrollRight, setCanScrollRight] = useState(false);
+  const [isGrabbing, setIsGrabbing] = useState(false);
+
+  const isPointerDownRef = useRef(false);
+  const startXRef = useRef(0);
+  const scrollLeftRef = useRef(0);
+  const hasDraggedRef = useRef(false);
+
   const closeMobileMenu = () => setShowMobileMenu(false);
+
+  // Evaluate scroll limits for left/right navigation affordance arrows
+  const checkScroll = useCallback(() => {
+    if (!stripRef.current) return;
+    const { scrollLeft, scrollWidth, clientWidth } = stripRef.current;
+    setCanScrollLeft(scrollLeft > 3);
+    setCanScrollRight(scrollLeft + clientWidth < scrollWidth - 3);
+  }, []);
+
+  // Set up listeners for horizontal mouse wheel scrolling, resizing, and initial calculation
+  useEffect(() => {
+    const el = stripRef.current;
+    if (!el) return;
+
+    checkScroll();
+
+    // Normal mouse wheel translates vertical scroll into horizontal scroll when over strip
+    const handleNativeWheel = (e) => {
+      if (el.scrollWidth > el.clientWidth) {
+        if (Math.abs(e.deltaY) > Math.abs(e.deltaX)) {
+          const canScrollDown = e.deltaY > 0 && el.scrollLeft + el.clientWidth < el.scrollWidth - 1;
+          const canScrollUp = e.deltaY < 0 && el.scrollLeft > 1;
+          if (canScrollDown || canScrollUp) {
+            e.preventDefault();
+            el.scrollLeft += e.deltaY;
+            checkScroll();
+          }
+        }
+      }
+    };
+
+    el.addEventListener('wheel', handleNativeWheel, { passive: false });
+    window.addEventListener('resize', checkScroll);
+
+    let ro;
+    if (typeof ResizeObserver !== 'undefined') {
+      ro = new ResizeObserver(() => checkScroll());
+      ro.observe(el);
+    }
+
+    return () => {
+      el.removeEventListener('wheel', handleNativeWheel);
+      window.removeEventListener('resize', checkScroll);
+      if (ro) ro.disconnect();
+    };
+  }, [checkScroll]);
+
+  // Mouse Drag Scrolling Handlers
+  const handleMouseDown = (e) => {
+    if (e.button !== 0) return; // Left mouse button only
+    const el = stripRef.current;
+    if (!el) return;
+
+    isPointerDownRef.current = true;
+    startXRef.current = e.pageX;
+    scrollLeftRef.current = el.scrollLeft;
+    hasDraggedRef.current = false;
+  };
+
+  const handleMouseMove = (e) => {
+    if (!isPointerDownRef.current) return;
+    const el = stripRef.current;
+    if (!el) return;
+
+    const diff = e.pageX - startXRef.current;
+    if (Math.abs(diff) > 4) {
+      hasDraggedRef.current = true;
+      setIsGrabbing(true);
+      el.scrollLeft = scrollLeftRef.current - diff;
+      checkScroll();
+    }
+  };
+
+  const handleMouseUp = () => {
+    isPointerDownRef.current = false;
+    setIsGrabbing(false);
+    setTimeout(() => {
+      hasDraggedRef.current = false;
+    }, 60);
+  };
+
+  const handleMouseLeave = () => {
+    isPointerDownRef.current = false;
+    setIsGrabbing(false);
+    setTimeout(() => {
+      hasDraggedRef.current = false;
+    }, 60);
+  };
+
+  const handleClickCapture = (e) => {
+    if (hasDraggedRef.current) {
+      e.stopPropagation();
+      e.preventDefault();
+    }
+  };
+
+  const scrollStrip = (amount) => {
+    if (!stripRef.current) return;
+    stripRef.current.scrollBy({ left: amount, behavior: 'smooth' });
+    setTimeout(checkScroll, 300);
+  };
+
+  const handleStripScroll = () => {
+    if (showAiDropdown) setShowAiDropdown(false);
+    checkScroll();
+  };
 
   // Toggle AI Suite dropdown and calculate position dynamically
   const handleToggleAiDropdown = (e) => {
@@ -406,77 +525,108 @@ export default function Navbar({
         </div>
 
         {/* ROW 2: Horizontally scrollable feature navigation bar for Tablet / Half-Screen (~600px - 1080px) */}
-        <div className="navbar-feature-strip">
-          {/* 1. My Resumes / Editor */}
-          <button 
-            className={`btn btn-sm strip-btn ${currentView === 'dashboard' ? 'btn-primary' : 'btn-outline'}`}
-            onClick={() => onToggleView(currentView === 'dashboard' ? 'editor' : 'dashboard')}
-            title="Switch between Editor and My Resumes Dashboard"
+        <div className="navbar-feature-strip-wrapper">
+          <button
+            type="button"
+            className={`feature-strip-arrow arrow-left ${!canScrollLeft ? 'hidden-arrow' : ''}`}
+            onClick={() => scrollStrip(-220)}
+            aria-label="Scroll feature bar left"
+            disabled={!canScrollLeft}
           >
-            <LayoutDashboard size={14} />
-            <span>{currentView === 'dashboard' ? 'Editor' : 'My Resumes'}</span>
+            <ChevronLeft size={16} />
           </button>
 
-          {/* 2. Job Tracker */}
-          <button 
-            className="btn btn-outline btn-sm strip-btn"
-            onClick={onOpenTracker}
-            title="Job Application Pipeline Tracker"
+          <div 
+            ref={stripRef}
+            className={`navbar-feature-strip ${isGrabbing ? 'grabbing' : ''}`}
+            onScroll={handleStripScroll}
+            onMouseDown={handleMouseDown}
+            onMouseMove={handleMouseMove}
+            onMouseUp={handleMouseUp}
+            onMouseLeave={handleMouseLeave}
+            onClickCapture={handleClickCapture}
           >
-            <Briefcase size={14} style={{ color: 'var(--accent-cyan)' }} />
-            <span>Job Tracker</span>
-          </button>
+            {/* 1. My Resumes / Editor */}
+            <button 
+              className={`btn btn-sm strip-btn ${currentView === 'dashboard' ? 'btn-primary' : 'btn-outline'}`}
+              onClick={() => onToggleView(currentView === 'dashboard' ? 'editor' : 'dashboard')}
+              title="Switch between Editor and My Resumes Dashboard"
+            >
+              <LayoutDashboard size={14} />
+              <span>{currentView === 'dashboard' ? 'Editor' : 'My Resumes'}</span>
+            </button>
 
-          {/* 3. Versions */}
-          <button 
-            className="btn btn-outline btn-sm strip-btn"
-            onClick={onOpenVersionHistory}
-            title="Resume Revision History & Restore"
-          >
-            <History size={14} style={{ color: '#a855f7' }} />
-            <span>Versions</span>
-          </button>
+            {/* 2. Job Tracker */}
+            <button 
+              className="btn btn-outline btn-sm strip-btn"
+              onClick={onOpenTracker}
+              title="Job Application Pipeline Tracker"
+            >
+              <Briefcase size={14} style={{ color: 'var(--accent-cyan)' }} />
+              <span>Job Tracker</span>
+            </button>
 
-          {/* 4. AI Suite Dropdown Button */}
-          <button 
-            className="btn btn-ai btn-sm strip-btn"
-            onClick={handleToggleAiDropdown}
-            title="AI Resume Suite Tools"
-          >
-            <Sparkles size={14} />
-            <span>AI Suite</span>
-            <ChevronDown size={12} />
-          </button>
+            {/* 3. Versions */}
+            <button 
+              className="btn btn-outline btn-sm strip-btn"
+              onClick={onOpenVersionHistory}
+              title="Resume Revision History & Restore"
+            >
+              <History size={14} style={{ color: '#a855f7' }} />
+              <span>Versions</span>
+            </button>
 
-          {/* 5. ATS Check */}
-          <button 
-            className="btn btn-outline btn-sm strip-btn"
-            onClick={onOpenATS}
-            title="Check 4-Dimension ATS Compatibility Score"
-          >
-            <BarChart3 size={14} style={{ color: '#10b981' }} />
-            <span>ATS Check {atsScore ? `(${atsScore}%)` : ''}</span>
-          </button>
+            {/* 4. AI Suite Dropdown Button */}
+            <button 
+              className="btn btn-ai btn-sm strip-btn"
+              onClick={handleToggleAiDropdown}
+              title="AI Resume Suite Tools"
+            >
+              <Sparkles size={14} />
+              <span>AI Suite</span>
+              <ChevronDown size={12} />
+            </button>
 
-          {/* 6. Demo Data */}
-          <button 
-            className="btn btn-outline btn-sm strip-btn"
-            onClick={onLoadSample}
-            title="Load rich demo profile"
-          >
-            <FileText size={14} />
-            <span>Demo Data</span>
-          </button>
+            {/* 5. ATS Check */}
+            <button 
+              className="btn btn-outline btn-sm strip-btn"
+              onClick={onOpenATS}
+              title="Check 4-Dimension ATS Compatibility Score"
+            >
+              <BarChart3 size={14} style={{ color: '#10b981' }} />
+              <span>ATS Check {atsScore ? `(${atsScore}%)` : ''}</span>
+            </button>
 
-          {/* 7. Pro Tier */}
-          <button 
-            className="btn btn-outline btn-sm strip-btn"
-            onClick={onOpenPricing}
-            style={{ borderColor: '#eab308', color: '#fef08a' }}
-            title="Pro Tier Subscriptions"
+            {/* 6. Demo Data */}
+            <button 
+              className="btn btn-outline btn-sm strip-btn"
+              onClick={onLoadSample}
+              title="Load rich demo profile"
+            >
+              <FileText size={14} />
+              <span>Demo Data</span>
+            </button>
+
+            {/* 7. Pro Tier */}
+            <button 
+              className="btn btn-outline btn-sm strip-btn"
+              onClick={onOpenPricing}
+              style={{ borderColor: '#eab308', color: '#fef08a' }}
+              title="Pro Tier Subscriptions"
+            >
+              <Crown size={14} style={{ color: '#fbbf24' }} />
+              <span>Pro Tier</span>
+            </button>
+          </div>
+
+          <button
+            type="button"
+            className={`feature-strip-arrow arrow-right ${!canScrollRight ? 'hidden-arrow' : ''}`}
+            onClick={() => scrollStrip(220)}
+            aria-label="Scroll feature bar right"
+            disabled={!canScrollRight}
           >
-            <Crown size={14} style={{ color: '#fbbf24' }} />
-            <span>Pro Tier</span>
+            <ChevronRight size={16} />
           </button>
         </div>
       </div>

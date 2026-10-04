@@ -163,8 +163,97 @@ body {
   padding: 0.35rem;
 }
 
-.navbar-feature-strip {
+.navbar-feature-strip-wrapper {
   display: none;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  align-items: center;
+  position: relative;
+  background: var(--bg-pane);
+  border-top: 1px solid var(--border-color);
+  padding: 0 0.25rem;
+}
+
+.feature-strip-arrow {
+  flex: 0 0 26px;
+  width: 26px;
+  height: 26px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  color: var(--text-main);
+  cursor: pointer;
+  padding: 0;
+  margin: 0 0.15rem;
+  transition: all 0.15s ease;
+  z-index: 5;
+}
+
+.feature-strip-arrow:hover:not(:disabled) {
+  background: var(--bg-hover);
+  color: var(--accent-cyan);
+  border-color: var(--accent-cyan);
+}
+
+.feature-strip-arrow.hidden-arrow {
+  opacity: 0;
+  pointer-events: none;
+  visibility: hidden;
+  width: 0;
+  margin: 0;
+  padding: 0;
+  border: none;
+}
+
+.navbar-feature-strip {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: row;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.45rem 0.35rem;
+  overflow-x: auto;
+  overflow-y: hidden;
+  white-space: nowrap;
+  flex-wrap: nowrap;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  overscroll-behavior-x: contain;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-x;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  box-sizing: border-box;
+  cursor: grab;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.navbar-feature-strip::-webkit-scrollbar {
+  display: none;
+}
+
+.navbar-feature-strip.grabbing {
+  cursor: grabbing !important;
+}
+
+.navbar-feature-strip.grabbing * {
+  cursor: grabbing !important;
+  user-select: none !important;
+}
+
+.strip-btn {
+  flex: 0 0 auto !important;
+  flex-shrink: 0 !important;
+  white-space: nowrap !important;
+  font-size: 0.775rem;
+  padding: 0.35rem 0.65rem;
 }
 
 .logo-group {
@@ -1069,31 +1158,8 @@ body {
 
 /* Tablet / Half-Screen Feature Strip (~600px - 1080px) */
 @media (max-width: 1080px) and (min-width: 600px) {
-  .navbar-feature-strip {
+  .navbar-feature-strip-wrapper {
     display: flex !important;
-    flex-direction: row;
-    align-items: center;
-    gap: 0.5rem;
-    padding: 0.45rem 1rem;
-    background: var(--bg-pane);
-    border-top: 1px solid var(--border-color);
-    overflow-x: auto;
-    overflow-y: hidden;
-    white-space: nowrap;
-    -webkit-overflow-scrolling: touch;
-    scrollbar-width: none;
-    -ms-overflow-style: none;
-    width: 100%;
-    box-sizing: border-box;
-  }
-  .navbar-feature-strip::-webkit-scrollbar {
-    display: none;
-  }
-  .strip-btn {
-    flex-shrink: 0;
-    white-space: nowrap;
-    font-size: 0.775rem;
-    padding: 0.35rem 0.65rem;
   }
   .workspace-wrapper {
     height: calc(100vh - 98px);
@@ -1102,7 +1168,7 @@ body {
 
 /* Small Phones (< 600px): Strip hidden, hamburger drawer handles all */
 @media (max-width: 599px) {
-  .navbar-feature-strip {
+  .navbar-feature-strip-wrapper {
     display: none !important;
   }
   .navbar-compact-row1 {
