@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import html2pdf from 'html2pdf.js';
 import Navbar from './components/Navbar';
 import ResumeForm from './components/ResumeForm';
@@ -66,6 +66,11 @@ export default function App() {
   const [showAdminMetrics, setShowAdminMetrics] = useState(false);
   const [saveStatus, setSaveStatus] = useState('');
 
+  const lastSavedPayloadRef = useRef('');
+  const autosaveTimerRef = useRef(null);
+  const isSavingRef = useRef(false);
+  const prevUserRef = useRef(user);
+
   // ☀️ / 🌙 Theme Mode ('dark' | 'light')
   const [theme, setTheme] = useState(() => {
     return localStorage.getItem('ai_resume_theme') || 'dark';
@@ -79,6 +84,33 @@ export default function App() {
   const toggleTheme = () => {
     setTheme(prev => (prev === 'light' ? 'dark' : 'light'));
   };
+
+  // When user logs out, clear editor state and reset to clean empty resume
+  useEffect(() => {
+    if (prevUserRef.current && !user) {
+      setResume({ ...emptyResume, id: null });
+      localStorage.removeItem('ai_resume_current_draft');
+      setSaveStatus('');
+      lastSavedPayloadRef.current = '';
+    }
+    prevUserRef.current = user;
+  }, [user]);
+
+  // If user is authenticated and resume has an ID, make server data authoritative
+  useEffect(() => {
+    if (user && resume.id) {
+      axiosClient.get(`/resumes/${resume.id}`)
+        .then(res => {
+          if (res.data?.success && res.data.resume) {
+            setResume(res.data.resume);
+            lastSavedPayloadRef.current = JSON.stringify(res.data.resume);
+          }
+        })
+        .catch(err => {
+          console.warn('Authoritative resume fetch failed, preserving active draft:', err.message);
+        });
+    }
+  }, [user?.id, resume.id]);
 
   // Check URL params for public web resume view (?view=ID)
   useEffect(() => {
@@ -99,28 +131,87 @@ export default function App() {
     }
   }, []);
 
-  // Auto-save draft in localStorage
+  // Always auto-save draft in localStorage as client recovery fallback
   useEffect(() => {
     localStorage.setItem('ai_resume_current_draft', JSON.stringify(resume));
   }, [resume]);
 
+  // Real Debounced Cloud Autosave for authenticated users
+  useEffect(() => {
+    if (!user) {
+      return;
+    }
+
+    const payload = JSON.stringify(resume);
+    if (payload === lastSavedPayloadRef.current) {
+      return;
+    }
+
+    // Meaningful state while awaiting debounce
+    setSaveStatus('Saving...');
+
+    if (autosaveTimerRef.current) {
+      clearTimeout(autosaveTimerRef.current);
+    }
+
+    autosaveTimerRef.current = setTimeout(async () => {
+      if (isSavingRef.current) return;
+      isSavingRef.current = true;
+
+      try {
+        const res = await axiosClient.post('/resumes', resume);
+        if (res.data?.success) {
+          const newId = res.data.resumeId || resume.id;
+          const updatedResume = { ...resume, id: newId };
+          lastSavedPayloadRef.current = JSON.stringify(updatedResume);
+          
+          // Keep database ID for subsequent updates (avoids duplicates)
+          if (!resume.id && newId) {
+            setResume(prev => ({ ...prev, id: newId }));
+          }
+
+          setSaveStatus('Saved');
+          setTimeout(() => {
+            setSaveStatus(prev => prev === 'Saved' ? '' : prev);
+          }, 2500);
+        } else {
+          setSaveStatus('Save failed');
+        }
+      } catch (err) {
+        console.error('Autosave error:', err);
+        setSaveStatus('Save failed');
+      } finally {
+        isSavingRef.current = false;
+      }
+    }, 1000);
+
+    return () => {
+      if (autosaveTimerRef.current) {
+        clearTimeout(autosaveTimerRef.current);
+      }
+    };
+  }, [resume, user]);
+
   // Load sample data
   const handleLoadSample = () => {
     if (window.confirm('Load demo profile? This will populate the editor with a complete developer resume.')) {
-      setResume(sampleResume);
+      setResume({ ...sampleResume, id: null });
       setCurrentView('editor');
     }
   };
 
-  // Reset to empty
+  // Reset to empty for genuinely new resume (avoids overwriting existing)
   const handleCreateNew = () => {
-    setResume(emptyResume);
+    setResume({ ...emptyResume, id: null, title: 'My Resume' });
+    lastSavedPayloadRef.current = '';
     setCurrentView('editor');
+    setSaveStatus('');
   };
 
   // Select resume from Dashboard
   const handleSelectResume = (selected) => {
     setResume(selected);
+    lastSavedPayloadRef.current = JSON.stringify(selected);
     setCurrentView('editor');
   };
 
@@ -275,15 +366,19 @@ export default function App() {
       {/* Save indicator banner */}
       {saveStatus && (
         <div style={{
-          background: 'rgba(56, 189, 248, 0.15)',
-          borderBottom: '1px solid rgba(56, 189, 248, 0.3)',
+          background: saveStatus === 'Save failed' 
+            ? 'rgba(239, 68, 68, 0.15)' 
+            : saveStatus === 'Saving...' 
+              ? 'rgba(234, 179, 8, 0.15)' 
+              : 'rgba(34, 197, 94, 0.15)',
+          borderBottom: `1px solid ${saveStatus === 'Save failed' ? 'rgba(239, 68, 68, 0.3)' : saveStatus === 'Saving...' ? 'rgba(234, 179, 8, 0.3)' : 'rgba(34, 197, 94, 0.3)'}`,
           textAlign: 'center',
           padding: '0.45rem',
           fontSize: '0.825rem',
           fontWeight: 600,
-          color: '#38bdf8'
+          color: saveStatus === 'Save failed' ? '#ef4444' : saveStatus === 'Saving...' ? '#eab308' : '#22c55e'
         }}>
-          {saveStatus}
+          {saveStatus === 'Saving...' ? 'Saving...' : saveStatus === 'Saved' ? 'Saved' : saveStatus === 'Save failed' ? 'Save failed' : saveStatus}
         </div>
       )}
 

@@ -35,6 +35,7 @@ export function AuthProvider({ children }) {
 
   const logout = () => {
     localStorage.removeItem('ai_resume_token');
+    localStorage.removeItem('ai_resume_current_draft');
     setToken('');
     setUser(null);
   };

@@ -349,15 +349,28 @@ export default function ResumeForm({ resume, setResume, onSwitchToPreview }) {
               <span className="section-title">Personal Details</span>
             </div>
 
-            <div className="form-group">
-              <label className="form-label">Target Job Role</label>
-              <input 
-                type="text" 
-                className="form-input" 
-                placeholder="e.g. Full Stack Developer"
-                value={resume.target_role || ''}
-                onChange={(e) => setResume(prev => ({ ...prev, target_role: e.target.value }))}
-              />
+            <div className="form-grid-2">
+              <div className="form-group">
+                <label className="form-label">Resume Title</label>
+                <input 
+                  type="text" 
+                  className="form-input" 
+                  placeholder="e.g. Full Stack Developer Resume"
+                  value={resume.title || ''}
+                  onChange={(e) => setResume(prev => ({ ...prev, title: e.target.value }))}
+                />
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Target Job Role</label>
+                <input 
+                  type="text" 
+                  className="form-input" 
+                  placeholder="e.g. Full Stack Developer"
+                  value={resume.target_role || ''}
+                  onChange={(e) => setResume(prev => ({ ...prev, target_role: e.target.value }))}
+                />
+              </div>
             </div>
 
             <div className="form-grid-2">
