@@ -152,7 +152,7 @@ export async function exportResumeToDocx(resume) {
               color: '2563EB'
             }),
             new TextRun({
-              text: exp.startDate ? `    (${exp.startDate} - ${exp.endDate || 'Present'})` : '',
+              text: (exp.startDate && exp.endDate ? `    (${exp.startDate} - ${exp.endDate})` : (exp.startDate || exp.endDate ? `    (${exp.startDate || exp.endDate})` : '')),
               italics: true,
               size: 18,
               font: 'Arial',

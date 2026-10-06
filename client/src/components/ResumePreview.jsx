@@ -91,7 +91,8 @@ export default function ResumePreview({ resume, setResume }) {
     if (experience && experience.length > 0) {
       content += `WORK EXPERIENCE\n`;
       experience.forEach(exp => {
-        content += `${exp.role || ''} - ${exp.company || ''} (${exp.startDate || ''} - ${exp.endDate || ''})\n`;
+        const expDates = exp.startDate && exp.endDate ? `${exp.startDate} - ${exp.endDate}` : (exp.startDate || exp.endDate || '');
+        content += `${exp.role || ''} - ${exp.company || ''}${expDates ? ` (${expDates})` : ''}\n`;
         content += `${exp.description || ''}\n\n`;
       });
     }
@@ -363,7 +364,9 @@ export default function ResumePreview({ resume, setResume }) {
                       <div key={exp.id || i} style={{ marginBottom: '12px' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem' }}>
                           <span style={{ fontWeight: 700, color: '#0f172a' }}>{exp.role}</span>
-                          <span style={{ fontSize: '0.75rem', color: '#64748b' }}>{exp.startDate} - {exp.endDate || 'Present'}</span>
+                          <span style={{ fontSize: '0.75rem', color: '#64748b' }}>
+                            {exp.startDate && exp.endDate ? `${exp.startDate} - ${exp.endDate}` : (exp.startDate || exp.endDate || '')}
+                          </span>
                         </div>
                         <div style={{ fontSize: '0.775rem', color: theme_color, fontWeight: 600 }}>{exp.company} {exp.location ? `• ${exp.location}` : ''}</div>
                         {exp.description && (
@@ -470,7 +473,7 @@ export default function ResumePreview({ resume, setResume }) {
                           )}
                         </div>
                         <span className="resume-item-date">
-                          {exp.startDate ? `${exp.startDate} - ${exp.endDate || 'Present'}` : ''}
+                          {exp.startDate && exp.endDate ? `${exp.startDate} - ${exp.endDate}` : (exp.startDate || exp.endDate || '')}
                         </span>
                       </div>
                       {exp.description && (

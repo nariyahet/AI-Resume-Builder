@@ -66,9 +66,10 @@ export default function App() {
   const [showAdminMetrics, setShowAdminMetrics] = useState(false);
   const [saveStatus, setSaveStatus] = useState('');
 
-  const lastSavedPayloadRef = useRef('');
+  const lastSavedPayloadRef = useRef(null);
   const autosaveTimerRef = useRef(null);
   const isSavingRef = useRef(false);
+  const deletedResumeIdsRef = useRef(new Set());
   const prevUserRef = useRef(user);
 
   // ☀️ / 🌙 Theme Mode ('dark' | 'light')
@@ -91,7 +92,8 @@ export default function App() {
       setResume({ ...emptyResume, id: null });
       localStorage.removeItem('ai_resume_current_draft');
       setSaveStatus('');
-      lastSavedPayloadRef.current = '';
+      lastSavedPayloadRef.current = null;
+      deletedResumeIdsRef.current.clear();
     }
     prevUserRef.current = user;
   }, [user]);
@@ -99,6 +101,9 @@ export default function App() {
   // If user is authenticated and resume has an ID, make server data authoritative
   useEffect(() => {
     if (user && resume.id) {
+      if (deletedResumeIdsRef.current.has(resume.id)) {
+        return;
+      }
       axiosClient.get(`/resumes/${resume.id}`)
         .then(res => {
           if (res.data?.success && res.data.resume) {
@@ -107,7 +112,17 @@ export default function App() {
           }
         })
         .catch(err => {
-          console.warn('Authoritative resume fetch failed, preserving active draft:', err.message);
+          if (err.response?.status === 404) {
+            console.warn('Active resume was deleted on server. Resetting to clean draft.');
+            deletedResumeIdsRef.current.add(resume.id);
+            const cleanResume = { ...emptyResume, id: null, title: 'My Resume' };
+            setResume(cleanResume);
+            localStorage.removeItem('ai_resume_current_draft');
+            lastSavedPayloadRef.current = JSON.stringify(cleanResume);
+            setSaveStatus('');
+          } else {
+            console.warn('Authoritative resume fetch failed, preserving active draft:', err.message);
+          }
         });
     }
   }, [user?.id, resume.id]);
@@ -131,6 +146,16 @@ export default function App() {
     }
   }, []);
 
+  // Cancel any pending autosave debounce when leaving the editor
+  useEffect(() => {
+    if (currentView !== 'editor') {
+      if (autosaveTimerRef.current) {
+        clearTimeout(autosaveTimerRef.current);
+        autosaveTimerRef.current = null;
+      }
+    }
+  }, [currentView]);
+
   // Always auto-save draft in localStorage as client recovery fallback
   useEffect(() => {
     localStorage.setItem('ai_resume_current_draft', JSON.stringify(resume));
@@ -138,11 +163,26 @@ export default function App() {
 
   // Real Debounced Cloud Autosave for authenticated users
   useEffect(() => {
-    if (!user) {
+    if (!user || currentView !== 'editor') {
+      return;
+    }
+
+    if (!resume || typeof resume !== 'object' || !resume.title) {
+      return;
+    }
+
+    if (resume.id && deletedResumeIdsRef.current.has(resume.id)) {
       return;
     }
 
     const payload = JSON.stringify(resume);
+
+    // Initial mount / user session load synchronization: do not trigger autosave
+    if (lastSavedPayloadRef.current === null) {
+      lastSavedPayloadRef.current = payload;
+      return;
+    }
+
     if (payload === lastSavedPayloadRef.current) {
       return;
     }
@@ -155,19 +195,53 @@ export default function App() {
     }
 
     autosaveTimerRef.current = setTimeout(async () => {
+      // Re-verify conditions right before sending request
+      if (
+        !user || 
+        currentView !== 'editor' || 
+        (resume.id && deletedResumeIdsRef.current.has(resume.id))
+      ) {
+        setSaveStatus(prev => prev === 'Saving...' ? '' : prev);
+        return;
+      }
+
       if (isSavingRef.current) return;
       isSavingRef.current = true;
 
+      const payloadResume = { ...resume };
+
       try {
-        const res = await axiosClient.post('/resumes', resume);
+        const res = await axiosClient.post('/resumes', payloadResume);
+
+        // Check race condition: was this resume deleted while request was in-flight?
+        if (
+          (payloadResume.id && deletedResumeIdsRef.current.has(payloadResume.id)) ||
+          (res.data?.resumeId && deletedResumeIdsRef.current.has(res.data.resumeId))
+        ) {
+          if (res.data?.resumeId && res.data.resumeId !== payloadResume.id) {
+            try {
+              await axiosClient.delete(`/resumes/${res.data.resumeId}`);
+            } catch {
+              // Ignore cleanup error
+            }
+          }
+          setSaveStatus(prev => prev === 'Saving...' ? '' : prev);
+          return;
+        }
+
         if (res.data?.success) {
-          const newId = res.data.resumeId || resume.id;
-          const updatedResume = { ...resume, id: newId };
+          const newId = res.data.resumeId || payloadResume.id;
+          const updatedResume = { ...payloadResume, id: newId };
           lastSavedPayloadRef.current = JSON.stringify(updatedResume);
           
           // Keep database ID for subsequent updates (avoids duplicates)
-          if (!resume.id && newId) {
-            setResume(prev => ({ ...prev, id: newId }));
+          if (!payloadResume.id && newId) {
+            setResume(prev => {
+              if (prev.id && deletedResumeIdsRef.current.has(prev.id)) {
+                return prev;
+              }
+              return { ...prev, id: newId };
+            });
           }
 
           setSaveStatus('Saved');
@@ -178,6 +252,10 @@ export default function App() {
           setSaveStatus('Save failed');
         }
       } catch (err) {
+        if (payloadResume.id && deletedResumeIdsRef.current.has(payloadResume.id)) {
+          setSaveStatus(prev => prev === 'Saving...' ? '' : prev);
+          return;
+        }
         console.error('Autosave error:', err);
         setSaveStatus('Save failed');
       } finally {
@@ -190,20 +268,46 @@ export default function App() {
         clearTimeout(autosaveTimerRef.current);
       }
     };
-  }, [resume, user]);
+  }, [resume, user, currentView]);
+
+  // Handle resume deletion event from Dashboard
+  const handleResumeDeleted = (deletedId) => {
+    deletedResumeIdsRef.current.add(deletedId);
+
+    // Cancel any pending autosave debounce
+    if (autosaveTimerRef.current) {
+      clearTimeout(autosaveTimerRef.current);
+      autosaveTimerRef.current = null;
+    }
+
+    // Reset save status to neutral idle state
+    setSaveStatus('');
+
+    // If currently active resume was the deleted one, reset to clean state
+    if (resume?.id === deletedId || deletedId === 'local-draft') {
+      const cleanResume = { ...emptyResume, id: null, title: 'My Resume' };
+      setResume(cleanResume);
+      localStorage.removeItem('ai_resume_current_draft');
+      lastSavedPayloadRef.current = JSON.stringify(cleanResume);
+    }
+  };
 
   // Load sample data
   const handleLoadSample = () => {
     if (window.confirm('Load demo profile? This will populate the editor with a complete developer resume.')) {
-      setResume({ ...sampleResume, id: null });
+      const demoResume = { ...sampleResume, id: null };
+      setResume(demoResume);
+      lastSavedPayloadRef.current = JSON.stringify(demoResume);
       setCurrentView('editor');
+      setSaveStatus('');
     }
   };
 
   // Reset to empty for genuinely new resume (avoids overwriting existing)
   const handleCreateNew = () => {
-    setResume({ ...emptyResume, id: null, title: 'My Resume' });
-    lastSavedPayloadRef.current = '';
+    const cleanResume = { ...emptyResume, id: null, title: 'My Resume' };
+    setResume(cleanResume);
+    lastSavedPayloadRef.current = JSON.stringify(cleanResume);
     setCurrentView('editor');
     setSaveStatus('');
   };
@@ -213,6 +317,7 @@ export default function App() {
     setResume(selected);
     lastSavedPayloadRef.current = JSON.stringify(selected);
     setCurrentView('editor');
+    setSaveStatus('');
   };
 
   // Open share modal
@@ -300,7 +405,8 @@ export default function App() {
     if (experience && experience.length > 0) {
       content += `WORK EXPERIENCE\n`;
       experience.forEach(exp => {
-        content += `${exp.role || ''} - ${exp.company || ''} (${exp.startDate || ''} - ${exp.endDate || ''})\n`;
+        const expDates = exp.startDate && exp.endDate ? `${exp.startDate} - ${exp.endDate}` : (exp.startDate || exp.endDate || '');
+        content += `${exp.role || ''} - ${exp.company || ''}${expDates ? ` (${expDates})` : ''}\n`;
         content += `${exp.description || ''}\n\n`;
       });
     }
@@ -333,12 +439,23 @@ export default function App() {
     setTimeout(() => setSaveStatus(''), 3000);
   };
 
+  const handleToggleView = (view) => {
+    if (view === 'dashboard') {
+      if (autosaveTimerRef.current) {
+        clearTimeout(autosaveTimerRef.current);
+        autosaveTimerRef.current = null;
+      }
+      setSaveStatus(prev => prev === 'Saving...' ? '' : prev);
+    }
+    setCurrentView(view);
+  };
+
   return (
     <div className="app-root">
       {/* Navbar Header */}
       <Navbar
         currentView={currentView}
-        onToggleView={(view) => setCurrentView(view)}
+        onToggleView={handleToggleView}
         onLoadSample={handleLoadSample}
         onOpenATS={() => setShowAtsModal(true)}
         onOpenAuth={() => setShowAuthModal(true)}
@@ -364,7 +481,7 @@ export default function App() {
       />
 
       {/* Save indicator banner */}
-      {saveStatus && (
+      {saveStatus && currentView === 'editor' && (
         <div style={{
           background: saveStatus === 'Save failed' 
             ? 'rgba(239, 68, 68, 0.15)' 
@@ -389,6 +506,7 @@ export default function App() {
           onCreateNew={handleCreateNew}
           onBackToEditor={() => setCurrentView('editor')}
           onOpenShare={handleOpenShare}
+          onDeleteResume={handleResumeDeleted}
         />
       ) : (
         /* VIEW 2: SPLIT-SCREEN WORKSPACE */

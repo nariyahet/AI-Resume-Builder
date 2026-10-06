@@ -20,7 +20,8 @@ export default function Dashboard({
   onSelectResume, 
   onCreateNew, 
   onBackToEditor,
-  onOpenShare
+  onOpenShare,
+  onDeleteResume
 }) {
   const { user } = useAuth();
   const [resumes, setResumes] = useState([]);
@@ -76,8 +77,16 @@ export default function Dashboard({
     if (!window.confirm('Are you sure you want to delete this resume?')) return;
     setActionLoading(`delete-${resumeId}`);
     try {
-      await axiosClient.delete(`/resumes/${resumeId}`);
-      setResumes(prev => prev.filter(r => r.id !== resumeId));
+      if (resumeId === 'local-draft' || !user) {
+        localStorage.removeItem('ai_resume_current_draft');
+        setResumes([]);
+      } else {
+        await axiosClient.delete(`/resumes/${resumeId}`);
+        setResumes(prev => prev.filter(r => r.id !== resumeId));
+      }
+      if (onDeleteResume) {
+        onDeleteResume(resumeId);
+      }
     } catch (err) {
       alert('Failed to delete resume.');
     } finally {

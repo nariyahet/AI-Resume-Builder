@@ -136,6 +136,19 @@ export default function ResumeForm({ resume, setResume, onSwitchToPreview }) {
     });
   };
 
+  const handleDurationChange = (index, value) => {
+    setResume(prev => {
+      const updated = [...(prev.experience || [])];
+      updated[index] = {
+        ...updated[index],
+        startDate: value,
+        endDate: '',
+        year: value
+      };
+      return { ...prev, experience: updated };
+    });
+  };
+
   const removeExperience = (index) => {
     setResume(prev => ({
       ...prev,
@@ -539,8 +552,8 @@ export default function ResumeForm({ resume, setResume, onSwitchToPreview }) {
                       type="text" 
                       className="form-input" 
                       placeholder="e.g. Jan 2022 - Present"
-                      value={exp.startDate ? `${exp.startDate} - ${exp.endDate || 'Present'}` : (exp.year || '')}
-                      onChange={(e) => updateExperience(index, 'startDate', e.target.value)}
+                      value={exp.startDate && exp.endDate ? `${exp.startDate} - ${exp.endDate}` : (exp.startDate || exp.endDate || exp.year || '')}
+                      onChange={(e) => handleDurationChange(index, e.target.value)}
                     />
                   </div>
                   <div className="form-group">
