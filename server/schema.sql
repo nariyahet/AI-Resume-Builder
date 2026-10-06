@@ -32,6 +32,7 @@ CREATE TABLE IF NOT EXISTS resumes (
   version_history JSON NULL,
   template_id VARCHAR(50) DEFAULT 'modern',
   theme_color VARCHAR(20) DEFAULT '#2563eb',
+  page_style VARCHAR(50) DEFAULT 'modern',
   ats_score INT DEFAULT 0,
   ats_feedback JSON NULL,
   is_public BOOLEAN DEFAULT TRUE,

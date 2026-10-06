@@ -10,11 +10,13 @@ import {
   Layout, 
   Type, 
   MoveVertical,
+  Sliders,
   Download,
   FileText,
   Link as LinkIcon
 } from 'lucide-react';
 import { exportResumeToDocx } from '../utils/docxExport';
+import { COLOR_PALETTES, PAGE_STYLES } from '../data/customizationOptions';
 
 export default function ResumePreview({ resume, setResume }) {
   // Mobile & desktop auto-fit scale calculator
@@ -43,14 +45,6 @@ export default function ResumePreview({ resume, setResume }) {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  const colors = [
-    { name: 'Royal Blue', hex: '#2563eb' },
-    { name: 'Deep Purple', hex: '#7c3aed' },
-    { name: 'Emerald', hex: '#059669' },
-    { name: 'Crimson', hex: '#e11d48' },
-    { name: 'Dark Slate', hex: '#0f172a' }
-  ];
-
   const templates = [
     { id: 'modern', name: 'Modern Tech' },
     { id: 'harvard', name: 'Harvard Classic ATS' },
@@ -74,8 +68,10 @@ export default function ResumePreview({ resume, setResume }) {
     education = [],
     skills = [],
     projects = [],
+    certifications = [],
     template_id = 'modern',
-    theme_color = '#2563eb'
+    theme_color = '#2563eb',
+    page_style = 'modern'
   } = resume;
 
   // Export as Plain Text / Docx helper
@@ -142,8 +138,8 @@ export default function ResumePreview({ resume, setResume }) {
       <div className="preview-toolbar no-print">
         {/* Template Selector */}
         <div className="toolbar-group">
-          <Layout size={14} style={{ color: '#94a3b8' }} />
-          <span style={{ fontSize: '0.75rem', color: '#94a3b8', fontWeight: 600 }}>TEMPLATE:</span>
+          <Layout size={14} style={{ color: 'var(--text-muted)' }} />
+          <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600 }}>TEMPLATE:</span>
           <select 
             className="form-select" 
             style={{ width: 'auto', padding: '0.3rem 0.5rem', fontSize: '0.775rem' }}
@@ -156,10 +152,26 @@ export default function ResumePreview({ resume, setResume }) {
           </select>
         </div>
 
+        {/* Page Style Selector */}
+        <div className="toolbar-group">
+          <Sliders size={14} style={{ color: 'var(--text-muted)' }} />
+          <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600 }}>STYLE:</span>
+          <select 
+            className="form-select" 
+            style={{ width: 'auto', padding: '0.3rem 0.5rem', fontSize: '0.775rem' }}
+            value={page_style}
+            onChange={(e) => setResume(prev => ({ ...prev, page_style: e.target.value }))}
+          >
+            {PAGE_STYLES.map(s => (
+              <option key={s.id} value={s.id}>{s.name}</option>
+            ))}
+          </select>
+        </div>
+
         {/* Font Selector */}
         <div className="toolbar-group">
-          <Type size={14} style={{ color: '#94a3b8' }} />
-          <span style={{ fontSize: '0.75rem', color: '#94a3b8', fontWeight: 600 }}>FONT:</span>
+          <Type size={14} style={{ color: 'var(--text-muted)' }} />
+          <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600 }}>FONT:</span>
           <select 
             className="form-select" 
             style={{ width: 'auto', padding: '0.3rem 0.5rem', fontSize: '0.775rem' }}
@@ -174,8 +186,8 @@ export default function ResumePreview({ resume, setResume }) {
 
         {/* Spacing / Fit */}
         <div className="toolbar-group">
-          <MoveVertical size={14} style={{ color: '#94a3b8' }} />
-          <span style={{ fontSize: '0.75rem', color: '#94a3b8', fontWeight: 600 }}>FIT:</span>
+          <MoveVertical size={14} style={{ color: 'var(--text-muted)' }} />
+          <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600 }}>FIT:</span>
           <select 
             className="form-select" 
             style={{ width: 'auto', padding: '0.3rem 0.5rem', fontSize: '0.775rem' }}
@@ -188,26 +200,31 @@ export default function ResumePreview({ resume, setResume }) {
           </select>
         </div>
 
-        {/* Color Palette Switcher */}
+        {/* Color Palette Switcher (All 16 Colors) */}
         <div className="toolbar-group">
-          <Palette size={14} style={{ color: '#94a3b8' }} />
-          <div style={{ display: 'flex', gap: '0.3rem', alignItems: 'center' }}>
-            {colors.map(c => (
-              <button
-                key={c.hex}
-                title={c.name}
-                onClick={() => setResume(prev => ({ ...prev, theme_color: c.hex }))}
-                style={{
-                  width: '18px',
-                  height: '18px',
-                  borderRadius: '50%',
-                  background: c.hex,
-                  border: theme_color === c.hex ? '2px solid #ffffff' : '1px solid rgba(255,255,255,0.3)',
-                  cursor: 'pointer',
-                  transform: theme_color === c.hex ? 'scale(1.15)' : 'scale(1)'
-                }}
-              />
-            ))}
+          <Palette size={14} style={{ color: 'var(--text-muted)' }} />
+          <div style={{ display: 'flex', gap: '0.2rem', alignItems: 'center', flexWrap: 'wrap', maxWidth: '175px' }}>
+            {COLOR_PALETTES.map(c => {
+              const isSelected = (theme_color || '#2563eb').toLowerCase() === c.hex.toLowerCase();
+              return (
+                <button
+                  key={c.hex}
+                  title={c.name}
+                  onClick={() => setResume(prev => ({ ...prev, theme_color: c.hex }))}
+                  style={{
+                    width: '16px',
+                    height: '16px',
+                    borderRadius: '50%',
+                    background: c.hex,
+                    border: isSelected ? '2px solid #ffffff' : '1px solid rgba(0,0,0,0.15)',
+                    boxShadow: isSelected ? '0 0 0 1.5px var(--primary)' : 'none',
+                    cursor: 'pointer',
+                    transform: isSelected ? 'scale(1.2)' : 'scale(1)',
+                    padding: 0
+                  }}
+                />
+              );
+            })}
           </div>
         </div>
 
@@ -271,7 +288,7 @@ export default function ResumePreview({ resume, setResume }) {
         >
           <div 
             id="resume-print-area"
-            className={`resume-sheet template-${template_id}`}
+            className={`resume-sheet template-${template_id} style-${page_style || 'modern'}`}
             style={{ 
               '--theme-color': theme_color,
               fontFamily: `${fontFamily}, sans-serif`,
@@ -290,6 +307,17 @@ export default function ResumePreview({ resume, setResume }) {
             <div style={{ display: 'grid', gridTemplateColumns: '190px 1fr', gap: '20px', minHeight: '100%' }}>
               {/* Left Column Sidebar */}
               <div style={{ borderRight: '1.5px solid #e2e8f0', paddingRight: '15px' }}>
+                {personal_info.profile_photo && (
+                  <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '14px' }}>
+                    <img 
+                      src={personal_info.profile_photo} 
+                      alt={personal_info.fullName || 'Candidate Photo'}
+                      className={`resume-photo shape-${personal_info.photo_shape || 'circle'}`}
+                      style={{ width: '80px', height: '80px' }}
+                    />
+                  </div>
+                )}
+
                 <div style={{ borderBottom: `2px solid ${theme_color}`, paddingBottom: '10px', marginBottom: '15px' }}>
                   <h1 style={{ fontSize: '1.45rem', fontWeight: 800, color: '#0f172a', lineHeight: 1.15 }}>
                     {personal_info.fullName || 'Your Name'}
@@ -304,7 +332,8 @@ export default function ResumePreview({ resume, setResume }) {
                   {personal_info.email && <div><Mail size={11} style={{ color: theme_color, display: 'inline', marginRight: '4px' }} />{personal_info.email}</div>}
                   {personal_info.phone && <div><Phone size={11} style={{ color: theme_color, display: 'inline', marginRight: '4px' }} />{personal_info.phone}</div>}
                   {personal_info.location && <div><MapPin size={11} style={{ color: theme_color, display: 'inline', marginRight: '4px' }} />{personal_info.location}</div>}
-                  {personal_info.linkedin && <div><Globe size={11} style={{ color: theme_color, display: 'inline', marginRight: '4px' }} />{personal_info.linkedin}</div>}
+                  {personal_info.website && <div><Globe size={11} style={{ color: theme_color, display: 'inline', marginRight: '4px' }} />{personal_info.website}</div>}
+                  {personal_info.linkedin && <div><LinkIcon size={11} style={{ color: theme_color, display: 'inline', marginRight: '4px' }} />{personal_info.linkedin}</div>}
                 </div>
 
                 {/* Skills Sidebar */}
@@ -405,40 +434,56 @@ export default function ResumePreview({ resume, setResume }) {
             /* ========================================================= */
             <>
               {/* HEADER SECTION */}
-              <header className="resume-header">
-                <h1 className="resume-name">
-                  {personal_info.fullName || 'Your Name'}
-                </h1>
-                <div className="resume-role">
-                  {target_role || 'Target Job Title'}
-                </div>
+              <header className={`resume-header ${personal_info.profile_photo ? 'resume-header-with-photo' : ''}`}>
+                {personal_info.profile_photo && (
+                  <div className="resume-photo-wrapper">
+                    <img 
+                      src={personal_info.profile_photo} 
+                      alt={personal_info.fullName || 'Candidate Photo'}
+                      className={`resume-photo shape-${personal_info.photo_shape || 'circle'}`}
+                    />
+                  </div>
+                )}
+                <div className="resume-header-text" style={{ flex: 1 }}>
+                  <h1 className="resume-name">
+                    {personal_info.fullName || 'Your Name'}
+                  </h1>
+                  <div className="resume-role">
+                    {target_role || 'Target Job Title'}
+                  </div>
 
-                <div className="resume-contacts">
-                  {personal_info.email && (
-                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                      <Mail size={12} style={{ color: theme_color }} /> {personal_info.email}
-                    </span>
-                  )}
-                  {personal_info.phone && (
-                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                      <Phone size={12} style={{ color: theme_color }} /> {personal_info.phone}
-                    </span>
-                  )}
-                  {personal_info.location && (
-                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                      <MapPin size={12} style={{ color: theme_color }} /> {personal_info.location}
-                    </span>
-                  )}
-                  {personal_info.linkedin && (
-                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                      <Globe size={12} style={{ color: theme_color }} /> {personal_info.linkedin}
-                    </span>
-                  )}
-                  {personal_info.github && (
-                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                      <LinkIcon size={12} style={{ color: theme_color }} /> {personal_info.github}
-                    </span>
-                  )}
+                  <div className="resume-contacts">
+                    {personal_info.email && (
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                        <Mail size={12} style={{ color: theme_color }} /> {personal_info.email}
+                      </span>
+                    )}
+                    {personal_info.phone && (
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                        <Phone size={12} style={{ color: theme_color }} /> {personal_info.phone}
+                      </span>
+                    )}
+                    {personal_info.location && (
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                        <MapPin size={12} style={{ color: theme_color }} /> {personal_info.location}
+                      </span>
+                    )}
+                    {personal_info.website && (
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                        <Globe size={12} style={{ color: theme_color }} /> {personal_info.website}
+                      </span>
+                    )}
+                    {personal_info.linkedin && (
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                        <LinkIcon size={12} style={{ color: theme_color }} /> {personal_info.linkedin}
+                      </span>
+                    )}
+                    {personal_info.github && (
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                        <LinkIcon size={12} style={{ color: theme_color }} /> {personal_info.github}
+                      </span>
+                    )}
+                  </div>
                 </div>
               </header>
 
@@ -560,18 +605,45 @@ export default function ResumePreview({ resume, setResume }) {
                 </section>
               )}
 
+              {/* CERTIFICATIONS */}
+              {certifications && certifications.length > 0 && (
+                <section className="resume-section">
+                  <h2 className="resume-section-title">
+                    {template_id === 'harvard' ? 'CERTIFICATIONS' : 'Certifications'}
+                  </h2>
+                  {certifications.map((cert, i) => (
+                    <div key={cert.id || i} className="resume-item">
+                      <div className="resume-item-top">
+                        <div>
+                          <span className="resume-item-title">{cert.name}</span>
+                          {cert.issuer && (
+                            <span className="resume-item-company"> — {cert.issuer}</span>
+                          )}
+                        </div>
+                        {cert.year && (
+                          <span className="resume-item-date">{cert.year}</span>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </section>
+              )}
+
               {/* CUSTOM SECTIONS (Awards, Publications, Volunteer, etc.) */}
               {resume.custom_sections && resume.custom_sections.length > 0 && (
-                resume.custom_sections.map((sec, i) => (
-                  <section key={sec.id || i} className="resume-section">
-                    <h2 className="resume-section-title">
-                      {template_id === 'harvard' ? (sec.title || 'ADDITIONAL SECTION').toUpperCase() : (sec.title || 'Additional Section')}
-                    </h2>
-                    <div className="resume-item-desc" style={{ whiteSpace: 'pre-line' }}>
-                      {sec.content}
-                    </div>
-                  </section>
-                ))
+                resume.custom_sections.map((sec, i) => {
+                  const heading = sec.title || sec.heading || 'Additional Section';
+                  return (
+                    <section key={sec.id || i} className="resume-section">
+                      <h2 className="resume-section-title">
+                        {template_id === 'harvard' ? heading.toUpperCase() : heading}
+                      </h2>
+                      <div className="resume-item-desc" style={{ whiteSpace: 'pre-line' }}>
+                        {sec.content}
+                      </div>
+                    </section>
+                  );
+                })
               )}
             </>
           )}

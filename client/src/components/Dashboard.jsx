@@ -121,10 +121,10 @@ export default function Dashboard({
           >
             <ArrowLeft size={14} /> Back to Editor
           </button>
-          <h1 style={{ fontFamily: 'var(--font-heading)', fontSize: '1.85rem', fontWeight: 800, color: '#fff' }}>
+          <h1 style={{ fontFamily: 'var(--font-heading)', fontSize: '1.85rem', fontWeight: 800, color: 'var(--text-main)' }}>
             My Resumes Dashboard
           </h1>
-          <p style={{ color: '#94a3b8', fontSize: '0.875rem' }}>
+          <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem' }}>
             Manage, duplicate, and tailor all your professional resumes for different job applications.
           </p>
         </div>
@@ -139,17 +139,17 @@ export default function Dashboard({
       {loading ? (
         <div style={{ textAlign: 'center', padding: '4rem 1rem' }}>
           <Loader2 size={36} className="animate-spin" style={{ color: 'var(--primary)', margin: '0 auto 1rem' }} />
-          <p style={{ color: '#94a3b8' }}>Loading your saved resumes...</p>
+          <p style={{ color: 'var(--text-muted)' }}>Loading your saved resumes...</p>
         </div>
       ) : resumes.length === 0 ? (
         <div className="glass-panel" style={{ textAlign: 'center', padding: '4rem 2rem' }}>
           <div style={{ width: '60px', height: '60px', background: 'rgba(59, 130, 246, 0.1)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1.25rem' }}>
-            <FileText size={28} style={{ color: '#38bdf8' }} />
+            <FileText size={28} style={{ color: 'var(--accent-cyan)' }} />
           </div>
-          <h3 style={{ fontSize: '1.25rem', fontWeight: 700, color: '#fff', marginBottom: '0.5rem' }}>
+          <h3 style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--text-main)', marginBottom: '0.5rem' }}>
             No saved resumes found
           </h3>
-          <p style={{ color: '#94a3b8', fontSize: '0.875rem', maxWidth: '450px', margin: '0 auto 1.5rem' }}>
+          <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem', maxWidth: '450px', margin: '0 auto 1.5rem' }}>
             You haven't saved any resumes yet. Start fresh or use our 1-click sample template to get hired faster!
           </p>
           <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'center', flexWrap: 'wrap' }}>
@@ -178,10 +178,10 @@ export default function Dashboard({
                 justifyContent: 'space-between',
                 cursor: 'pointer',
                 transition: 'transform 0.2s, border-color 0.2s',
-                border: '1px solid rgba(255,255,255,0.08)'
+                border: '1px solid var(--border-color)'
               }}
               onMouseEnter={(e) => e.currentTarget.style.borderColor = 'var(--primary)'}
-              onMouseLeave={(e) => e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)'}
+              onMouseLeave={(e) => e.currentTarget.style.borderColor = 'var(--border-color)'}
               onClick={() => handleOpenResume(r)}
             >
               <div>
@@ -204,14 +204,14 @@ export default function Dashboard({
                   </span>
                 </div>
 
-                <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: '#fff', marginBottom: '0.25rem' }}>
+                <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--text-main)', marginBottom: '0.25rem' }}>
                   {r.title || 'Untitled Resume'}
                 </h3>
-                <p style={{ color: '#38bdf8', fontSize: '0.85rem', fontWeight: 500, marginBottom: '0.75rem' }}>
+                <p style={{ color: 'var(--primary)', fontSize: '0.85rem', fontWeight: 600, marginBottom: '0.75rem' }}>
                   {r.target_role || 'General Professional'}
                 </p>
 
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.75rem', color: '#64748b' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.75rem', color: 'var(--text-subtle)' }}>
                   <Calendar size={13} />
                   <span>Updated {new Date(r.updated_at || Date.now()).toLocaleDateString()}</span>
                   <span>•</span>
@@ -228,7 +228,7 @@ export default function Dashboard({
                 gap: '0.5rem',
                 marginTop: '1.5rem', 
                 paddingTop: '1rem', 
-                borderTop: '1px solid rgba(255,255,255,0.06)' 
+                borderTop: '1px solid var(--border-color)' 
               }}>
                 <button 
                   className="btn btn-outline btn-sm" 

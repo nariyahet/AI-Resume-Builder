@@ -10,11 +10,14 @@ import {
   Trash2, 
   Wand2, 
   Loader2,
-  FileSpreadsheet,
   Award,
-  ArrowRight
+  ArrowRight,
+  Camera,
+  Upload,
+  Palette
 } from 'lucide-react';
 import axiosClient from '../api/axiosClient';
+import { COLOR_PALETTES, PAGE_STYLES, PHOTO_SHAPES } from '../data/customizationOptions';
 
 export default function ResumeForm({ resume, setResume, onSwitchToPreview }) {
   const [activeTab, setActiveTab] = useState('personal');
@@ -22,6 +25,60 @@ export default function ResumeForm({ resume, setResume, onSwitchToPreview }) {
   const [magicPrompt, setMagicPrompt] = useState('');
   const [skillInput, setSkillInput] = useState('');
   const [activeExpEnhancing, setActiveExpEnhancing] = useState(null);
+
+  // Profile Photo Upload Handlers
+  const handlePhotoUpload = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const validTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/jpg'];
+    if (!validTypes.includes(file.type)) {
+      alert('Please upload a valid image file (JPG, JPEG, PNG, or WebP).');
+      return;
+    }
+
+    const maxSize = 2 * 1024 * 1024; // 2MB
+    if (file.size > maxSize) {
+      alert('Photo size exceeds 2MB limit. Please select a smaller photo.');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (uploadEvent) => {
+      const dataUrl = uploadEvent.target?.result;
+      if (dataUrl) {
+        setResume(prev => ({
+          ...prev,
+          personal_info: {
+            ...prev.personal_info,
+            profile_photo: dataUrl,
+            photo_shape: prev.personal_info?.photo_shape || 'circle'
+          }
+        }));
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleRemovePhoto = () => {
+    setResume(prev => ({
+      ...prev,
+      personal_info: {
+        ...prev.personal_info,
+        profile_photo: ''
+      }
+    }));
+  };
+
+  const handlePhotoShapeChange = (shape) => {
+    setResume(prev => ({
+      ...prev,
+      personal_info: {
+        ...prev.personal_info,
+        photo_shape: shape
+      }
+    }));
+  };
 
   // Helper for personal info changes
   const handlePersonalChange = (field, value) => {
@@ -458,6 +515,168 @@ export default function ResumeForm({ resume, setResume, onSwitchToPreview }) {
               </div>
             </div>
 
+            <div className="form-group">
+              <label className="form-label">Website / Personal URL</label>
+              <input 
+                type="text" 
+                className="form-input" 
+                placeholder="e.g. https://alexrivera.dev"
+                value={resume.personal_info?.website || ''}
+                onChange={(e) => handlePersonalChange('website', e.target.value)}
+              />
+            </div>
+
+            {/* PROFILE PHOTO SECTION */}
+            <div className="item-card" style={{ marginTop: '0.5rem', background: 'var(--bg-card)' }}>
+              <div className="item-card-header">
+                <strong style={{ color: 'var(--text-main)', fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
+                  <Camera size={16} style={{ color: 'var(--primary)' }} />
+                  Profile Photo (Optional)
+                </strong>
+                {resume.personal_info?.profile_photo && (
+                  <button
+                    type="button"
+                    className="delete-btn"
+                    onClick={handleRemovePhoto}
+                    title="Remove Photo"
+                    style={{ fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '4px' }}
+                  >
+                    <Trash2 size={13} /> Remove
+                  </button>
+                )}
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
+                {resume.personal_info?.profile_photo ? (
+                  <div style={{ position: 'relative' }}>
+                    <img 
+                      src={resume.personal_info.profile_photo} 
+                      alt="Profile preview" 
+                      style={{ 
+                        width: '72px', 
+                        height: '72px', 
+                        objectFit: 'cover',
+                        borderRadius: resume.personal_info?.photo_shape === 'rounded' ? '12px' : resume.personal_info?.photo_shape === 'square' ? '2px' : '50%',
+                        border: '2px solid var(--primary)'
+                      }} 
+                    />
+                  </div>
+                ) : (
+                  <div style={{ 
+                    width: '72px', 
+                    height: '72px', 
+                    borderRadius: '50%', 
+                    background: 'var(--bg-pane)', 
+                    border: '1.5px dashed var(--border-color)', 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    justifyContent: 'center',
+                    color: 'var(--text-muted)'
+                  }}>
+                    <User size={28} />
+                  </div>
+                )}
+
+                <div style={{ flex: 1, minWidth: '200px' }}>
+                  <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', marginBottom: '0.5rem', flexWrap: 'wrap' }}>
+                    <label 
+                      className="btn btn-outline btn-sm" 
+                      style={{ cursor: 'pointer', margin: 0 }}
+                    >
+                      <Upload size={13} />
+                      {resume.personal_info?.profile_photo ? 'Change Photo' : 'Upload Photo'}
+                      <input 
+                        type="file" 
+                        accept="image/png,image/jpeg,image/webp,image/jpg" 
+                        style={{ display: 'none' }}
+                        onChange={handlePhotoUpload}
+                      />
+                    </label>
+                    <span style={{ fontSize: '0.75rem', color: 'var(--text-subtle)' }}>
+                      Max 2MB (JPG, PNG, WebP)
+                    </span>
+                  </div>
+
+                  {/* Photo Shape Selector */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexWrap: 'wrap' }}>
+                    <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600 }}>Shape:</span>
+                    {PHOTO_SHAPES.map(s => {
+                      const isActive = (resume.personal_info?.photo_shape || 'circle') === s.id;
+                      return (
+                        <button
+                          key={s.id}
+                          type="button"
+                          className={`btn btn-sm ${isActive ? 'btn-primary' : 'btn-outline'}`}
+                          style={{ padding: '0.2rem 0.55rem', fontSize: '0.75rem' }}
+                          onClick={() => handlePhotoShapeChange(s.id)}
+                        >
+                          {s.name}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* PAGE STYLE & COLOR PALETTE CONTROLS */}
+            <div className="item-card" style={{ marginTop: '0.5rem', background: 'var(--bg-card)' }}>
+              <strong style={{ color: 'var(--text-main)', fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '0.45rem', marginBottom: '0.5rem' }}>
+                <Palette size={16} style={{ color: 'var(--primary)' }} />
+                Resume Aesthetics & Styling
+              </strong>
+
+              {/* Page Style Selector */}
+              <div className="form-group" style={{ marginBottom: '0.75rem' }}>
+                <label className="form-label">Page Style</label>
+                <select
+                  className="form-select"
+                  value={resume.page_style || 'modern'}
+                  onChange={(e) => setResume(prev => ({ ...prev, page_style: e.target.value }))}
+                >
+                  {PAGE_STYLES.map(style => (
+                    <option key={style.id} value={style.id}>
+                      {style.name} — {style.desc}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Color Palette Selector */}
+              <div className="form-group">
+                <label className="form-label">Accent Color Palette</label>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(105px, 1fr))', gap: '0.4rem', marginTop: '0.25rem' }}>
+                  {COLOR_PALETTES.map(p => {
+                    const isSelected = (resume.theme_color || '#2563eb').toLowerCase() === p.hex.toLowerCase();
+                    return (
+                      <button
+                        key={p.id}
+                        type="button"
+                        onClick={() => setResume(prev => ({ ...prev, theme_color: p.hex }))}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '0.4rem',
+                          padding: '0.35rem 0.5rem',
+                          borderRadius: 'var(--radius-sm)',
+                          border: isSelected ? `2px solid ${p.hex}` : '1px solid var(--border-color)',
+                          background: isSelected ? 'var(--bg-pane)' : 'transparent',
+                          cursor: 'pointer',
+                          color: 'var(--text-main)',
+                          fontSize: '0.75rem',
+                          fontWeight: isSelected ? 700 : 500,
+                          textAlign: 'left'
+                        }}
+                      >
+                        <span style={{ width: '14px', height: '14px', borderRadius: '50%', background: p.hex, flexShrink: 0 }} />
+                        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+
             {/* EXECUTIVE SUMMARY */}
             <div className="form-group" style={{ marginTop: '0.5rem' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.4rem' }}>
@@ -510,7 +729,7 @@ export default function ResumeForm({ resume, setResume, onSwitchToPreview }) {
             {(resume.experience || []).map((exp, index) => (
               <div key={exp.id || index} className="item-card">
                 <div className="item-card-header">
-                  <strong style={{ color: '#fff', fontSize: '0.9rem' }}>
+                  <strong style={{ color: 'var(--text-main)', fontSize: '0.9rem' }}>
                     {exp.role || `Position #${index + 1}`} {exp.company ? `at ${exp.company}` : ''}
                   </strong>
                   <button 
@@ -709,7 +928,7 @@ export default function ResumeForm({ resume, setResume, onSwitchToPreview }) {
             {(resume.education || []).map((edu, index) => (
               <div key={edu.id || index} className="item-card">
                 <div className="item-card-header">
-                  <strong style={{ color: '#fff', fontSize: '0.9rem' }}>
+                  <strong style={{ color: 'var(--text-main)', fontSize: '0.9rem' }}>
                     {edu.degree || `Education #${index + 1}`}
                   </strong>
                   <button className="delete-btn" onClick={() => removeEducation(index)}>
@@ -800,7 +1019,7 @@ export default function ResumeForm({ resume, setResume, onSwitchToPreview }) {
             {(resume.projects || []).map((proj, index) => (
               <div key={proj.id || index} className="item-card">
                 <div className="item-card-header">
-                  <strong style={{ color: '#fff', fontSize: '0.9rem' }}>
+                  <strong style={{ color: 'var(--text-main)', fontSize: '0.9rem' }}>
                     {proj.name || `Project #${index + 1}`}
                   </strong>
                   <button className="delete-btn" onClick={() => removeProject(index)}>
@@ -891,14 +1110,14 @@ export default function ResumeForm({ resume, setResume, onSwitchToPreview }) {
               </button>
             </div>
 
-            <p style={{ fontSize: '0.8rem', color: '#94a3b8' }}>
+            <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
               Add custom headers such as <em>Awards & Honors</em>, <em>Certifications</em>, <em>Publications</em>, <em>Volunteer Work</em>, or <em>Languages</em>.
             </p>
 
             {(resume.custom_sections || []).map((sec, index) => (
               <div key={sec.id || index} className="item-card">
                 <div className="item-card-header">
-                  <strong style={{ color: '#fff', fontSize: '0.9rem' }}>
+                  <strong style={{ color: 'var(--text-main)', fontSize: '0.9rem' }}>
                     {sec.title || `Section #${index + 1}`}
                   </strong>
                   <button 

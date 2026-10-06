@@ -31,6 +31,7 @@ export async function saveResume(req, res) {
       version_history = [],
       template_id = 'modern',
       theme_color = '#2563eb',
+      page_style = 'modern',
       ats_score = 0,
       ats_feedback = {}
     } = req.body;
@@ -56,7 +57,7 @@ export async function saveResume(req, res) {
           title = ?, target_role = ?, personal_info = ?, summary = ?, 
           experience = ?, education = ?, skills = ?, projects = ?, 
           certifications = ?, custom_sections = ?, version_history = ?,
-          template_id = ?, theme_color = ?, 
+          template_id = ?, theme_color = ?, page_style = ?,
           ats_score = ?, ats_feedback = ?
          WHERE id = ? AND user_id = ?`,
         [
@@ -73,6 +74,7 @@ export async function saveResume(req, res) {
           typeof version_history === 'string' ? version_history : JSON.stringify(version_history || []),
           template_id,
           theme_color,
+          page_style || 'modern',
           ats_score || 0,
           typeof ats_feedback === 'string' ? ats_feedback : JSON.stringify(ats_feedback || {}),
           resumeId,
@@ -97,8 +99,8 @@ export async function saveResume(req, res) {
           user_id, title, target_role, personal_info, summary,
           experience, education, skills, projects, certifications,
           custom_sections, version_history,
-          template_id, theme_color, ats_score, ats_feedback
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          template_id, theme_color, page_style, ats_score, ats_feedback
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           userId,
           title,
@@ -114,6 +116,7 @@ export async function saveResume(req, res) {
           typeof version_history === 'string' ? version_history : JSON.stringify(version_history || []),
           template_id,
           theme_color,
+          page_style || 'modern',
           ats_score || 0,
           typeof ats_feedback === 'string' ? ats_feedback : JSON.stringify(ats_feedback || {})
         ]
@@ -148,7 +151,7 @@ export async function getUserResumes(req, res) {
 
     const db = getDB();
     const [rows] = await db.query(
-      'SELECT id, user_id, title, target_role, template_id, theme_color, ats_score, updated_at FROM resumes WHERE user_id = ? ORDER BY updated_at DESC',
+      'SELECT id, user_id, title, target_role, template_id, theme_color, page_style, ats_score, updated_at FROM resumes WHERE user_id = ? ORDER BY updated_at DESC',
       [req.user.id]
     );
 
@@ -259,8 +262,8 @@ export async function cloneResume(req, res) {
         user_id, title, target_role, personal_info, summary,
         experience, education, skills, projects, certifications,
         custom_sections, version_history,
-        template_id, theme_color, ats_score, ats_feedback
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        template_id, theme_color, page_style, ats_score, ats_feedback
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         userId,
         newTitle,
@@ -276,6 +279,7 @@ export async function cloneResume(req, res) {
         typeof source.version_history === 'string' ? source.version_history : JSON.stringify(source.version_history || []),
         source.template_id,
         source.theme_color,
+        source.page_style || 'modern',
         source.ats_score,
         typeof source.ats_feedback === 'string' ? source.ats_feedback : JSON.stringify(source.ats_feedback || {})
       ]

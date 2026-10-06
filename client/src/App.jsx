@@ -23,6 +23,7 @@ import { sampleResume, emptyResume } from './data/sampleResume';
 import axiosClient from './api/axiosClient';
 import { useAuth } from './context/AuthContext';
 import { exportResumeToDocx } from './utils/docxExport';
+import { getCanonicalPersistedResumePayload } from './utils/resumeCanonical';
 import { Edit3, Eye } from 'lucide-react';
 
 export default function App() {
@@ -108,7 +109,7 @@ export default function App() {
         .then(res => {
           if (res.data?.success && res.data.resume) {
             setResume(res.data.resume);
-            lastSavedPayloadRef.current = JSON.stringify(res.data.resume);
+            lastSavedPayloadRef.current = getCanonicalPersistedResumePayload(res.data.resume);
           }
         })
         .catch(err => {
@@ -118,7 +119,7 @@ export default function App() {
             const cleanResume = { ...emptyResume, id: null, title: 'My Resume' };
             setResume(cleanResume);
             localStorage.removeItem('ai_resume_current_draft');
-            lastSavedPayloadRef.current = JSON.stringify(cleanResume);
+            lastSavedPayloadRef.current = getCanonicalPersistedResumePayload(cleanResume);
             setSaveStatus('');
           } else {
             console.warn('Authoritative resume fetch failed, preserving active draft:', err.message);
@@ -137,6 +138,7 @@ export default function App() {
           const res = await axiosClient.get(`/resumes/public/${viewId}`);
           if (res.data?.success && res.data.resume) {
             setResume(res.data.resume);
+            lastSavedPayloadRef.current = getCanonicalPersistedResumePayload(res.data.resume);
           }
         } catch (err) {
           console.warn('Public view load failed, using local resume.');
@@ -175,7 +177,7 @@ export default function App() {
       return;
     }
 
-    const payload = JSON.stringify(resume);
+    const payload = getCanonicalPersistedResumePayload(resume);
 
     // Initial mount / user session load synchronization: do not trigger autosave
     if (lastSavedPayloadRef.current === null) {
@@ -232,7 +234,7 @@ export default function App() {
         if (res.data?.success) {
           const newId = res.data.resumeId || payloadResume.id;
           const updatedResume = { ...payloadResume, id: newId };
-          lastSavedPayloadRef.current = JSON.stringify(updatedResume);
+          lastSavedPayloadRef.current = getCanonicalPersistedResumePayload(updatedResume);
           
           // Keep database ID for subsequent updates (avoids duplicates)
           if (!payloadResume.id && newId) {
@@ -288,7 +290,7 @@ export default function App() {
       const cleanResume = { ...emptyResume, id: null, title: 'My Resume' };
       setResume(cleanResume);
       localStorage.removeItem('ai_resume_current_draft');
-      lastSavedPayloadRef.current = JSON.stringify(cleanResume);
+      lastSavedPayloadRef.current = getCanonicalPersistedResumePayload(cleanResume);
     }
   };
 
@@ -297,7 +299,7 @@ export default function App() {
     if (window.confirm('Load demo profile? This will populate the editor with a complete developer resume.')) {
       const demoResume = { ...sampleResume, id: null };
       setResume(demoResume);
-      lastSavedPayloadRef.current = JSON.stringify(demoResume);
+      lastSavedPayloadRef.current = getCanonicalPersistedResumePayload(demoResume);
       setCurrentView('editor');
       setSaveStatus('');
     }
@@ -307,7 +309,7 @@ export default function App() {
   const handleCreateNew = () => {
     const cleanResume = { ...emptyResume, id: null, title: 'My Resume' };
     setResume(cleanResume);
-    lastSavedPayloadRef.current = JSON.stringify(cleanResume);
+    lastSavedPayloadRef.current = getCanonicalPersistedResumePayload(cleanResume);
     setCurrentView('editor');
     setSaveStatus('');
   };
@@ -315,7 +317,7 @@ export default function App() {
   // Select resume from Dashboard
   const handleSelectResume = (selected) => {
     setResume(selected);
-    lastSavedPayloadRef.current = JSON.stringify(selected);
+    lastSavedPayloadRef.current = getCanonicalPersistedResumePayload(selected);
     setCurrentView('editor');
     setSaveStatus('');
   };
@@ -349,30 +351,69 @@ export default function App() {
 
   // 1-Click High-Quality PDF Export
   const handleDownloadPDF = async () => {
-    const element = document.getElementById('resume-print-area');
-    if (!element) return;
+    const sourceEl = document.getElementById('resume-print-area');
+    if (!sourceEl) {
+      alert('Resume preview is not ready. Please make sure the resume preview is visible.');
+      return;
+    }
 
     setIsDownloading(true);
 
+    // Create an unscaled offscreen sandbox mounted to the DOM
+    const sandbox = document.createElement('div');
+    sandbox.setAttribute('aria-hidden', 'true');
+    sandbox.style.position = 'fixed';
+    sandbox.style.left = '-9999px';
+    sandbox.style.top = '0';
+    sandbox.style.width = '794px';
+    sandbox.style.minHeight = '1123px';
+    sandbox.style.zIndex = '-9999';
+    sandbox.style.background = '#ffffff';
+    sandbox.style.overflow = 'visible';
+
+    // Clone the resume node deeply
+    const clone = sourceEl.cloneNode(true);
+    clone.id = 'resume-print-area-clone';
+    clone.style.transform = 'none';
+    clone.style.transformOrigin = 'top left';
+    clone.style.position = 'relative';
+    clone.style.top = '0';
+    clone.style.left = '0';
+    clone.style.width = '794px';
+    clone.style.minHeight = '1123px';
+    clone.style.margin = '0';
+    clone.style.boxSizing = 'border-box';
+    clone.style.background = '#ffffff';
+
+    sandbox.appendChild(clone);
+    document.body.appendChild(sandbox);
+
     try {
       const opt = {
-        margin: 0,
+        margin: [0, 0, 0, 0],
         filename: `${(resume.personal_info?.fullName || 'Resume').replace(/\s+/g, '_')}_Resume.pdf`,
         image: { type: 'jpeg', quality: 0.98 },
         html2canvas: { 
           scale: 2, 
           useCORS: true, 
           letterRendering: true,
-          scrollY: 0
+          scrollY: 0,
+          scrollX: 0,
+          windowWidth: 794,
+          backgroundColor: '#ffffff'
         },
-        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+        pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
       };
 
-      await html2pdf().set(opt).from(element).save();
+      await html2pdf().set(opt).from(clone).save();
     } catch (err) {
       console.error('html2pdf error, using print fallback:', err);
       window.print();
     } finally {
+      if (document.body.contains(sandbox)) {
+        document.body.removeChild(sandbox);
+      }
       setIsDownloading(false);
     }
   };
@@ -394,10 +435,18 @@ export default function App() {
 
   // Clean Plain Text (.txt) Export
   const handleDownloadTxt = () => {
-    const { personal_info = {}, target_role = '', summary = '', experience = [], skills = [], education = [], projects = [] } = resume;
+    const { personal_info = {}, target_role = '', summary = '', experience = [], skills = [], education = [], projects = [], certifications = [] } = resume;
     let content = `${personal_info.fullName || 'RESUME'}\n`;
     content += `${target_role || ''}\n`;
-    content += `${personal_info.email || ''} | ${personal_info.phone || ''} | ${personal_info.location || ''}\n\n`;
+    const contactLine = [
+      personal_info.email,
+      personal_info.phone,
+      personal_info.location,
+      personal_info.website,
+      personal_info.linkedin,
+      personal_info.github
+    ].filter(Boolean).join(' | ');
+    content += `${contactLine}\n\n`;
 
     if (summary) {
       content += `PROFESSIONAL SUMMARY\n${summary}\n\n`;
@@ -406,7 +455,8 @@ export default function App() {
       content += `WORK EXPERIENCE\n`;
       experience.forEach(exp => {
         const expDates = exp.startDate && exp.endDate ? `${exp.startDate} - ${exp.endDate}` : (exp.startDate || exp.endDate || '');
-        content += `${exp.role || ''} - ${exp.company || ''}${expDates ? ` (${expDates})` : ''}\n`;
+        const loc = exp.location ? ` (${exp.location})` : '';
+        content += `${exp.role || ''} - ${exp.company || ''}${loc}${expDates ? ` (${expDates})` : ''}\n`;
         content += `${exp.description || ''}\n\n`;
       });
     }
@@ -416,14 +466,30 @@ export default function App() {
     if (education && education.length > 0) {
       content += `EDUCATION\n`;
       education.forEach(edu => {
-        content += `${edu.degree || ''} - ${edu.institution || ''} (${edu.year || ''})\n`;
+        content += `${edu.degree || ''} - ${edu.institution || ''} (${edu.year || ''})${edu.score ? ` [${edu.score}]` : ''}\n`;
       });
       content += '\n';
     }
     if (projects && projects.length > 0) {
       content += `PROJECTS\n`;
       projects.forEach(p => {
-        content += `${p.name || ''}: ${p.description || ''}\n`;
+        content += `${p.name || ''}${p.link ? ` (${p.link})` : ''}: ${p.description || ''}\n`;
+      });
+      content += '\n';
+    }
+    if (certifications && certifications.length > 0) {
+      content += `CERTIFICATIONS\n`;
+      certifications.forEach(c => {
+        content += `${c.name || ''}${c.issuer ? ` - ${c.issuer}` : ''}${c.year ? ` (${c.year})` : ''}\n`;
+      });
+      content += '\n';
+    }
+    if (resume.custom_sections && resume.custom_sections.length > 0) {
+      resume.custom_sections.forEach(sec => {
+        const title = sec.title || sec.heading;
+        if (title && sec.content) {
+          content += `${title.toUpperCase()}\n${sec.content}\n\n`;
+        }
       });
     }
     const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });

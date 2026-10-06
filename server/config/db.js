@@ -71,6 +71,7 @@ export async function initDB() {
         version_history JSON NULL,
         template_id VARCHAR(50) DEFAULT 'modern',
         theme_color VARCHAR(20) DEFAULT '#2563eb',
+        page_style VARCHAR(50) DEFAULT 'modern',
         ats_score INT DEFAULT 0,
         ats_feedback JSON NULL,
         is_public BOOLEAN DEFAULT TRUE,
@@ -88,6 +89,7 @@ export async function initDB() {
     try { await pool.query(`ALTER TABLE resumes ADD COLUMN is_public BOOLEAN DEFAULT TRUE;`); } catch (e) {}
     try { await pool.query(`ALTER TABLE resumes ADD COLUMN view_count INT DEFAULT 0;`); } catch (e) {}
     try { await pool.query(`ALTER TABLE resumes ADD COLUMN share_slug VARCHAR(100) NULL;`); } catch (e) {}
+    try { await pool.query(`ALTER TABLE resumes ADD COLUMN page_style VARCHAR(50) DEFAULT 'modern';`); } catch (e) {}
 
     // 3. Job Applications table (Tracker)
     await pool.query(`

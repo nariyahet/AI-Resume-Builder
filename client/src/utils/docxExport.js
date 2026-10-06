@@ -18,9 +18,11 @@ export async function exportResumeToDocx(resume) {
     skills = [],
     projects = [],
     certifications = [],
-    custom_sections = []
+    custom_sections = [],
+    theme_color = '#2563eb'
   } = resume;
 
+  const accentColor = (theme_color || '#2563eb').replace('#', '').toUpperCase();
   const docParagraphs = [];
 
   // 1. CANDIDATE NAME (Title)
@@ -52,7 +54,7 @@ export async function exportResumeToDocx(resume) {
             bold: true,
             size: 24, // 12pt
             font: 'Arial',
-            color: '2563EB'
+            color: accentColor
           })
         ]
       })
@@ -64,6 +66,7 @@ export async function exportResumeToDocx(resume) {
     personal_info.email,
     personal_info.phone,
     personal_info.location,
+    personal_info.website,
     personal_info.linkedin,
     personal_info.github
   ].filter(Boolean);
@@ -94,8 +97,9 @@ export async function exportResumeToDocx(resume) {
       new Paragraph({
         heading: HeadingLevel.HEADING_2,
         spacing: { before: 240, after: 120 },
+        keepWithNext: true,
         border: {
-          bottom: { style: BorderStyle.SINGLE, size: 6, color: '2563EB' }
+          bottom: { style: BorderStyle.SINGLE, size: 6, color: accentColor }
         },
         children: [
           new TextRun({
@@ -132,10 +136,16 @@ export async function exportResumeToDocx(resume) {
   if (experience && experience.length > 0) {
     addSectionHeading('Work Experience');
     experience.forEach(exp => {
-      // Role & Dates
+      // Role, Company & Location
+      const locationText = exp.location ? ` (${exp.location})` : '';
+      const expDates = exp.startDate && exp.endDate 
+        ? `    ${exp.startDate} - ${exp.endDate}` 
+        : (exp.startDate || exp.endDate ? `    ${exp.startDate || exp.endDate}` : '');
+
       docParagraphs.push(
         new Paragraph({
           spacing: { before: 120, after: 40 },
+          keepWithNext: true,
           children: [
             new TextRun({
               text: exp.role || 'Position',
@@ -145,14 +155,14 @@ export async function exportResumeToDocx(resume) {
               color: '111827'
             }),
             new TextRun({
-              text: ` — ${exp.company || 'Company'}`,
+              text: ` — ${exp.company || 'Company'}${locationText}`,
               bold: true,
               size: 20,
               font: 'Arial',
-              color: '2563EB'
+              color: accentColor
             }),
             new TextRun({
-              text: (exp.startDate && exp.endDate ? `    (${exp.startDate} - ${exp.endDate})` : (exp.startDate || exp.endDate ? `    (${exp.startDate || exp.endDate})` : '')),
+              text: expDates,
               italics: true,
               size: 18,
               font: 'Arial',
@@ -210,6 +220,7 @@ export async function exportResumeToDocx(resume) {
       docParagraphs.push(
         new Paragraph({
           spacing: { before: 100, after: 30 },
+          keepWithNext: true,
           children: [
             new TextRun({
               text: p.name || 'Project',
@@ -254,6 +265,7 @@ export async function exportResumeToDocx(resume) {
       docParagraphs.push(
         new Paragraph({
           spacing: { before: 100, after: 40 },
+          keepWithNext: true,
           children: [
             new TextRun({
               text: edu.degree || 'Degree',
@@ -279,7 +291,7 @@ export async function exportResumeToDocx(resume) {
               bold: true,
               size: 18,
               font: 'Arial',
-              color: '2563EB'
+              color: accentColor
             })
           ]
         })
@@ -287,11 +299,46 @@ export async function exportResumeToDocx(resume) {
     });
   }
 
-  // 9. CUSTOM SECTIONS (Awards, Publications, Volunteer, etc.)
+  // 9. CERTIFICATIONS
+  if (certifications && certifications.length > 0) {
+    addSectionHeading('Certifications');
+    certifications.forEach(cert => {
+      docParagraphs.push(
+        new Paragraph({
+          spacing: { before: 100, after: 40 },
+          keepWithNext: true,
+          children: [
+            new TextRun({
+              text: cert.name || 'Certification',
+              bold: true,
+              size: 20,
+              font: 'Arial',
+              color: '111827'
+            }),
+            new TextRun({
+              text: cert.issuer ? ` — ${cert.issuer}` : '',
+              size: 20,
+              font: 'Arial',
+              color: '4B5563'
+            }),
+            new TextRun({
+              text: cert.year ? `  (${cert.year})` : '',
+              size: 18,
+              font: 'Arial',
+              color: '6B7280'
+            })
+          ]
+        })
+      );
+    });
+  }
+
+  // 10. CUSTOM SECTIONS (Awards, Publications, Volunteer, etc.)
   if (custom_sections && custom_sections.length > 0) {
     custom_sections.forEach(sec => {
-      if (sec.title && sec.content) {
-        addSectionHeading(sec.title);
+      const heading = sec.title || sec.heading;
+      if (heading && sec.content) {
+        addSectionHeading(heading);
         const lines = sec.content.split('\n').filter(Boolean);
         lines.forEach(l => {
           docParagraphs.push(

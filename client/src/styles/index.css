@@ -44,19 +44,19 @@
 
 /* Light Theme Variables */
 [data-theme='light'] {
-  --bg-dark: #f8fafc;
+  --bg-dark: #f1f5f9;
   --bg-pane: #ffffff;
-  --bg-card: #f1f5f9;
-  --bg-card-hover: #e2e8f0;
+  --bg-card: #ffffff;
+  --bg-card-hover: #f8fafc;
   --text-main: #0f172a;
-  --text-muted: #64748b;
-  --text-subtle: #94a3b8;
-  --border-color: #e2e8f0;
-  --border-light: rgba(0, 0, 0, 0.07);
-  --navbar-bg: rgba(255, 255, 255, 0.9);
-  --shadow-sm: 0 1px 3px 0 rgba(0, 0, 0, 0.05);
-  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.07);
-  --shadow-lg: 0 10px 25px -3px rgba(0, 0, 0, 0.1);
+  --text-muted: #334155;
+  --text-subtle: #475569;
+  --border-color: #cbd5e1;
+  --border-light: rgba(0, 0, 0, 0.12);
+  --navbar-bg: rgba(255, 255, 255, 0.95);
+  --shadow-sm: 0 1px 3px 0 rgba(0, 0, 0, 0.08);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.09), 0 2px 4px -1px rgba(0, 0, 0, 0.05);
+  --shadow-lg: 0 10px 25px -3px rgba(0, 0, 0, 0.12);
 }
 
 * {
@@ -1006,6 +1006,188 @@ body {
   border-radius: 4px;
   margin: 0.15rem;
   border: 1px solid #e2e8f0;
+}
+
+/* ============================================================== */
+/* PROFILE PHOTO STYLES                                           */
+/* ============================================================== */
+.resume-header-with-photo {
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  gap: 1.25rem !important;
+  text-align: left !important;
+}
+
+.resume-header-with-photo .resume-contacts {
+  justify-content: flex-start !important;
+}
+
+.resume-photo-wrapper {
+  flex-shrink: 0;
+}
+
+.resume-photo {
+  width: 82px;
+  height: 82px;
+  object-fit: cover;
+  border: 2px solid var(--theme-color, #2563eb);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.12);
+  display: block;
+}
+
+.resume-photo.shape-circle {
+  border-radius: 50% !important;
+}
+
+.resume-photo.shape-rounded {
+  border-radius: 12px !important;
+}
+
+.resume-photo.shape-square {
+  border-radius: 2px !important;
+}
+
+/* ============================================================== */
+/* PAGE STYLES                                                    */
+/* ============================================================== */
+
+/* 1. Classic */
+.style-classic .resume-section-title {
+  border-bottom: 1.5px solid var(--theme-color, #2563eb);
+  padding-bottom: 2px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+.style-classic .resume-section-title::after {
+  display: none !important;
+}
+.style-classic .resume-item-title {
+  font-family: Georgia, 'Times New Roman', serif;
+}
+
+/* 2. Modern */
+.style-modern .resume-section-title {
+  letter-spacing: 0.04em;
+}
+
+/* 3. Minimal */
+.style-minimal .resume-section-title {
+  border-bottom: none !important;
+  padding-bottom: 0 !important;
+  letter-spacing: 0.08em;
+  font-weight: 800;
+  color: var(--theme-color, #2563eb);
+}
+.style-minimal .resume-section-title::after {
+  display: none !important;
+}
+.style-minimal .resume-section {
+  margin-bottom: 0.95rem;
+}
+
+/* 4. Professional */
+.style-professional .resume-section-title {
+  border-left: 3.5px solid var(--theme-color, #2563eb);
+  padding-left: 7px;
+  padding-bottom: 0;
+  border-bottom: none !important;
+  background: rgba(37, 99, 235, 0.04);
+  padding-top: 2px;
+}
+.style-professional .resume-section-title::after {
+  display: none !important;
+}
+
+/* 5. Elegant */
+.style-elegant {
+  font-family: 'Merriweather', Georgia, serif;
+}
+.style-elegant .resume-section-title {
+  border-bottom: 1px double var(--theme-color, #2563eb);
+  padding-bottom: 3px;
+  font-style: italic;
+  letter-spacing: 0.03em;
+}
+.style-elegant .resume-section-title::after {
+  display: none !important;
+}
+
+/* 6. Executive */
+.style-executive .resume-header {
+  border-bottom: 3px solid var(--theme-color, #2563eb);
+  padding-bottom: 1rem;
+}
+.style-executive .resume-section-title {
+  font-weight: 800;
+  color: #0f172a;
+  border-bottom: 2px solid var(--theme-color, #2563eb);
+  padding-bottom: 2px;
+  text-transform: uppercase;
+}
+.style-executive .resume-section-title::after {
+  display: none !important;
+}
+
+/* 7. Compact */
+.style-compact {
+  padding: 12mm 14mm !important;
+}
+.style-compact .resume-section {
+  margin-bottom: 0.7rem !important;
+}
+.style-compact .resume-item {
+  margin-bottom: 0.45rem !important;
+}
+.style-compact .resume-header {
+  margin-bottom: 0.75rem !important;
+  padding-bottom: 0.5rem !important;
+}
+.style-compact .resume-name {
+  font-size: 1.8rem !important;
+}
+.style-compact .resume-section-title {
+  font-size: 0.85rem !important;
+  margin-bottom: 0.25rem !important;
+}
+
+/* 8. Creative */
+.style-creative .resume-section-title {
+  display: inline-flex;
+  padding: 2px 10px;
+  background: var(--theme-color, #2563eb);
+  color: #ffffff !important;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  letter-spacing: 0.05em;
+  margin-bottom: 0.6rem;
+}
+.style-creative .resume-section-title::after {
+  display: none !important;
+}
+.style-creative .resume-item-company {
+  color: var(--theme-color, #2563eb);
+}
+
+/* Light Theme High Contrast Guarantee */
+[data-theme='light'] .modal-content h1,
+[data-theme='light'] .modal-content h2,
+[data-theme='light'] .modal-content h3,
+[data-theme='light'] .modal-content h4,
+[data-theme='light'] .modal-content h5 {
+  color: var(--text-main) !important;
+}
+
+[data-theme='light'] .modal-content p {
+  color: var(--text-muted);
+}
+
+[data-theme='light'] .modal-content label {
+  color: var(--text-muted);
+}
+
+[data-theme='light'] .modal-content .item-card strong {
+  color: var(--text-main) !important;
 }
 
 /* Modal Overlay */

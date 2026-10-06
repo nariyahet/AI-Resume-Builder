@@ -3,6 +3,7 @@ export const sampleResume = {
   target_role: "Senior Full Stack Developer",
   template_id: "modern",
   theme_color: "#2563eb",
+  page_style: "modern",
   personal_info: {
     fullName: "Darshan Patel",
     email: "darshan.patel@example.com",
@@ -10,7 +11,9 @@ export const sampleResume = {
     location: "Ahmedabad, Gujarat, India",
     linkedin: "linkedin.com/in/darshan-patel-dev",
     github: "github.com/darshanpatel-pro",
-    website: "darshanpatel.dev"
+    website: "darshanpatel.dev",
+    profile_photo: "",
+    photo_shape: "circle"
   },
   summary: "Results-driven Senior Full Stack Developer with 4+ years of hands-on expertise building enterprise-grade web applications with React, Node.js, and MySQL. Proven track record of architecting scalable microservices, slashing API latency by 35%, and driving agile team sprints.",
   skills: [
@@ -90,6 +93,7 @@ export const emptyResume = {
   target_role: "",
   template_id: "modern",
   theme_color: "#2563eb",
+  page_style: "modern",
   personal_info: {
     fullName: "",
     email: "",
@@ -97,7 +101,9 @@ export const emptyResume = {
     location: "",
     linkedin: "",
     github: "",
-    website: ""
+    website: "",
+    profile_photo: "",
+    photo_shape: "circle"
   },
   summary: "",
   skills: [],
