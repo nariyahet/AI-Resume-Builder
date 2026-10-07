@@ -28,7 +28,7 @@ import { Edit3, Eye } from 'lucide-react';
 
 export default function App() {
   const { user } = useAuth();
-  
+
   // View mode: 'editor' or 'dashboard'
   const [currentView, setCurrentView] = useState('editor');
 
@@ -199,8 +199,8 @@ export default function App() {
     autosaveTimerRef.current = setTimeout(async () => {
       // Re-verify conditions right before sending request
       if (
-        !user || 
-        currentView !== 'editor' || 
+        !user ||
+        currentView !== 'editor' ||
         (resume.id && deletedResumeIdsRef.current.has(resume.id))
       ) {
         setSaveStatus(prev => prev === 'Saving...' ? '' : prev);
@@ -235,7 +235,7 @@ export default function App() {
           const newId = res.data.resumeId || payloadResume.id;
           const updatedResume = { ...payloadResume, id: newId };
           lastSavedPayloadRef.current = getCanonicalPersistedResumePayload(updatedResume);
-          
+
           // Keep database ID for subsequent updates (avoids duplicates)
           if (!payloadResume.id && newId) {
             setResume(prev => {
@@ -323,7 +323,11 @@ export default function App() {
   };
 
   // Open share modal
-  const handleOpenShare = () => {
+  const handleOpenShare = (resumeToShare) => {
+    if (resumeToShare && typeof resumeToShare === 'object' && resumeToShare.id) {
+      setResume(resumeToShare);
+      lastSavedPayloadRef.current = getCanonicalPersistedResumePayload(resumeToShare);
+    }
     setShowShare(true);
   };
 
@@ -393,9 +397,9 @@ export default function App() {
         margin: [0, 0, 0, 0],
         filename: `${(resume.personal_info?.fullName || 'Resume').replace(/\s+/g, '_')}_Resume.pdf`,
         image: { type: 'jpeg', quality: 0.98 },
-        html2canvas: { 
-          scale: 2, 
-          useCORS: true, 
+        html2canvas: {
+          scale: 2,
+          useCORS: true,
           letterRendering: true,
           scrollY: 0,
           scrollX: 0,
@@ -537,6 +541,7 @@ export default function App() {
         onOpenVersionHistory={() => setShowVersionHistory(true)}
         onOpenAccountSettings={() => setShowAccountSettings(true)}
         onOpenAdminMetrics={() => setShowAdminMetrics(true)}
+        onOpenShare={handleOpenShare}
         onDownloadPDF={handleDownloadPDF}
         onDownloadDocx={handleDownloadDocx}
         onDownloadTxt={handleDownloadTxt}
@@ -549,10 +554,10 @@ export default function App() {
       {/* Save indicator banner */}
       {saveStatus && currentView === 'editor' && (
         <div style={{
-          background: saveStatus === 'Save failed' 
-            ? 'rgba(239, 68, 68, 0.15)' 
-            : saveStatus === 'Saving...' 
-              ? 'rgba(234, 179, 8, 0.15)' 
+          background: saveStatus === 'Save failed'
+            ? 'rgba(239, 68, 68, 0.15)'
+            : saveStatus === 'Saving...'
+              ? 'rgba(234, 179, 8, 0.15)'
               : 'rgba(34, 197, 94, 0.15)',
           borderBottom: `1px solid ${saveStatus === 'Save failed' ? 'rgba(239, 68, 68, 0.3)' : saveStatus === 'Saving...' ? 'rgba(234, 179, 8, 0.3)' : 'rgba(34, 197, 94, 0.3)'}`,
           textAlign: 'center',
@@ -579,7 +584,7 @@ export default function App() {
         <div className="workspace-wrapper">
           {/* Mobile Screen Switcher (only displayed on <= 900px screens) */}
           <div className="mobile-view-bar">
-            <button 
+            <button
               type="button"
               className={`mobile-tab-btn ${mobileTab === 'editor' ? 'active' : ''}`}
               onClick={() => setMobileTab('editor')}
@@ -587,7 +592,7 @@ export default function App() {
               <Edit3 size={15} />
               <span>1. Edit Form</span>
             </button>
-            <button 
+            <button
               type="button"
               className={`mobile-tab-btn ${mobileTab === 'preview' ? 'active' : ''}`}
               onClick={() => setMobileTab('preview')}
@@ -600,18 +605,19 @@ export default function App() {
           <main className={`workspace-container mobile-tab-${mobileTab}`}>
             {/* Left Side: Form Editor & AI Magic */}
             <div className="workspace-pane pane-editor">
-              <ResumeForm 
-                resume={resume} 
-                setResume={setResume} 
+              <ResumeForm
+                resume={resume}
+                setResume={setResume}
                 onSwitchToPreview={() => setMobileTab('preview')}
               />
             </div>
 
             {/* Right Side: Live A4 Resume Preview */}
             <div className="workspace-pane pane-preview">
-              <ResumePreview 
-                resume={resume} 
-                setResume={setResume} 
+              <ResumePreview
+                resume={resume}
+                setResume={setResume}
+                onOpenShare={() => setShowShare(true)}
               />
             </div>
           </main>
@@ -619,10 +625,10 @@ export default function App() {
       )}
 
       {/* 🔴 P1 ADVANCED ATS MODAL */}
-      <ATSScoreModal 
-        isOpen={showAtsModal} 
-        onClose={() => setShowAtsModal(false)} 
-        resume={resume} 
+      <ATSScoreModal
+        isOpen={showAtsModal}
+        onClose={() => setShowAtsModal(false)}
+        resume={resume}
         setResume={setResume}
       />
 
@@ -683,13 +689,13 @@ export default function App() {
         setResume={setResume}
       />
 
-      {/* 🟡 P3 REAL FREE/PRO & RAZORPAY + STRIPE */}
+      {/* 🟡 100% FREE PRODUCT MODAL */}
       <PricingModal
         isOpen={showPricing}
         onClose={() => setShowPricing(false)}
-        onUpgradedSuccess={() => {
-          setSaveStatus('🎉 Pro Plan Activated! All limits removed.');
-          setTimeout(() => setSaveStatus(''), 4000);
+        onOpenShare={() => {
+          setShowPricing(false);
+          setShowShare(true);
         }}
       />
 
@@ -711,14 +717,14 @@ export default function App() {
         resume={resume}
       />
 
-      <AuthModal 
-        isOpen={showAuthModal} 
-        onClose={() => setShowAuthModal(false)} 
+      <AuthModal
+        isOpen={showAuthModal}
+        onClose={() => setShowAuthModal(false)}
       />
 
-      <AiKeyModal 
-        isOpen={showAiKeyModal} 
-        onClose={() => setShowAiKeyModal(false)} 
+      <AiKeyModal
+        isOpen={showAiKeyModal}
+        onClose={() => setShowAiKeyModal(false)}
       />
     </div>
   );

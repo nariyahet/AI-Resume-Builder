@@ -1,24 +1,25 @@
 import React, { useState } from 'react';
-import { 
-  Mail, 
-  Phone, 
-  MapPin, 
-  Globe, 
-  ZoomIn, 
-  ZoomOut, 
-  Palette, 
-  Layout, 
-  Type, 
+import {
+  Mail,
+  Phone,
+  MapPin,
+  Globe,
+  ZoomIn,
+  ZoomOut,
+  Palette,
+  Layout,
+  Type,
   MoveVertical,
   Sliders,
   Download,
   FileText,
+  Share2,
   Link as LinkIcon
 } from 'lucide-react';
 import { exportResumeToDocx } from '../utils/docxExport';
 import { COLOR_PALETTES, PAGE_STYLES } from '../data/customizationOptions';
 
-export default function ResumePreview({ resume, setResume }) {
+export default function ResumePreview({ resume, setResume, onOpenShare }) {
   // Mobile & desktop auto-fit scale calculator
   const getAutoFitScale = () => {
     if (typeof window === 'undefined') return 1;
@@ -140,8 +141,8 @@ export default function ResumePreview({ resume, setResume }) {
         <div className="toolbar-group">
           <Layout size={14} style={{ color: 'var(--text-muted)' }} />
           <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600 }}>TEMPLATE:</span>
-          <select 
-            className="form-select" 
+          <select
+            className="form-select"
             style={{ width: 'auto', padding: '0.3rem 0.5rem', fontSize: '0.775rem' }}
             value={template_id}
             onChange={(e) => setResume(prev => ({ ...prev, template_id: e.target.value }))}
@@ -156,8 +157,8 @@ export default function ResumePreview({ resume, setResume }) {
         <div className="toolbar-group">
           <Sliders size={14} style={{ color: 'var(--text-muted)' }} />
           <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600 }}>STYLE:</span>
-          <select 
-            className="form-select" 
+          <select
+            className="form-select"
             style={{ width: 'auto', padding: '0.3rem 0.5rem', fontSize: '0.775rem' }}
             value={page_style}
             onChange={(e) => setResume(prev => ({ ...prev, page_style: e.target.value }))}
@@ -172,8 +173,8 @@ export default function ResumePreview({ resume, setResume }) {
         <div className="toolbar-group">
           <Type size={14} style={{ color: 'var(--text-muted)' }} />
           <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600 }}>FONT:</span>
-          <select 
-            className="form-select" 
+          <select
+            className="form-select"
             style={{ width: 'auto', padding: '0.3rem 0.5rem', fontSize: '0.775rem' }}
             value={fontFamily}
             onChange={(e) => setFontFamily(e.target.value)}
@@ -188,8 +189,8 @@ export default function ResumePreview({ resume, setResume }) {
         <div className="toolbar-group">
           <MoveVertical size={14} style={{ color: 'var(--text-muted)' }} />
           <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600 }}>FIT:</span>
-          <select 
-            className="form-select" 
+          <select
+            className="form-select"
             style={{ width: 'auto', padding: '0.3rem 0.5rem', fontSize: '0.775rem' }}
             value={spacingDensity}
             onChange={(e) => setSpacingDensity(e.target.value)}
@@ -230,7 +231,7 @@ export default function ResumePreview({ resume, setResume }) {
 
         {/* Zoom Controls */}
         <div className="toolbar-group zoom-group">
-          <button 
+          <button
             className="btn btn-outline btn-sm"
             onClick={() => setScale(s => Math.max(0.3, Number((s - 0.05).toFixed(2))))}
             title="Zoom Out"
@@ -240,14 +241,14 @@ export default function ResumePreview({ resume, setResume }) {
           <span style={{ fontSize: '0.75rem', color: 'var(--text-main)', minWidth: '36px', textAlign: 'center' }}>
             {Math.round(scale * 100)}%
           </span>
-          <button 
+          <button
             className="btn btn-outline btn-sm"
             onClick={() => setScale(s => Math.min(1.4, Number((s + 0.05).toFixed(2))))}
             title="Zoom In"
           >
             <ZoomIn size={12} />
           </button>
-          <button 
+          <button
             className="btn btn-outline btn-sm"
             onClick={() => setScale(getAutoFitScale())}
             title="Auto-Fit to Screen"
@@ -256,7 +257,7 @@ export default function ResumePreview({ resume, setResume }) {
             Fit
           </button>
 
-          <button 
+          <button
             className="btn btn-outline btn-sm desktop-only-btn"
             onClick={() => exportResumeToDocx(resume)}
             title="Export editable Microsoft Word document (.docx)"
@@ -265,19 +266,30 @@ export default function ResumePreview({ resume, setResume }) {
             <FileText size={12} /> .DOCX
           </button>
 
-          <button 
+          <button
             className="btn btn-outline btn-sm desktop-only-btn"
             onClick={handleExportTxt}
             title="Export as Text / Word draft"
           >
             <Download size={12} /> .TXT
           </button>
+
+          {onOpenShare && (
+            <button
+              className="btn btn-outline btn-sm"
+              onClick={onOpenShare}
+              title="Share Public Web Link & QR Code"
+              style={{ borderColor: 'var(--primary)', color: 'var(--primary)', fontWeight: 600 }}
+            >
+              <Share2 size={12} /> Share
+            </button>
+          )}
         </div>
       </div>
 
       {/* A4 Resume Container Area */}
       <div className="preview-scroll-area">
-        <div 
+        <div
           className="resume-scale-wrapper"
           style={{
             width: `${Math.round(794 * scale)}px`,
@@ -286,10 +298,10 @@ export default function ResumePreview({ resume, setResume }) {
             margin: '0 auto'
           }}
         >
-          <div 
+          <div
             id="resume-print-area"
             className={`resume-sheet template-${template_id} style-${page_style || 'modern'}`}
-            style={{ 
+            style={{
               '--theme-color': theme_color,
               fontFamily: `${fontFamily}, sans-serif`,
               transform: `scale(${scale})`,
@@ -309,8 +321,8 @@ export default function ResumePreview({ resume, setResume }) {
               <div style={{ borderRight: '1.5px solid #e2e8f0', paddingRight: '15px' }}>
                 {personal_info.profile_photo && (
                   <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '14px' }}>
-                    <img 
-                      src={personal_info.profile_photo} 
+                    <img
+                      src={personal_info.profile_photo}
                       alt={personal_info.fullName || 'Candidate Photo'}
                       className={`resume-photo shape-${personal_info.photo_shape || 'circle'}`}
                       style={{ width: '80px', height: '80px' }}
@@ -437,8 +449,8 @@ export default function ResumePreview({ resume, setResume }) {
               <header className={`resume-header ${personal_info.profile_photo ? 'resume-header-with-photo' : ''}`}>
                 {personal_info.profile_photo && (
                   <div className="resume-photo-wrapper">
-                    <img 
-                      src={personal_info.profile_photo} 
+                    <img
+                      src={personal_info.profile_photo}
                       alt={personal_info.fullName || 'Candidate Photo'}
                       className={`resume-photo shape-${personal_info.photo_shape || 'circle'}`}
                     />

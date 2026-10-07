@@ -1,13 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  FileText, 
-  Plus, 
-  Copy, 
-  Trash2, 
-  Edit3, 
-  Share2, 
-  BarChart3, 
-  ArrowLeft, 
+import {
+  FileText,
+  Plus,
+  Copy,
+  Trash2,
+  Edit3,
+  Share2,
+  Download,
+  BarChart3,
+  ArrowLeft,
   Loader2,
   Calendar,
   Sparkles
@@ -15,10 +16,11 @@ import {
 import axiosClient from '../api/axiosClient';
 import { useAuth } from '../context/AuthContext';
 import { emptyResume, sampleResume } from '../data/sampleResume';
+import { exportResumeToDocx } from '../utils/docxExport';
 
-export default function Dashboard({ 
-  onSelectResume, 
-  onCreateNew, 
+export default function Dashboard({
+  onSelectResume,
+  onCreateNew,
   onBackToEditor,
   onOpenShare,
   onDeleteResume
@@ -109,13 +111,51 @@ export default function Dashboard({
     }
   };
 
+  const handleShareCard = async (resumeItem, e) => {
+    e.stopPropagation();
+    if (resumeItem.isLocal) {
+      onOpenShare(resumeItem);
+    } else {
+      try {
+        const res = await axiosClient.get(`/resumes/${resumeItem.id}`);
+        if (res.data?.success && res.data.resume) {
+          onOpenShare(res.data.resume);
+        } else {
+          onOpenShare(resumeItem);
+        }
+      } catch (err) {
+        onOpenShare(resumeItem);
+      }
+    }
+  };
+
+  const handleDownloadCard = async (resumeItem, e) => {
+    e.stopPropagation();
+    setActionLoading(`download-${resumeItem.id}`);
+    try {
+      let fullResume = resumeItem;
+      if (!resumeItem.isLocal && resumeItem.id) {
+        const res = await axiosClient.get(`/resumes/${resumeItem.id}`);
+        if (res.data?.success && res.data.resume) {
+          fullResume = res.data.resume;
+        }
+      }
+      await exportResumeToDocx(fullResume);
+    } catch (err) {
+      console.warn('Docx export fallback:', err);
+      handleOpenResume(resumeItem);
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
   return (
     <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '1.5rem 1rem', width: '100%', boxSizing: 'border-box' }}>
       {/* Top Bar */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '2rem', flexWrap: 'wrap', gap: '1rem' }}>
         <div>
-          <button 
-            className="btn btn-outline btn-sm" 
+          <button
+            className="btn btn-outline btn-sm"
             onClick={onBackToEditor}
             style={{ marginBottom: '0.75rem' }}
           >
@@ -162,19 +202,19 @@ export default function Dashboard({
           </div>
         </div>
       ) : (
-        <div style={{ 
-          display: 'grid', 
-          gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 280px), 1fr))', 
-          gap: '1.5rem' 
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 280px), 1fr))',
+          gap: '1.5rem'
         }}>
           {resumes.map(r => (
-            <div 
-              key={r.id} 
-              className="glass-panel" 
-              style={{ 
-                padding: '1.5rem', 
-                display: 'flex', 
-                flexDirection: 'column', 
+            <div
+              key={r.id}
+              className="glass-panel"
+              style={{
+                padding: '1.5rem',
+                display: 'flex',
+                flexDirection: 'column',
                 justifyContent: 'space-between',
                 cursor: 'pointer',
                 transition: 'transform 0.2s, border-color 0.2s',
@@ -186,13 +226,13 @@ export default function Dashboard({
             >
               <div>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
-                  <div style={{ 
-                    width: '36px', 
-                    height: '36px', 
-                    borderRadius: '8px', 
-                    background: r.theme_color || '#2563eb', 
-                    display: 'flex', 
-                    alignItems: 'center', 
+                  <div style={{
+                    width: '36px',
+                    height: '36px',
+                    borderRadius: '8px',
+                    background: r.theme_color || '#2563eb',
+                    display: 'flex',
+                    alignItems: 'center',
                     justifyContent: 'center',
                     color: '#fff'
                   }}>
@@ -219,49 +259,62 @@ export default function Dashboard({
                 </div>
               </div>
 
-              {/* Action Buttons */}
-              <div style={{ 
-                display: 'flex', 
-                alignItems: 'center', 
-                justifyContent: 'space-between', 
+              {/* Action Buttons: [ Edit ], [ Share ], [ Download ] */}
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
                 flexWrap: 'wrap',
                 gap: '0.5rem',
-                marginTop: '1.5rem', 
-                paddingTop: '1rem', 
-                borderTop: '1px solid var(--border-color)' 
+                marginTop: '1.25rem',
+                paddingTop: '0.85rem',
+                borderTop: '1px solid var(--border-color)'
               }}>
-                <button 
-                  className="btn btn-outline btn-sm" 
-                  onClick={(e) => { e.stopPropagation(); handleOpenResume(r); }}
-                  title="Open in editor"
-                >
-                  <Edit3 size={13} /> Edit
-                </button>
-
-                <div style={{ display: 'flex', gap: '0.35rem', flexWrap: 'wrap' }}>
-                  <button 
-                    className="btn btn-outline btn-sm"
-                    onClick={(e) => { e.stopPropagation(); onOpenShare(r.id); }}
-                    title="Share Public Link & QR Code"
+                <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap', alignItems: 'center' }}>
+                  <button
+                    className="btn btn-primary btn-sm"
+                    onClick={(e) => { e.stopPropagation(); handleOpenResume(r); }}
+                    title="Open in editor"
                   >
-                    <Share2 size={13} />
+                    <Edit3 size={13} /> Edit
                   </button>
 
-                  <button 
+                  <button
+                    className="btn btn-outline btn-sm"
+                    onClick={(e) => handleShareCard(r, e)}
+                    title="Share public link and QR code"
+                  >
+                    <Share2 size={13} /> Share
+                  </button>
+
+                  <button
+                    className="btn btn-outline btn-sm"
+                    onClick={(e) => handleDownloadCard(r, e)}
+                    disabled={actionLoading === `download-${r.id}`}
+                    title="Download Microsoft Word (.docx) resume"
+                  >
+                    <Download size={13} /> {actionLoading === `download-${r.id}` ? '...' : 'Download'}
+                  </button>
+                </div>
+
+                <div style={{ display: 'flex', gap: '0.35rem', alignItems: 'center' }}>
+                  <button
                     className="btn btn-outline btn-sm"
                     onClick={(e) => handleClone(r.id, e)}
                     disabled={actionLoading === `clone-${r.id}`}
-                    title="Clone / Duplicate this resume for another job"
+                    title="Clone / Duplicate this resume"
+                    aria-label="Clone resume"
                   >
                     <Copy size={13} />
                   </button>
 
-                  <button 
+                  <button
                     className="btn btn-outline btn-sm"
                     onClick={(e) => handleDelete(r.id, e)}
                     disabled={actionLoading === `delete-${r.id}`}
                     style={{ color: '#ef4444' }}
                     title="Delete resume"
+                    aria-label="Delete resume"
                   >
                     <Trash2 size={13} />
                   </button>

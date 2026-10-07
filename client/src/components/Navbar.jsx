@@ -1,10 +1,10 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { 
-  Sparkles, 
-  Download, 
-  User, 
-  Key, 
-  BarChart3, 
+import {
+  Sparkles,
+  Download,
+  User,
+  Key,
+  BarChart3,
   FileText,
   Target,
   Mail,
@@ -25,16 +25,17 @@ import {
   Moon,
   FileSpreadsheet,
   Menu,
+  Share2,
   X
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
-export default function Navbar({ 
+export default function Navbar({
   currentView,
   onToggleView,
-  onLoadSample, 
-  onOpenATS, 
-  onOpenAuth, 
+  onLoadSample,
+  onOpenATS,
+  onOpenAuth,
   onOpenAiKey,
   onOpenJDMatcher,
   onOpenCoverLetter,
@@ -47,6 +48,7 @@ export default function Navbar({
   onOpenVersionHistory,
   onOpenAccountSettings,
   onOpenAdminMetrics,
+  onOpenShare,
   onDownloadPDF,
   onDownloadDocx,
   onDownloadTxt,
@@ -208,7 +210,7 @@ export default function Navbar({
 
           {/* Desktop View Switchers */}
           <div className="desktop-nav-group">
-            <button 
+            <button
               className={`btn btn-sm ${currentView === 'dashboard' ? 'btn-primary' : 'btn-outline'}`}
               onClick={() => onToggleView(currentView === 'dashboard' ? 'editor' : 'dashboard')}
               title="Switch between Editor and My Resumes Dashboard"
@@ -217,7 +219,7 @@ export default function Navbar({
               <span>{currentView === 'dashboard' ? 'Editor' : 'My Resumes'}</span>
             </button>
 
-            <button 
+            <button
               className="btn btn-outline btn-sm"
               onClick={onOpenTracker}
               title="Job Application Pipeline Tracker"
@@ -226,7 +228,7 @@ export default function Navbar({
               <span>Job Tracker</span>
             </button>
 
-            <button 
+            <button
               className="btn btn-outline btn-sm"
               onClick={onOpenVersionHistory}
               title="Resume Revision History & Restore"
@@ -240,7 +242,7 @@ export default function Navbar({
         {/* Desktop Navigation Actions */}
         <div className="nav-actions desktop-nav-actions">
           {/* AI Tools Dropdown Menu */}
-          <button 
+          <button
             className="btn btn-ai btn-sm"
             onClick={handleToggleAiDropdown}
           >
@@ -250,7 +252,7 @@ export default function Navbar({
           </button>
 
           {/* Advanced ATS Score Checker */}
-          <button 
+          <button
             className="btn btn-outline btn-sm"
             onClick={onOpenATS}
             title="Check 4-Dimension ATS Compatibility Score"
@@ -259,9 +261,21 @@ export default function Navbar({
             <span>ATS Check {atsScore ? `(${atsScore}%)` : ''}</span>
           </button>
 
+          {/* Share Web Resume & QR */}
+          {onOpenShare && (
+            <button
+              className="btn btn-outline btn-sm"
+              onClick={onOpenShare}
+              title="Share live web resume and QR code"
+            >
+              <Share2 size={14} style={{ color: '#38bdf8' }} />
+              <span>Share</span>
+            </button>
+          )}
+
           {/* Sample Data Quick Button */}
-          <button 
-            className="btn btn-outline btn-sm" 
+          <button
+            className="btn btn-outline btn-sm"
             onClick={onLoadSample}
             title="Load rich demo profile"
           >
@@ -269,18 +283,18 @@ export default function Navbar({
             <span>Demo Data</span>
           </button>
 
-          {/* Pro Plan Modal */}
-          <button 
+          {/* 100% Free Product Badge */}
+          <button
             className="btn btn-outline btn-sm btn-pro-tier"
             onClick={onOpenPricing}
-            title="Razorpay / Stripe Subscriptions"
+            title="AI Resume Studio is 100% Free Forever"
           >
-            <Crown size={14} className="pro-tier-icon" />
-            <span>Pro Tier</span>
+            <Sparkles size={14} className="pro-tier-icon" />
+            <span>✨ All Features Free</span>
           </button>
 
           {/* Theme Toggle Button */}
-          <button 
+          <button
             className="btn btn-outline btn-sm"
             onClick={onToggleTheme}
             title={theme === 'light' ? 'Switch to Dark Mode' : 'Switch to Light Mode'}
@@ -296,7 +310,7 @@ export default function Navbar({
 
           {/* Unified Download Dropdown Menu */}
           <div style={{ position: 'relative' }}>
-            <button 
+            <button
               className="btn btn-primary btn-sm"
               onClick={() => setShowDownloadDropdown(!showDownloadDropdown)}
               disabled={isDownloading}
@@ -326,8 +340,8 @@ export default function Navbar({
                   flexDirection: 'column',
                   padding: '0.4rem'
                 }}>
-                  <button 
-                    className="btn btn-outline btn-sm" 
+                  <button
+                    className="btn btn-outline btn-sm"
                     style={{ justifyContent: 'flex-start', border: 'none', padding: '0.5rem 0.75rem', width: '100%' }}
                     onClick={() => { setShowDownloadDropdown(false); onDownloadPDF(); }}
                   >
@@ -335,8 +349,8 @@ export default function Navbar({
                     <span>PDF Document (.pdf)</span>
                   </button>
 
-                  <button 
-                    className="btn btn-outline btn-sm" 
+                  <button
+                    className="btn btn-outline btn-sm"
                     style={{ justifyContent: 'flex-start', border: 'none', padding: '0.5rem 0.75rem', width: '100%' }}
                     onClick={() => { setShowDownloadDropdown(false); onDownloadDocx(); }}
                   >
@@ -344,8 +358,8 @@ export default function Navbar({
                     <span>Word Document (.docx)</span>
                   </button>
 
-                  <button 
-                    className="btn btn-outline btn-sm" 
+                  <button
+                    className="btn btn-outline btn-sm"
                     style={{ justifyContent: 'flex-start', border: 'none', padding: '0.5rem 0.75rem', width: '100%' }}
                     onClick={() => { setShowDownloadDropdown(false); onDownloadTxt(); }}
                   >
@@ -360,7 +374,7 @@ export default function Navbar({
           {/* Auth / Settings Dropdown */}
           {user ? (
             <div style={{ position: 'relative' }}>
-              <button 
+              <button
                 className="btn btn-outline btn-sm"
                 onClick={() => setShowUserDropdown(!showUserDropdown)}
               >
@@ -387,8 +401,8 @@ export default function Navbar({
                     flexDirection: 'column',
                     padding: '0.4rem'
                   }}>
-                    <button 
-                      className="btn btn-outline btn-sm" 
+                    <button
+                      className="btn btn-outline btn-sm"
                       style={{ justifyContent: 'flex-start', border: 'none', padding: '0.45rem 0.65rem' }}
                       onClick={() => { setShowUserDropdown(false); onOpenAccountSettings(); }}
                     >
@@ -397,8 +411,8 @@ export default function Navbar({
                     </button>
 
                     {(!user.role || user.role === 'admin' || user.isAdmin) && (
-                      <button 
-                        className="btn btn-outline btn-sm" 
+                      <button
+                        className="btn btn-outline btn-sm"
                         style={{ justifyContent: 'flex-start', border: 'none', padding: '0.45rem 0.65rem' }}
                         onClick={() => { setShowUserDropdown(false); onOpenAdminMetrics(); }}
                       >
@@ -407,8 +421,8 @@ export default function Navbar({
                       </button>
                     )}
 
-                    <button 
-                      className="btn btn-outline btn-sm" 
+                    <button
+                      className="btn btn-outline btn-sm"
                       style={{ justifyContent: 'flex-start', border: 'none', padding: '0.45rem 0.65rem' }}
                       onClick={() => { setShowUserDropdown(false); onOpenAiKey(); }}
                     >
@@ -418,8 +432,8 @@ export default function Navbar({
 
                     <div style={{ borderTop: '1px solid var(--border-color)', margin: '0.2rem 0' }} />
 
-                    <button 
-                      className="btn btn-outline btn-sm" 
+                    <button
+                      className="btn btn-outline btn-sm"
                       style={{ justifyContent: 'flex-start', border: 'none', padding: '0.45rem 0.65rem', color: '#ef4444' }}
                       onClick={() => { setShowUserDropdown(false); logout(); }}
                     >
@@ -453,7 +467,7 @@ export default function Navbar({
 
           <div className="compact-row1-actions">
             {/* Theme Toggle */}
-            <button 
+            <button
               className="btn btn-outline btn-sm compact-icon-btn"
               onClick={onToggleTheme}
               title={theme === 'light' ? 'Switch to Dark Mode' : 'Switch to Light Mode'}
@@ -464,7 +478,7 @@ export default function Navbar({
 
             {/* Compact Export Dropdown */}
             <div style={{ position: 'relative' }}>
-              <button 
+              <button
                 className="btn btn-primary btn-sm compact-download-btn"
                 onClick={() => setShowDownloadDropdown(!showDownloadDropdown)}
                 disabled={isDownloading}
@@ -480,8 +494,8 @@ export default function Navbar({
                 <>
                   <div style={{ position: 'fixed', inset: 0, zIndex: 1099 }} onClick={() => setShowDownloadDropdown(false)} />
                   <div className="compact-download-menu">
-                    <button 
-                      className="btn btn-outline btn-sm" 
+                    <button
+                      className="btn btn-outline btn-sm"
                       style={{ justifyContent: 'flex-start', border: 'none', padding: '0.5rem 0.75rem', width: '100%' }}
                       onClick={() => { setShowDownloadDropdown(false); onDownloadPDF(); }}
                     >
@@ -489,8 +503,8 @@ export default function Navbar({
                       <span>PDF (.pdf)</span>
                     </button>
 
-                    <button 
-                      className="btn btn-outline btn-sm" 
+                    <button
+                      className="btn btn-outline btn-sm"
                       style={{ justifyContent: 'flex-start', border: 'none', padding: '0.5rem 0.75rem', width: '100%' }}
                       onClick={() => { setShowDownloadDropdown(false); onDownloadDocx(); }}
                     >
@@ -498,8 +512,8 @@ export default function Navbar({
                       <span>Word (.docx)</span>
                     </button>
 
-                    <button 
-                      className="btn btn-outline btn-sm" 
+                    <button
+                      className="btn btn-outline btn-sm"
                       style={{ justifyContent: 'flex-start', border: 'none', padding: '0.5rem 0.75rem', width: '100%' }}
                       onClick={() => { setShowDownloadDropdown(false); onDownloadTxt(); }}
                     >
@@ -512,7 +526,7 @@ export default function Navbar({
             </div>
 
             {/* Hamburger Menu Toggle Button */}
-            <button 
+            <button
               className="btn btn-outline btn-sm mobile-hamburger-btn"
               onClick={() => setShowMobileMenu(!showMobileMenu)}
               aria-label="Open Navigation Menu"
@@ -535,7 +549,7 @@ export default function Navbar({
             <ChevronLeft size={16} />
           </button>
 
-          <div 
+          <div
             ref={stripRef}
             className={`navbar-feature-strip ${isGrabbing ? 'grabbing' : ''}`}
             onScroll={handleStripScroll}
@@ -546,7 +560,7 @@ export default function Navbar({
             onClickCapture={handleClickCapture}
           >
             {/* 1. My Resumes / Editor */}
-            <button 
+            <button
               className={`btn btn-sm strip-btn ${currentView === 'dashboard' ? 'btn-primary' : 'btn-outline'}`}
               onClick={() => onToggleView(currentView === 'dashboard' ? 'editor' : 'dashboard')}
               title="Switch between Editor and My Resumes Dashboard"
@@ -556,7 +570,7 @@ export default function Navbar({
             </button>
 
             {/* 2. Job Tracker */}
-            <button 
+            <button
               className="btn btn-outline btn-sm strip-btn"
               onClick={onOpenTracker}
               title="Job Application Pipeline Tracker"
@@ -566,7 +580,7 @@ export default function Navbar({
             </button>
 
             {/* 3. Versions */}
-            <button 
+            <button
               className="btn btn-outline btn-sm strip-btn"
               onClick={onOpenVersionHistory}
               title="Resume Revision History & Restore"
@@ -576,7 +590,7 @@ export default function Navbar({
             </button>
 
             {/* 4. AI Suite Dropdown Button */}
-            <button 
+            <button
               className="btn btn-ai btn-sm strip-btn"
               onClick={handleToggleAiDropdown}
               title="AI Resume Suite Tools"
@@ -587,7 +601,7 @@ export default function Navbar({
             </button>
 
             {/* 5. ATS Check */}
-            <button 
+            <button
               className="btn btn-outline btn-sm strip-btn"
               onClick={onOpenATS}
               title="Check 4-Dimension ATS Compatibility Score"
@@ -596,8 +610,20 @@ export default function Navbar({
               <span>ATS Check {atsScore ? `(${atsScore}%)` : ''}</span>
             </button>
 
-            {/* 6. Demo Data */}
-            <button 
+            {/* 6. Share Resume */}
+            {onOpenShare && (
+              <button
+                className="btn btn-outline btn-sm strip-btn"
+                onClick={onOpenShare}
+                title="Share live web resume and QR code"
+              >
+                <Share2 size={14} style={{ color: '#38bdf8' }} />
+                <span>Share</span>
+              </button>
+            )}
+
+            {/* 7. Demo Data */}
+            <button
               className="btn btn-outline btn-sm strip-btn"
               onClick={onLoadSample}
               title="Load rich demo profile"
@@ -606,14 +632,14 @@ export default function Navbar({
               <span>Demo Data</span>
             </button>
 
-            {/* 7. Pro Tier */}
-            <button 
+            {/* 8. 100% Free Promise */}
+            <button
               className="btn btn-outline btn-sm strip-btn btn-pro-tier"
               onClick={onOpenPricing}
-              title="Pro Tier Subscriptions"
+              title="AI Resume Studio is 100% Free Forever"
             >
-              <Crown size={14} className="pro-tier-icon" />
-              <span>Pro Tier</span>
+              <Sparkles size={14} className="pro-tier-icon" />
+              <span>✨ 100% Free</span>
             </button>
           </div>
 
@@ -634,9 +660,9 @@ export default function Navbar({
       {/* ============================================================== */}
       {showAiDropdown && (
         <>
-          <div 
-            style={{ position: 'fixed', inset: 0, zIndex: 1198 }} 
-            onClick={() => setShowAiDropdown(false)} 
+          <div
+            style={{ position: 'fixed', inset: 0, zIndex: 1198 }}
+            onClick={() => setShowAiDropdown(false)}
           />
           <div style={{
             position: 'fixed',
@@ -652,8 +678,8 @@ export default function Navbar({
             flexDirection: 'column',
             padding: '0.4rem'
           }}>
-            <button 
-              className="btn btn-outline btn-sm" 
+            <button
+              className="btn btn-outline btn-sm"
               style={{ justifyContent: 'flex-start', border: 'none', padding: '0.5rem 0.75rem' }}
               onClick={() => { setShowAiDropdown(false); onOpenJDMatcher(); }}
             >
@@ -661,8 +687,8 @@ export default function Navbar({
               <span>🎯 Safe JD Auto-Tailor</span>
             </button>
 
-            <button 
-              className="btn btn-outline btn-sm" 
+            <button
+              className="btn btn-outline btn-sm"
               style={{ justifyContent: 'flex-start', border: 'none', padding: '0.5rem 0.75rem' }}
               onClick={() => { setShowAiDropdown(false); onOpenCoverLetter(); }}
             >
@@ -670,8 +696,8 @@ export default function Navbar({
               <span>✉️ AI Cover Letter</span>
             </button>
 
-            <button 
-              className="btn btn-outline btn-sm" 
+            <button
+              className="btn btn-outline btn-sm"
               style={{ justifyContent: 'flex-start', border: 'none', padding: '0.5rem 0.75rem' }}
               onClick={() => { setShowAiDropdown(false); onOpenCoverLetterManager(); }}
             >
@@ -679,8 +705,8 @@ export default function Navbar({
               <span>📂 Cover Letter Library</span>
             </button>
 
-            <button 
-              className="btn btn-outline btn-sm" 
+            <button
+              className="btn btn-outline btn-sm"
               style={{ justifyContent: 'flex-start', border: 'none', padding: '0.5rem 0.75rem' }}
               onClick={() => { setShowAiDropdown(false); onOpenInterviewPractice(); }}
             >
@@ -688,8 +714,8 @@ export default function Navbar({
               <span>🎤 Interview Practice Mode</span>
             </button>
 
-            <button 
-              className="btn btn-outline btn-sm" 
+            <button
+              className="btn btn-outline btn-sm"
               style={{ justifyContent: 'flex-start', border: 'none', padding: '0.5rem 0.75rem' }}
               onClick={() => { setShowAiDropdown(false); onOpenInterviewPrep(); }}
             >
@@ -697,8 +723,8 @@ export default function Navbar({
               <span>📋 Recruiter Q&A Prep</span>
             </button>
 
-            <button 
-              className="btn btn-outline btn-sm" 
+            <button
+              className="btn btn-outline btn-sm"
               style={{ justifyContent: 'flex-start', border: 'none', padding: '0.5rem 0.75rem' }}
               onClick={() => { setShowAiDropdown(false); onOpenParser(); }}
             >
@@ -731,7 +757,7 @@ export default function Navbar({
               {/* 1. Workspace Section */}
               <div className="mobile-drawer-section">
                 <span className="mobile-drawer-section-title">Workspace</span>
-                <button 
+                <button
                   className={`btn btn-sm ${currentView === 'dashboard' ? 'btn-primary' : 'btn-outline'}`}
                   style={{ width: '100%', justifyContent: 'flex-start' }}
                   onClick={() => { onToggleView(currentView === 'dashboard' ? 'editor' : 'dashboard'); closeMobileMenu(); }}
@@ -739,7 +765,7 @@ export default function Navbar({
                   <LayoutDashboard size={15} />
                   <span>{currentView === 'dashboard' ? 'Resume Editor' : 'My Resumes'}</span>
                 </button>
-                <button 
+                <button
                   className="btn btn-outline btn-sm"
                   style={{ width: '100%', justifyContent: 'flex-start' }}
                   onClick={() => { onOpenTracker(); closeMobileMenu(); }}
@@ -747,7 +773,7 @@ export default function Navbar({
                   <Briefcase size={15} style={{ color: 'var(--accent-cyan)' }} />
                   <span>Job Tracker</span>
                 </button>
-                <button 
+                <button
                   className="btn btn-outline btn-sm"
                   style={{ width: '100%', justifyContent: 'flex-start' }}
                   onClick={() => { onOpenVersionHistory(); closeMobileMenu(); }}
@@ -760,7 +786,7 @@ export default function Navbar({
               {/* 2. AI Tools Section */}
               <div className="mobile-drawer-section">
                 <span className="mobile-drawer-section-title">AI Tools</span>
-                <button 
+                <button
                   className="btn btn-outline btn-sm"
                   style={{ width: '100%', justifyContent: 'flex-start' }}
                   onClick={() => { onOpenJDMatcher(); closeMobileMenu(); }}
@@ -768,7 +794,7 @@ export default function Navbar({
                   <Target size={15} style={{ color: '#38bdf8' }} />
                   <span>JD Matcher (Auto-Tailor)</span>
                 </button>
-                <button 
+                <button
                   className="btn btn-outline btn-sm"
                   style={{ width: '100%', justifyContent: 'flex-start' }}
                   onClick={() => { onOpenCoverLetter(); closeMobileMenu(); }}
@@ -776,7 +802,7 @@ export default function Navbar({
                   <Mail size={15} style={{ color: '#a855f7' }} />
                   <span>Cover Letter Generator</span>
                 </button>
-                <button 
+                <button
                   className="btn btn-outline btn-sm"
                   style={{ width: '100%', justifyContent: 'flex-start' }}
                   onClick={() => { onOpenCoverLetterManager(); closeMobileMenu(); }}
@@ -784,7 +810,7 @@ export default function Navbar({
                   <FolderOpen size={15} style={{ color: '#c084fc' }} />
                   <span>Cover Letter Library</span>
                 </button>
-                <button 
+                <button
                   className="btn btn-outline btn-sm"
                   style={{ width: '100%', justifyContent: 'flex-start' }}
                   onClick={() => { onOpenInterviewPrep(); closeMobileMenu(); }}
@@ -792,7 +818,7 @@ export default function Navbar({
                   <MessageSquare size={15} style={{ color: '#10b981' }} />
                   <span>Interview Prep (STAR Q&A)</span>
                 </button>
-                <button 
+                <button
                   className="btn btn-outline btn-sm"
                   style={{ width: '100%', justifyContent: 'flex-start' }}
                   onClick={() => { onOpenInterviewPractice(); closeMobileMenu(); }}
@@ -800,7 +826,7 @@ export default function Navbar({
                   <Award size={15} style={{ color: '#fbbf24' }} />
                   <span>Interview Practice Mode</span>
                 </button>
-                <button 
+                <button
                   className="btn btn-outline btn-sm"
                   style={{ width: '100%', justifyContent: 'flex-start' }}
                   onClick={() => { onOpenParser(); closeMobileMenu(); }}
@@ -811,9 +837,10 @@ export default function Navbar({
               </div>
 
               {/* 3. Resume Tools Section */}
+              {/* 3. Check Section */}
               <div className="mobile-drawer-section">
-                <span className="mobile-drawer-section-title">Resume Tools</span>
-                <button 
+                <span className="mobile-drawer-section-title">Check</span>
+                <button
                   className="btn btn-outline btn-sm"
                   style={{ width: '100%', justifyContent: 'flex-start' }}
                   onClick={() => { onOpenATS(); closeMobileMenu(); }}
@@ -821,7 +848,27 @@ export default function Navbar({
                   <BarChart3 size={15} style={{ color: '#10b981' }} />
                   <span>ATS Check {atsScore ? `(${atsScore}%)` : ''}</span>
                 </button>
-                <button 
+              </div>
+
+              {/* 4. Share Section */}
+              {onOpenShare && (
+                <div className="mobile-drawer-section">
+                  <span className="mobile-drawer-section-title">Share</span>
+                  <button
+                    className="btn btn-outline btn-sm"
+                    style={{ width: '100%', justifyContent: 'flex-start' }}
+                    onClick={() => { onOpenShare(); closeMobileMenu(); }}
+                  >
+                    <Share2 size={15} style={{ color: '#38bdf8' }} />
+                    <span>Share Resume (Link & QR)</span>
+                  </button>
+                </div>
+              )}
+
+              {/* 5. Tools Section */}
+              <div className="mobile-drawer-section">
+                <span className="mobile-drawer-section-title">Tools</span>
+                <button
                   className="btn btn-outline btn-sm"
                   style={{ width: '100%', justifyContent: 'flex-start' }}
                   onClick={() => { onLoadSample(); closeMobileMenu(); }}
@@ -831,23 +878,23 @@ export default function Navbar({
                 </button>
               </div>
 
-              {/* 4. Plan Section */}
+              {/* 6. Free Product Promise */}
               <div className="mobile-drawer-section">
-                <span className="mobile-drawer-section-title">Plan</span>
-                <button 
+                <span className="mobile-drawer-section-title">Product Promise</span>
+                <button
                   className="btn btn-outline btn-sm btn-pro-tier"
                   style={{ width: '100%', justifyContent: 'flex-start' }}
                   onClick={() => { onOpenPricing(); closeMobileMenu(); }}
                 >
-                  <Crown size={15} className="pro-tier-icon" />
-                  <span>Pro Tier (Upgrade)</span>
+                  <Sparkles size={15} className="pro-tier-icon" />
+                  <span>✨ All Features Free Forever</span>
                 </button>
               </div>
 
               {/* 5. Download & Theme Section */}
               <div className="mobile-drawer-section">
                 <span className="mobile-drawer-section-title">Download & Display</span>
-                <button 
+                <button
                   className="btn btn-outline btn-sm"
                   style={{ width: '100%', justifyContent: 'flex-start' }}
                   onClick={() => { onToggleTheme(); closeMobileMenu(); }}
@@ -855,7 +902,7 @@ export default function Navbar({
                   {theme === 'light' ? <Moon size={15} style={{ color: '#6366f1' }} /> : <Sun size={15} style={{ color: '#fbbf24' }} />}
                   <span>{theme === 'light' ? 'Switch to Dark Theme' : 'Switch to Light Theme'}</span>
                 </button>
-                <button 
+                <button
                   className="btn btn-outline btn-sm"
                   style={{ width: '100%', justifyContent: 'flex-start' }}
                   onClick={() => { onDownloadPDF(); closeMobileMenu(); }}
@@ -864,7 +911,7 @@ export default function Navbar({
                   <Download size={15} style={{ color: '#ef4444' }} />
                   <span>Download PDF (.pdf)</span>
                 </button>
-                <button 
+                <button
                   className="btn btn-outline btn-sm"
                   style={{ width: '100%', justifyContent: 'flex-start' }}
                   onClick={() => { onDownloadDocx(); closeMobileMenu(); }}
@@ -873,7 +920,7 @@ export default function Navbar({
                   <FileSpreadsheet size={15} style={{ color: '#38bdf8' }} />
                   <span>Download Word (.docx)</span>
                 </button>
-                <button 
+                <button
                   className="btn btn-outline btn-sm"
                   style={{ width: '100%', justifyContent: 'flex-start' }}
                   onClick={() => { onDownloadTxt(); closeMobileMenu(); }}
@@ -889,7 +936,7 @@ export default function Navbar({
                 <span className="mobile-drawer-section-title">Account</span>
                 {user ? (
                   <>
-                    <button 
+                    <button
                       className="btn btn-outline btn-sm"
                       style={{ width: '100%', justifyContent: 'flex-start' }}
                       onClick={() => { onOpenAccountSettings(); closeMobileMenu(); }}
@@ -898,7 +945,7 @@ export default function Navbar({
                       <span>Account Settings ({user.name})</span>
                     </button>
                     {(!user.role || user.role === 'admin' || user.isAdmin) && (
-                      <button 
+                      <button
                         className="btn btn-outline btn-sm"
                         style={{ width: '100%', justifyContent: 'flex-start' }}
                         onClick={() => { onOpenAdminMetrics(); closeMobileMenu(); }}
@@ -907,7 +954,7 @@ export default function Navbar({
                         <span>Admin Dashboard</span>
                       </button>
                     )}
-                    <button 
+                    <button
                       className="btn btn-outline btn-sm"
                       style={{ width: '100%', justifyContent: 'flex-start' }}
                       onClick={() => { onOpenAiKey(); closeMobileMenu(); }}
@@ -915,7 +962,7 @@ export default function Navbar({
                       <Key size={15} style={{ color: '#f59e0b' }} />
                       <span>Gemini API Key</span>
                     </button>
-                    <button 
+                    <button
                       className="btn btn-outline btn-sm"
                       style={{ width: '100%', justifyContent: 'flex-start', color: '#ef4444' }}
                       onClick={() => { logout(); closeMobileMenu(); }}
@@ -924,7 +971,7 @@ export default function Navbar({
                     </button>
                   </>
                 ) : (
-                  <button 
+                  <button
                     className="btn btn-primary btn-sm"
                     style={{ width: '100%', justifyContent: 'center' }}
                     onClick={() => { onOpenAuth(); closeMobileMenu(); }}
