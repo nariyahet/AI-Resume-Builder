@@ -67,7 +67,7 @@ export default function ShareModal({ isOpen, onClose, resume, setResume }) {
   };
 
   // WhatsApp share message
-  const whatsappText = `I created my resume with AI Resume Studio — it’s free.\nCheck it out: ${shareUrl}`;
+  const whatsappText = `I created my resume with AI Resume Studio — it’s free. Check it out: ${shareUrl}`;
   const whatsappUrl = `https://api.whatsapp.com/send?text=${encodeURIComponent(whatsappText)}`;
 
   // LinkedIn share URL
@@ -75,7 +75,7 @@ export default function ShareModal({ isOpen, onClose, resume, setResume }) {
 
   // Email share mailto
   const emailSubject = 'My Resume';
-  const emailBody = `Here is my resume created with AI Resume Studio:\n${shareUrl}`;
+  const emailBody = `Here is my resume created with AI Resume Studio: ${shareUrl}`;
   const emailUrl = `mailto:?subject=${encodeURIComponent(emailSubject)}&body=${encodeURIComponent(emailBody)}`;
 
   return (
@@ -313,10 +313,10 @@ export default function ShareModal({ isOpen, onClose, resume, setResume }) {
               textAlign: 'center'
             }}>
               <div style={{ fontWeight: 700, fontSize: '0.875rem', color: 'var(--primary)', marginBottom: '0.15rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.35rem' }}>
-                <Gift size={15} /> 🎁 AI Resume Studio is free.
+                <Gift size={15} /> 🎁 Share AI Resume Studio
               </div>
               <div style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>
-                Help a friend create a professional resume.
+                Help a friend create a professional resume — it's free.
               </div>
             </div>
           </div>
