@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import html2pdf from 'html2pdf.js';
-import Navbar from './components/Navbar';
+import Sidebar from './components/Sidebar';
+import Topbar from './components/Topbar';
 import ResumeForm from './components/ResumeForm';
 import ResumePreview from './components/ResumePreview';
 import ATSScoreModal from './components/ATSScoreModal';
@@ -41,7 +42,7 @@ export default function App() {
     if (saved) {
       try {
         return JSON.parse(saved);
-      } catch (e) {
+      } catch {
         // Fallback
       }
     }
@@ -66,6 +67,7 @@ export default function App() {
   const [showAccountSettings, setShowAccountSettings] = useState(false);
   const [showAdminMetrics, setShowAdminMetrics] = useState(false);
   const [saveStatus, setSaveStatus] = useState('');
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const lastSavedPayloadRef = useRef(null);
   const autosaveTimerRef = useRef(null);
@@ -126,7 +128,7 @@ export default function App() {
           }
         });
     }
-  }, [user?.id, resume.id]);
+  }, [user, resume.id]);
 
   // Check URL params for public web resume view (?view=ID)
   useEffect(() => {
@@ -140,7 +142,7 @@ export default function App() {
             setResume(res.data.resume);
             lastSavedPayloadRef.current = getCanonicalPersistedResumePayload(res.data.resume);
           }
-        } catch (err) {
+        } catch {
           console.warn('Public view load failed, using local resume.');
         }
       }
@@ -348,7 +350,7 @@ export default function App() {
       theme_color: prev.theme_color,
       version_history: [snapshot, ...(prev.version_history || [])]
     }));
-    setSaveStatus('🎉 Real Document parsed and imported successfully!');
+    setSaveStatus('🎉 Document parsed and imported successfully!');
     setTimeout(() => setSaveStatus(''), 4000);
     setCurrentView('editor');
   };
@@ -521,108 +523,111 @@ export default function App() {
   };
 
   return (
-    <div className="app-root">
-      {/* Navbar Header */}
-      <Navbar
+    <div className="app-shell">
+      {/* 1. Left SaaS Sidebar (252px desktop, off-canvas mobile drawer) */}
+      <Sidebar
         currentView={currentView}
         onToggleView={handleToggleView}
-        onLoadSample={handleLoadSample}
-        onOpenATS={() => setShowAtsModal(true)}
-        onOpenAuth={() => setShowAuthModal(true)}
-        onOpenAiKey={() => setShowAiKeyModal(true)}
-        onOpenJDMatcher={() => setShowJDMatcher(true)}
-        onOpenCoverLetter={() => setShowCoverLetter(true)}
-        onOpenCoverLetterManager={() => setShowCoverLetterManager(true)}
-        onOpenInterviewPrep={() => setShowInterviewPrep(true)}
-        onOpenInterviewPractice={() => setShowInterviewPractice(true)}
-        onOpenParser={() => setShowParser(true)}
-        onOpenPricing={() => setShowPricing(true)}
+        atsScore={resume.ats_score}
         onOpenTracker={() => setShowTracker(true)}
         onOpenVersionHistory={() => setShowVersionHistory(true)}
-        onOpenAccountSettings={() => setShowAccountSettings(true)}
-        onOpenAdminMetrics={() => setShowAdminMetrics(true)}
+        onOpenATS={() => setShowAtsModal(true)}
+        onOpenJDMatcher={() => setShowJDMatcher(true)}
+        onOpenCoverLetter={() => setShowCoverLetter(true)}
+        onOpenInterviewPrep={() => setShowInterviewPrep(true)}
+        onOpenPricing={() => setShowPricing(true)}
         onOpenShare={handleOpenShare}
-        onDownloadPDF={handleDownloadPDF}
-        onDownloadDocx={handleDownloadDocx}
-        onDownloadTxt={handleDownloadTxt}
-        isDownloading={isDownloading}
-        atsScore={resume.ats_score}
-        theme={theme}
-        onToggleTheme={toggleTheme}
+        onLoadSample={handleLoadSample}
+        onOpenAiKey={() => setShowAiKeyModal(true)}
+        onOpenAccountSettings={() => setShowAccountSettings(true)}
+        onOpenAuth={() => setShowAuthModal(true)}
+        onOpenResumeParser={() => setShowResumeParser(true)}
+        isOpen={sidebarOpen}
+        onClose={() => setSidebarOpen(false)}
       />
 
-      {/* Save indicator banner */}
-      {saveStatus && currentView === 'editor' && (
-        <div style={{
-          background: saveStatus === 'Save failed'
-            ? 'rgba(239, 68, 68, 0.15)'
-            : saveStatus === 'Saving...'
-              ? 'rgba(234, 179, 8, 0.15)'
-              : 'rgba(34, 197, 94, 0.15)',
-          borderBottom: `1px solid ${saveStatus === 'Save failed' ? 'rgba(239, 68, 68, 0.3)' : saveStatus === 'Saving...' ? 'rgba(234, 179, 8, 0.3)' : 'rgba(34, 197, 94, 0.3)'}`,
-          textAlign: 'center',
-          padding: '0.45rem',
-          fontSize: '0.825rem',
-          fontWeight: 600,
-          color: saveStatus === 'Save failed' ? '#ef4444' : saveStatus === 'Saving...' ? '#eab308' : '#22c55e'
-        }}>
-          {saveStatus === 'Saving...' ? 'Saving...' : saveStatus === 'Saved' ? 'Saved' : saveStatus === 'Save failed' ? 'Save failed' : saveStatus}
-        </div>
-      )}
-
-      {/* VIEW 1: MY RESUMES DASHBOARD */}
-      {currentView === 'dashboard' ? (
-        <Dashboard
-          onSelectResume={handleSelectResume}
-          onCreateNew={handleCreateNew}
-          onBackToEditor={() => setCurrentView('editor')}
+      {/* 2. Main Viewport (Sticky Topbar + Content) */}
+      <div className="main-viewport">
+        <Topbar
+          currentView={currentView}
+          resumeTitle={resume.title}
+          targetRole={resume.target_role}
+          saveStatus={saveStatus}
+          atsScore={resume.ats_score}
+          onOpenATS={() => setShowAtsModal(true)}
           onOpenShare={handleOpenShare}
-          onDeleteResume={handleResumeDeleted}
+          onOpenPricing={() => setShowPricing(true)}
+          theme={theme}
+          onToggleTheme={toggleTheme}
+          onDownloadPDF={handleDownloadPDF}
+          onDownloadDocx={handleDownloadDocx}
+          onDownloadTxt={handleDownloadTxt}
+          isDownloading={isDownloading}
+          onToggleSidebar={() => setSidebarOpen(prev => !prev)}
+          onOpenAuth={() => setShowAuthModal(true)}
+          onOpenAccountSettings={() => setShowAccountSettings(true)}
         />
-      ) : (
-        /* VIEW 2: SPLIT-SCREEN WORKSPACE */
-        <div className="workspace-wrapper">
-          {/* Mobile Screen Switcher (only displayed on <= 900px screens) */}
-          <div className="mobile-view-bar">
-            <button
-              type="button"
-              className={`mobile-tab-btn ${mobileTab === 'editor' ? 'active' : ''}`}
-              onClick={() => setMobileTab('editor')}
-            >
-              <Edit3 size={15} />
-              <span>1. Edit Form</span>
-            </button>
-            <button
-              type="button"
-              className={`mobile-tab-btn ${mobileTab === 'preview' ? 'active' : ''}`}
-              onClick={() => setMobileTab('preview')}
-            >
-              <Eye size={15} />
-              <span>2. View Resume {resume.ats_score ? `(${resume.ats_score}% ATS)` : ''}</span>
-            </button>
+
+        {/* VIEW 1: MY RESUMES DASHBOARD */}
+        {currentView === 'dashboard' ? (
+          <Dashboard
+            onSelectResume={handleSelectResume}
+            onCreateNew={handleCreateNew}
+            onBackToEditor={() => setCurrentView('editor')}
+            onOpenShare={handleOpenShare}
+            onDeleteResume={handleResumeDeleted}
+            onOpenATS={() => setShowAtsModal(true)}
+            onOpenTracker={() => setShowTracker(true)}
+            onOpenJDMatcher={() => setShowJDMatcher(true)}
+            onOpenCoverLetter={() => setShowCoverLetter(true)}
+            onOpenInterviewPrep={() => setShowInterviewPrep(true)}
+            onOpenParser={() => setShowParser(true)}
+          />
+        ) : (
+          /* VIEW 2: SPLIT-SCREEN WORKSPACE */
+          <div className="workspace-wrapper">
+            {/* Mobile Screen Switcher (only displayed on <= 900px screens) */}
+            <div className="mobile-view-bar">
+              <button
+                type="button"
+                className={`mobile-tab-btn ${mobileTab === 'editor' ? 'active' : ''}`}
+                onClick={() => setMobileTab('editor')}
+              >
+                <Edit3 size={15} />
+                <span>1. Edit Form</span>
+              </button>
+              <button
+                type="button"
+                className={`mobile-tab-btn ${mobileTab === 'preview' ? 'active' : ''}`}
+                onClick={() => setMobileTab('preview')}
+              >
+                <Eye size={15} />
+                <span>2. View Resume {resume.ats_score ? `(${resume.ats_score}% ATS)` : ''}</span>
+              </button>
+            </div>
+
+            <main className={`workspace-container mobile-tab-${mobileTab}`}>
+              {/* Left Side: Form Editor & AI Magic */}
+              <div className="workspace-pane pane-editor">
+                <ResumeForm
+                  resume={resume}
+                  setResume={setResume}
+                  onSwitchToPreview={() => setMobileTab('preview')}
+                />
+              </div>
+
+              {/* Right Side: Live A4 Resume Preview */}
+              <div className="workspace-pane pane-preview">
+                <ResumePreview
+                  resume={resume}
+                  setResume={setResume}
+                  onOpenShare={() => setShowShare(true)}
+                />
+              </div>
+            </main>
           </div>
-
-          <main className={`workspace-container mobile-tab-${mobileTab}`}>
-            {/* Left Side: Form Editor & AI Magic */}
-            <div className="workspace-pane pane-editor">
-              <ResumeForm
-                resume={resume}
-                setResume={setResume}
-                onSwitchToPreview={() => setMobileTab('preview')}
-              />
-            </div>
-
-            {/* Right Side: Live A4 Resume Preview */}
-            <div className="workspace-pane pane-preview">
-              <ResumePreview
-                resume={resume}
-                setResume={setResume}
-                onOpenShare={() => setShowShare(true)}
-              />
-            </div>
-          </main>
-        </div>
-      )}
+        )}
+      </div>
 
       {/* 🔴 P1 ADVANCED ATS MODAL */}
       <ATSScoreModal

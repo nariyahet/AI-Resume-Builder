@@ -688,7 +688,7 @@ export default function ResumeForm({ resume, setResume, onSwitchToPreview }) {
                   type="button"
                 >
                   <Sparkles size={12} />
-                  <span>AI Polish Summary</span>
+                  <span>{aiLoading ? 'Improving...' : 'Improve with AI'}</span>
                 </button>
               </div>
               <textarea 
@@ -797,7 +797,7 @@ export default function ResumeForm({ resume, setResume, onSwitchToPreview }) {
                       type="button"
                     >
                       <Sparkles size={12} />
-                      <span>{activeExpEnhancing === index ? 'Polishing...' : 'AI Enhance Bullets'}</span>
+                      <span>{activeExpEnhancing === index ? 'Improving...' : 'Improve with AI'}</span>
                     </button>
                   </div>
                   <textarea 
