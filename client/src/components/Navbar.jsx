@@ -271,12 +271,11 @@ export default function Navbar({
 
           {/* Pro Plan Modal */}
           <button 
-            className="btn btn-outline btn-sm"
+            className="btn btn-outline btn-sm btn-pro-tier"
             onClick={onOpenPricing}
-            style={{ borderColor: '#eab308', color: '#fef08a' }}
             title="Razorpay / Stripe Subscriptions"
           >
-            <Crown size={14} style={{ color: '#fbbf24' }} />
+            <Crown size={14} className="pro-tier-icon" />
             <span>Pro Tier</span>
           </button>
 
@@ -609,12 +608,11 @@ export default function Navbar({
 
             {/* 7. Pro Tier */}
             <button 
-              className="btn btn-outline btn-sm strip-btn"
+              className="btn btn-outline btn-sm strip-btn btn-pro-tier"
               onClick={onOpenPricing}
-              style={{ borderColor: '#eab308', color: '#fef08a' }}
               title="Pro Tier Subscriptions"
             >
-              <Crown size={14} style={{ color: '#fbbf24' }} />
+              <Crown size={14} className="pro-tier-icon" />
               <span>Pro Tier</span>
             </button>
           </div>
@@ -837,11 +835,11 @@ export default function Navbar({
               <div className="mobile-drawer-section">
                 <span className="mobile-drawer-section-title">Plan</span>
                 <button 
-                  className="btn btn-outline btn-sm"
-                  style={{ width: '100%', justifyContent: 'flex-start', borderColor: '#eab308', color: '#fef08a' }}
+                  className="btn btn-outline btn-sm btn-pro-tier"
+                  style={{ width: '100%', justifyContent: 'flex-start' }}
                   onClick={() => { onOpenPricing(); closeMobileMenu(); }}
                 >
-                  <Crown size={15} style={{ color: '#fbbf24' }} />
+                  <Crown size={15} className="pro-tier-icon" />
                   <span>Pro Tier (Upgrade)</span>
                 </button>
               </div>

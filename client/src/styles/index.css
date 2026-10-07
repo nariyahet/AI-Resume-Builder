@@ -491,6 +491,40 @@ body {
   font-size: 0.775rem;
 }
 
+/* Pro Tier Button - Dual Theme Contrast */
+.btn-pro-tier {
+  border-color: #d97706;
+  color: #b45309;
+  background: rgba(245, 158, 11, 0.08);
+  font-weight: 600;
+}
+.btn-pro-tier:hover {
+  background: rgba(245, 158, 11, 0.16);
+  border-color: #b45309;
+  color: #92400e;
+}
+.btn-pro-tier .pro-tier-icon {
+  color: #d97706;
+}
+
+[data-theme='dark'] .btn-pro-tier,
+:root:not([data-theme='light']) .btn-pro-tier {
+  border-color: #eab308;
+  color: #fef08a;
+  background: transparent;
+  font-weight: 500;
+}
+[data-theme='dark'] .btn-pro-tier:hover,
+:root:not([data-theme='light']) .btn-pro-tier:hover {
+  background: rgba(234, 179, 8, 0.12);
+  border-color: #facc15;
+  color: #fef9c3;
+}
+[data-theme='dark'] .btn-pro-tier .pro-tier-icon,
+:root:not([data-theme='light']) .btn-pro-tier .pro-tier-icon {
+  color: #fbbf24;
+}
+
 /* Main Split-Screen Workspace */
 .workspace-wrapper {
   display: flex;
@@ -1246,6 +1280,123 @@ body {
   display: flex;
   align-items: center;
   gap: 0.4rem;
+}
+
+[data-theme='light'] .ats-score-badge {
+  color: #047857;
+  border-color: rgba(16, 185, 129, 0.4);
+}
+
+/* ATS Modal Theme Styles */
+.ats-total-score-val {
+  color: #34d399;
+}
+.ats-total-score-max {
+  color: #6ee7b7;
+}
+[data-theme='light'] .ats-total-score-val {
+  color: #047857;
+}
+[data-theme='light'] .ats-total-score-max {
+  color: #059669;
+}
+
+/* 4-Dimension Breakdown Card */
+.ats-breakdown-card {
+  background: #111827;
+  border: 1px solid #334155;
+}
+.ats-breakdown-heading {
+  color: #ffffff;
+}
+.ats-dimension-label {
+  color: #cbd5e1;
+}
+.ats-progress-track {
+  background: #334155;
+}
+.ats-dim-val-skills { color: #38bdf8; }
+.ats-dim-val-keywords { color: #a855f7; }
+.ats-dim-val-experience { color: #f59e0b; }
+.ats-dim-val-format { color: #10b981; }
+
+[data-theme='light'] .ats-breakdown-card {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+}
+[data-theme='light'] .ats-breakdown-heading {
+  color: var(--text-main);
+}
+[data-theme='light'] .ats-dimension-label {
+  color: var(--text-muted);
+}
+[data-theme='light'] .ats-progress-track {
+  background: #e2e8f0;
+}
+[data-theme='light'] .ats-dim-val-skills { color: #0284c7; }
+[data-theme='light'] .ats-dim-val-keywords { color: #7e22ce; }
+[data-theme='light'] .ats-dim-val-experience { color: #b45309; }
+[data-theme='light'] .ats-dim-val-format { color: #047857; }
+
+/* Missing Keywords */
+.ats-missing-heading {
+  color: #f59e0b;
+}
+.ats-keyword-btn {
+  border-color: #f59e0b;
+  color: #fef08a;
+  background: transparent;
+}
+.ats-keyword-btn:hover:not(:disabled) {
+  background: rgba(245, 158, 11, 0.15);
+  color: #ffffff;
+}
+.ats-keyword-btn.added {
+  border-color: #10b981;
+  color: #a7f3d0;
+  background: rgba(16, 185, 129, 0.15);
+}
+
+[data-theme='light'] .ats-missing-heading {
+  color: #b45309;
+}
+[data-theme='light'] .ats-keyword-btn {
+  border-color: #d97706;
+  color: #b45309;
+  background: rgba(245, 158, 11, 0.08);
+  font-weight: 600;
+}
+[data-theme='light'] .ats-keyword-btn:hover:not(:disabled) {
+  background: rgba(245, 158, 11, 0.16);
+  border-color: #b45309;
+  color: #92400e;
+}
+[data-theme='light'] .ats-keyword-btn.added {
+  border-color: #059669;
+  color: #047857;
+  background: rgba(16, 185, 129, 0.12);
+  font-weight: 600;
+}
+
+/* Verified Strengths */
+.ats-strengths-heading {
+  color: #34d399;
+}
+.ats-strength-item {
+  color: #cbd5e1;
+}
+.ats-strength-check {
+  color: #10b981;
+}
+
+[data-theme='light'] .ats-strengths-heading {
+  color: #047857;
+}
+[data-theme='light'] .ats-strength-item {
+  color: var(--text-main);
+}
+[data-theme='light'] .ats-strength-check {
+  color: #059669;
 }
 
 /* ============================================================== */
