@@ -8,8 +8,8 @@ async function callGemini(prompt, clientApiKey = null) {
     return null; // Will trigger smart fallback
   }
 
-  // Use Gemini 1.5 Flash or 2.5 Flash
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+  // Use Gemini 2.5 Flash
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
 
   const response = await fetch(url, {
     method: 'POST',
