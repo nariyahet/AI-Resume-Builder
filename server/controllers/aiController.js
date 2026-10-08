@@ -1,12 +1,20 @@
 import dotenv from 'dotenv';
+import { getDB, getIsConnected } from '../config/db.js';
 dotenv.config();
 
-// Helper to call Gemini REST API
-async function callGemini(prompt, clientApiKey = null) {
+// Helper to call Gemini REST API with configurable output token limits and truncation handling
+async function callGemini(prompt, clientApiKey = null, options = {}) {
   const apiKey = clientApiKey || process.env.GEMINI_API_KEY;
   if (!apiKey) {
     return null; // Will trigger smart fallback
   }
+
+  const maxOutputTokens = typeof options === 'number'
+    ? options
+    : (options?.maxOutputTokens || 2500);
+  const temperature = typeof options === 'object' && options?.temperature !== undefined
+    ? options.temperature
+    : 0.7;
 
   // Use Gemini 2.5 Flash
   const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
@@ -17,8 +25,8 @@ async function callGemini(prompt, clientApiKey = null) {
     body: JSON.stringify({
       contents: [{ parts: [{ text: prompt }] }],
       generationConfig: {
-        temperature: 0.7,
-        maxOutputTokens: 1000,
+        temperature,
+        maxOutputTokens,
       }
     })
   });
@@ -30,13 +38,36 @@ async function callGemini(prompt, clientApiKey = null) {
   }
 
   const data = await response.json();
-  const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+  const candidate = data.candidates?.[0];
+  const finishReason = candidate?.finishReason;
+
+  if (finishReason === 'MAX_TOKENS') {
+    console.warn(`Gemini output truncated: hit maxOutputTokens limit of ${maxOutputTokens}.`);
+    const truncErr = new Error(`Gemini response was truncated due to output token limit (${maxOutputTokens}).`);
+    truncErr.code = 'RESPONSE_TRUNCATED';
+    truncErr.isTruncated = true;
+    throw truncErr;
+  }
+
+  const text = candidate?.content?.parts?.[0]?.text;
   return text ? text.trim() : null;
+}
+
+// Server-controlled AI operations counter: increments only upon successful AI execution
+async function recordAiOperation(userId) {
+  if (!userId || !getIsConnected()) return;
+  try {
+    const db = getDB();
+    await db.query('UPDATE users SET ai_daily_count = COALESCE(ai_daily_count, 0) + 1 WHERE id = ?', [userId]);
+  } catch (err) {
+    console.warn('Failed to record AI operation counter:', err.message);
+  }
 }
 
 // 1. AI Professional Summary Generator
 export async function enhanceSummary(req, res) {
   try {
+    const userId = req.user?.id;
     const { targetRole, experience, skills, rawSummary } = req.body;
     const clientKey = req.headers['x-gemini-api-key'];
 
@@ -57,11 +88,22 @@ Rules:
 
     let summary = null;
     let isAi = false;
+    let truncationError = false;
     try {
-      summary = await callGemini(prompt, clientKey);
+      summary = await callGemini(prompt, clientKey, { maxOutputTokens: 1500 });
       if (summary) isAi = true;
     } catch (err) {
+      if (err.isTruncated) truncationError = true;
       console.warn('Gemini API call failed, falling back to smart template generator:', err.message);
+    }
+
+    if (truncationError) {
+      return res.status(503).json({
+        success: false,
+        aiPowered: false,
+        code: 'AI_UNAVAILABLE',
+        message: 'AI summary generation was truncated. Please try again with shorter input.'
+      });
     }
 
     if (!summary) {
@@ -69,6 +111,10 @@ Rules:
       const role = targetRole || 'Software Professional';
       const skillText = Array.isArray(skills) && skills.length > 0 ? skills.slice(0, 4).join(', ') : 'modern industry technologies';
       summary = `Dedicated and proactive ${role} with practical experience applying ${skillText} across core project deliverables. Adept at collaborative problem-solving, structured code implementation, and meeting team milestones. Committed to continuous technical growth and delivering reliable results.`;
+    }
+
+    if (isAi && userId) {
+      await recordAiOperation(userId);
     }
 
     res.json({
@@ -86,6 +132,7 @@ Rules:
 // 2. AI Bullet Point Polisher (STAR Method)
 export async function enhanceBullets(req, res) {
   try {
+    const userId = req.user?.id;
     const { rawBullets, role, company } = req.body;
     const clientKey = req.headers['x-gemini-api-key'];
 
@@ -107,17 +154,28 @@ Output ONLY the raw JSON array.
 
     let bullets = null;
     let isAi = false;
+    let truncationError = false;
     try {
-      const responseText = await callGemini(prompt, clientKey);
+      const responseText = await callGemini(prompt, clientKey, { maxOutputTokens: 1500 });
       if (responseText) {
-        const cleaned = responseText.replace(/```json/g, '').replace(/```/g, '').trim();
+        const cleaned = responseText.replace(/```json/gi, '').replace(/```/g, '').trim();
         bullets = JSON.parse(cleaned);
         if (Array.isArray(bullets) && bullets.length > 0) {
           isAi = true;
         }
       }
     } catch (err) {
+      if (err.isTruncated) truncationError = true;
       console.warn('Gemini bullets parsing failed or no key:', err.message);
+    }
+
+    if (truncationError) {
+      return res.status(503).json({
+        success: false,
+        aiPowered: false,
+        code: 'AI_UNAVAILABLE',
+        message: 'AI bullet enhancement was truncated. Please try again.'
+      });
     }
 
     if (!bullets || !Array.isArray(bullets)) {
@@ -126,6 +184,10 @@ Output ONLY the raw JSON array.
         `Architected and maintained component workflows utilizing modern engineering best practices to improve overall system reliability.`,
         `Collaborated cross-functionally with team members and technical stakeholders to troubleshoot issues and deliver project milestones.`
       ];
+    }
+
+    if (isAi && userId) {
+      await recordAiOperation(userId);
     }
 
     res.json({
@@ -143,6 +205,7 @@ Output ONLY the raw JSON array.
 // 3. AI ATS Score & Optimization Calculator (Supports General Mode & Job-Specific Mode)
 export async function calculateAts(req, res) {
   try {
+    const userId = req.user?.id;
     const { targetRole, resume, jobDescription } = req.body;
     const clientKey = req.headers['x-gemini-api-key'];
 
@@ -193,17 +256,28 @@ Return ONLY a strict JSON object with this exact structure:
 
     let result = null;
     let isAi = false;
+    let truncationError = false;
     try {
-      const responseText = await callGemini(prompt, clientKey);
+      const responseText = await callGemini(prompt, clientKey, { maxOutputTokens: 3000 });
       if (responseText) {
-        const cleaned = responseText.replace(/```json/g, '').replace(/```/g, '').trim();
+        const cleaned = responseText.replace(/```json/gi, '').replace(/```/g, '').trim();
         result = JSON.parse(cleaned);
         if (result && typeof result.score === 'number' && result.dimensions) {
           isAi = true;
         }
       }
     } catch (err) {
+      if (err.isTruncated) truncationError = true;
       console.warn('Gemini ATS score call failed, using rule-based scoring:', err.message);
+    }
+
+    if (truncationError) {
+      return res.status(503).json({
+        success: false,
+        aiPowered: false,
+        code: 'AI_UNAVAILABLE',
+        message: 'ATS analysis was truncated due to length. Please try again.'
+      });
     }
 
     if (!result || typeof result.score !== 'number') {
@@ -258,6 +332,10 @@ Return ONLY a strict JSON object with this exact structure:
       };
     }
 
+    if (isAi && userId) {
+      await recordAiOperation(userId);
+    }
+
     res.json({
       success: true,
       ...result,
@@ -273,6 +351,7 @@ Return ONLY a strict JSON object with this exact structure:
 // 4. 1-Click Complete Resume Auto-Generator from Raw Bio / Description
 export async function oneClickGenerate(req, res) {
   try {
+    const userId = req.user?.id;
     const { promptText, targetRole } = req.body;
     const clientKey = req.headers['x-gemini-api-key'];
 
@@ -320,17 +399,28 @@ Output ONLY raw JSON.
 
     let generated = null;
     let isAi = false;
+    let truncationError = false;
     try {
-      const responseText = await callGemini(prompt, clientKey);
+      const responseText = await callGemini(prompt, clientKey, { maxOutputTokens: 8192 });
       if (responseText) {
-        const cleaned = responseText.replace(/```json/g, '').replace(/```/g, '').trim();
+        const cleaned = responseText.replace(/```json/gi, '').replace(/```/g, '').trim();
         generated = JSON.parse(cleaned);
         if (generated && typeof generated === 'object') {
           isAi = true;
         }
       }
     } catch (err) {
+      if (err.isTruncated) truncationError = true;
       console.warn('Gemini 1-click generation failed, using clean structured template:', err.message);
+    }
+
+    if (truncationError) {
+      return res.status(503).json({
+        success: false,
+        aiPowered: false,
+        code: 'AI_UNAVAILABLE',
+        message: 'Resume generation was truncated due to output length. Please try again with shorter input.'
+      });
     }
 
     if (!generated) {
@@ -358,6 +448,10 @@ Output ONLY raw JSON.
       };
     }
 
+    if (isAi && userId) {
+      await recordAiOperation(userId);
+    }
+
     res.json({
       success: true,
       resume: generated,
@@ -373,6 +467,7 @@ Output ONLY raw JSON.
 // 5. Job Description (JD) Matcher & Auto-Tailor
 export async function matchJobDescription(req, res) {
   try {
+    const userId = req.user?.id;
     const { jobDescription, resume } = req.body;
     const clientKey = req.headers['x-gemini-api-key'];
 
@@ -416,17 +511,28 @@ Return ONLY a strict JSON object with this exact structure:
 
     let result = null;
     let isAi = false;
+    let truncationError = false;
     try {
-      const responseText = await callGemini(prompt, clientKey);
+      const responseText = await callGemini(prompt, clientKey, { maxOutputTokens: 3000 });
       if (responseText) {
-        const cleaned = responseText.replace(/```json/g, '').replace(/```/g, '').trim();
+        const cleaned = responseText.replace(/```json/gi, '').replace(/```/g, '').trim();
         result = JSON.parse(cleaned);
         if (result && typeof result.matchScore === 'number') {
           isAi = true;
         }
       }
     } catch (err) {
+      if (err.isTruncated) truncationError = true;
       console.warn('Gemini JD matcher fallback:', err.message);
+    }
+
+    if (truncationError) {
+      return res.status(503).json({
+        success: false,
+        aiPowered: false,
+        code: 'AI_UNAVAILABLE',
+        message: 'Job Description matching was truncated. Please try again with shorter input.'
+      });
     }
 
     if (!result) {
@@ -454,6 +560,10 @@ Return ONLY a strict JSON object with this exact structure:
       };
     }
 
+    if (isAi && userId) {
+      await recordAiOperation(userId);
+    }
+
     res.json({
       success: true,
       ...result,
@@ -469,6 +579,7 @@ Return ONLY a strict JSON object with this exact structure:
 // 6. AI Cover Letter Generator
 export async function generateCoverLetter(req, res) {
   try {
+    const userId = req.user?.id;
     const { companyName, jobRole, hiringManager, resume, tone = 'professional' } = req.body;
     const clientKey = req.headers['x-gemini-api-key'];
 
@@ -492,11 +603,22 @@ Output ONLY the formatted cover letter text with proper salutation, body paragra
 
     let letter = null;
     let isAi = false;
+    let truncationError = false;
     try {
-      letter = await callGemini(prompt, clientKey);
+      letter = await callGemini(prompt, clientKey, { maxOutputTokens: 3000 });
       if (letter) isAi = true;
     } catch (err) {
+      if (err.isTruncated) truncationError = true;
       console.warn('Gemini cover letter fallback:', err.message);
+    }
+
+    if (truncationError) {
+      return res.status(503).json({
+        success: false,
+        aiPowered: false,
+        code: 'AI_UNAVAILABLE',
+        message: 'Cover letter generation was truncated. Please try again.'
+      });
     }
 
     if (!letter) {
@@ -514,6 +636,10 @@ ${candidateName}
 ${resume?.personal_info?.email || ''} | ${resume?.personal_info?.phone || ''}`;
     }
 
+    if (isAi && userId) {
+      await recordAiOperation(userId);
+    }
+
     res.json({
       success: true,
       coverLetter: letter,
@@ -529,6 +655,7 @@ ${resume?.personal_info?.email || ''} | ${resume?.personal_info?.phone || ''}`;
 // 7. AI Interview Preparation Q&A Generator
 export async function generateInterviewPrep(req, res) {
   try {
+    const userId = req.user?.id;
     const { targetRole, resume } = req.body;
     const clientKey = req.headers['x-gemini-api-key'];
 
@@ -553,17 +680,28 @@ Output ONLY raw JSON.
 
     let questions = null;
     let isAi = false;
+    let truncationError = false;
     try {
-      const responseText = await callGemini(prompt, clientKey);
+      const responseText = await callGemini(prompt, clientKey, { maxOutputTokens: 4000 });
       if (responseText) {
-        const cleaned = responseText.replace(/```json/g, '').replace(/```/g, '').trim();
+        const cleaned = responseText.replace(/```json/gi, '').replace(/```/g, '').trim();
         questions = JSON.parse(cleaned);
         if (Array.isArray(questions) && questions.length > 0) {
           isAi = true;
         }
       }
     } catch (err) {
+      if (err.isTruncated) truncationError = true;
       console.warn('Gemini interview prep fallback:', err.message);
+    }
+
+    if (truncationError) {
+      return res.status(503).json({
+        success: false,
+        aiPowered: false,
+        code: 'AI_UNAVAILABLE',
+        message: 'Interview prep generation was truncated. Please try again.'
+      });
     }
 
     if (!questions || !Array.isArray(questions)) {
@@ -601,6 +739,10 @@ Output ONLY raw JSON.
       ];
     }
 
+    if (isAi && userId) {
+      await recordAiOperation(userId);
+    }
+
     res.json({
       success: true,
       questions,
@@ -616,6 +758,7 @@ Output ONLY raw JSON.
 // 8. Smart Resume Parser (Extract unstructured text into structured resume)
 export async function parseResumeText(req, res) {
   try {
+    const userId = req.user?.id;
     const { resumeText } = req.body;
     const clientKey = req.headers['x-gemini-api-key'];
 
@@ -675,17 +818,28 @@ Return ONLY valid JSON matching this schema:
 
     let parsed = null;
     let isAi = false;
+    let truncationError = false;
     try {
-      const responseText = await callGemini(prompt, clientKey);
+      const responseText = await callGemini(prompt, clientKey, { maxOutputTokens: 8192 });
       if (responseText) {
-        const cleaned = responseText.replace(/```json/g, '').replace(/```/g, '').trim();
+        const cleaned = responseText.replace(/```json/gi, '').replace(/```/g, '').trim();
         parsed = JSON.parse(cleaned);
         if (parsed && typeof parsed === 'object') {
           isAi = true;
         }
       }
     } catch (err) {
+      if (err.isTruncated) truncationError = true;
       console.warn('Gemini parser fallback:', err.message);
+    }
+
+    if (truncationError) {
+      return res.status(503).json({
+        success: false,
+        aiPowered: false,
+        code: 'AI_UNAVAILABLE',
+        message: 'Resume parsing was truncated due to document length. Please try again or paste sections.'
+      });
     }
 
     if (!parsed) {
@@ -714,6 +868,10 @@ Return ONLY valid JSON matching this schema:
       };
     }
 
+    if (isAi && userId) {
+      await recordAiOperation(userId);
+    }
+
     res.json({
       success: true,
       resume: parsed,
@@ -729,6 +887,7 @@ Return ONLY valid JSON matching this schema:
 // 9. Real AI Interactive Interview Practice Evaluator (STAR Method)
 export async function evaluateInterview(req, res) {
   try {
+    const userId = req.user?.id;
     const { question, answer, resume, targetRole } = req.body;
     const clientKey = req.headers['x-gemini-api-key'];
 
@@ -803,24 +962,32 @@ Output ONLY a valid JSON object matching this exact schema:
 `;
 
     let evaluation = null;
+    let truncationError = false;
     try {
-      const responseText = await callGemini(prompt, clientKey);
+      const responseText = await callGemini(prompt, clientKey, { maxOutputTokens: 4000 });
       if (responseText) {
-        const cleaned = responseText.replace(/```json/g, '').replace(/```/g, '').trim();
+        const cleaned = responseText.replace(/```json/gi, '').replace(/```/g, '').trim();
         evaluation = JSON.parse(cleaned);
       }
     } catch (err) {
+      if (err.isTruncated) truncationError = true;
       console.warn('Gemini interview evaluation call failed:', err.message);
     }
 
-    if (!evaluation || typeof evaluation.score !== 'number') {
-      // Per PART 4: If Gemini is unavailable, DO NOT generate a fake AI score.
+    if (truncationError || !evaluation || typeof evaluation.score !== 'number') {
+      // Per PART 4: If Gemini is unavailable or truncated, DO NOT generate a fake AI score.
       return res.status(503).json({
         success: false,
         aiPowered: false,
         code: 'AI_UNAVAILABLE',
-        message: 'AI evaluation is currently unavailable. Please configure Gemini AI and try again.'
+        message: truncationError
+          ? 'AI evaluation was truncated due to answer length. Please provide a more concise answer and try again.'
+          : 'AI evaluation is currently unavailable. Please configure Gemini AI and try again.'
       });
+    }
+
+    if (userId) {
+      await recordAiOperation(userId);
     }
 
     return res.json({

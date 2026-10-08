@@ -11,8 +11,11 @@ import {
   evaluateInterview
 } from '../controllers/aiController.js';
 import { uploadMiddleware, uploadAndParseResume } from '../controllers/uploadController.js';
+import { optionalAuthMiddleware } from '../middleware/authMiddleware.js';
 
 const router = express.Router();
+
+router.use(optionalAuthMiddleware);
 
 router.post('/enhance-summary', enhanceSummary);
 router.post('/enhance-bullets', enhanceBullets);
