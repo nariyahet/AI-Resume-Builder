@@ -2,13 +2,8 @@ import React, { useState, useEffect } from 'react';
 import {
   X,
   User,
-  Lock,
-  CreditCard,
-  ShieldAlert,
-  Check,
   Loader2,
   Zap,
-  Crown,
   Receipt,
   Sparkles
 } from 'lucide-react';
@@ -86,16 +81,16 @@ export default function AccountSettingsModal({ isOpen, onClose }) {
       <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '640px', maxHeight: '90vh', overflowY: 'auto' }}>
         <div className="modal-header">
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <User size={20} style={{ color: '#38bdf8' }} />
-            <h3 className="modal-title">Account Settings & Subscription</h3>
+            <User size={20} style={{ color: 'var(--primary)' }} />
+            <h3 className="modal-title">Account Settings & Free Plan</h3>
           </div>
-          <button className="delete-btn" onClick={onClose} style={{ color: '#94a3b8' }}>
+          <button className="delete-btn" onClick={onClose} style={{ color: 'var(--text-muted)' }} aria-label="Close">
             <X size={20} />
           </button>
         </div>
 
         {/* Tabs */}
-        <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', borderBottom: '1px solid #334155', paddingBottom: '0.5rem' }}>
+        <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.5rem' }}>
           <button
             className={`btn btn-sm ${activeTab === 'profile' ? 'btn-primary' : 'btn-outline'}`}
             onClick={() => setActiveTab('profile')}
@@ -106,12 +101,12 @@ export default function AccountSettingsModal({ isOpen, onClose }) {
             className={`btn btn-sm ${activeTab === 'billing' ? 'btn-primary' : 'btn-outline'}`}
             onClick={() => setActiveTab('billing')}
           >
-            Usage & Invoices
+            Plan & Usage
           </button>
         </div>
 
         {msg && (
-          <div style={{ background: 'rgba(16, 185, 129, 0.15)', border: '1px solid rgba(16, 185, 129, 0.3)', color: '#a7f3d0', padding: '0.65rem', borderRadius: 'var(--radius-sm)', fontSize: '0.825rem' }}>
+          <div style={{ background: 'rgba(16, 185, 129, 0.15)', border: '1px solid rgba(16, 185, 129, 0.3)', color: '#10b981', padding: '0.65rem', borderRadius: 'var(--radius-sm)', fontSize: '0.825rem' }}>
             {msg}
           </div>
         )}
@@ -156,14 +151,14 @@ export default function AccountSettingsModal({ isOpen, onClose }) {
               {loading ? <Loader2 size={16} className="animate-spin" /> : 'Save Profile Changes'}
             </button>
 
-            <div style={{ borderTop: '1px solid #334155', paddingTop: '1rem', marginTop: '1rem' }}>
+            <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '1rem', marginTop: '1rem' }}>
               <h5 style={{ fontSize: '0.85rem', color: '#ef4444', fontWeight: 700, marginBottom: '0.35rem' }}>
                 Danger Zone
               </h5>
               <button
                 type="button"
                 className="btn btn-outline btn-sm"
-                style={{ borderColor: '#ef4444', color: '#fca5a5' }}
+                style={{ borderColor: '#ef4444', color: '#ef4444' }}
                 onClick={handleDeleteAccount}
               >
                 Delete My Account & All Data
@@ -172,63 +167,68 @@ export default function AccountSettingsModal({ isOpen, onClose }) {
           </form>
         )}
 
-        {/* TAB 2: USAGE & BILLING */}
+        {/* TAB 2: PLAN & USAGE */}
         {activeTab === 'billing' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
             {/* Current Plan Badge */}
             <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)', padding: '1.25rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.75rem' }}>
               <div>
                 <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 700 }}>
-                  Active Subscription
+                  Active Plan
                 </span>
                 <h3 style={{ fontSize: '1.3rem', fontWeight: 800, color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <Sparkles size={18} style={{ color: 'var(--primary)' }} /> 100% Free Plan (All Features Unlocked)
+                  <Sparkles size={18} style={{ color: 'var(--primary)' }} /> 100% Free Plan — All Features Unlocked
                 </h3>
               </div>
-              <span className="ats-score-badge" style={{ background: 'rgba(16, 185, 129, 0.15)', color: '#059669', border: '1px solid rgba(16, 185, 129, 0.3)' }}>
+              <span className="ats-score-badge" style={{ background: 'rgba(16, 185, 129, 0.15)', color: '#10b981', border: '1px solid rgba(16, 185, 129, 0.3)' }}>
                 Free Forever
               </span>
             </div>
 
-            {/* AI Quotas Progress Bar */}
+            {/* Truthful Usage Stats */}
             <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)', padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.5rem', fontSize: '0.825rem' }}>
-                <span style={{ color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                  <Zap size={14} style={{ color: '#eab308' }} /> Daily AI Generations Quota
+                <span style={{ color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '4px', fontWeight: 600 }}>
+                  <Zap size={14} style={{ color: '#eab308' }} /> Cloud Resumes Saved
                 </span>
-                <strong style={{ color: '#059669' }}>
-                  Unlimited (Free Product Pledge)
+                <strong style={{ color: 'var(--primary)' }}>
+                  {billingData?.resumesCount ?? 0} (Unlimited allowed)
                 </strong>
               </div>
-              <p style={{ fontSize: '0.775rem', color: 'var(--text-muted)', margin: 0 }}>
-                Every feature in AI Resume Studio is completely free. No subscription or payment is required.
+              <div style={{ display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.5rem', fontSize: '0.825rem' }}>
+                <span style={{ color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '4px', fontWeight: 600 }}>
+                  <Sparkles size={14} style={{ color: 'var(--primary)' }} /> AI Operations Used Today
+                </span>
+                <strong style={{ color: '#10b981' }}>
+                  {billingData?.aiDailyUsed ?? 0}
+                </strong>
+              </div>
+              <p style={{ fontSize: '0.775rem', color: 'var(--text-muted)', margin: 0, lineHeight: 1.4 }}>
+                AI Resume Studio is free for all job seekers. All features including PDF/DOCX exports, ATS auditing, cover letters, and interview practice are available without paywalls or credit cards.
               </p>
             </div>
 
-            {/* Payments / Invoice History */}
-            <div>
-              <h5 style={{ fontSize: '0.85rem', color: '#fff', fontWeight: 700, marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                <Receipt size={14} style={{ color: '#10b981' }} /> Billing & Payment History:
-              </h5>
-
-              {billingData?.payments?.length === 0 ? (
-                <p style={{ fontSize: '0.8rem', color: '#64748b' }}>No transactions recorded yet.</p>
-              ) : (
+            {/* Historical Invoices (if any exists in DB) */}
+            {billingData?.payments && billingData.payments.length > 0 && (
+              <div>
+                <h5 style={{ fontSize: '0.85rem', color: 'var(--text-main)', fontWeight: 700, marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  <Receipt size={14} style={{ color: '#10b981' }} /> Past Transaction Records:
+                </h5>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                  {billingData?.payments?.map(p => (
-                    <div key={p.id} style={{ background: '#111827', border: '1px solid #334155', borderRadius: 'var(--radius-sm)', padding: '0.65rem 0.85rem', display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.4rem', fontSize: '0.8rem' }}>
+                  {billingData.payments.map(p => (
+                    <div key={p.id} style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-sm)', padding: '0.65rem 0.85rem', display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.4rem', fontSize: '0.8rem' }}>
                       <div>
-                        <strong style={{ color: '#fff' }}>{p.plan}</strong>
-                        <span style={{ color: '#64748b', marginLeft: '6px' }}>({p.gateway})</span>
+                        <strong style={{ color: 'var(--text-main)' }}>{p.plan}</strong>
+                        <span style={{ color: 'var(--text-muted)', marginLeft: '6px' }}>({p.gateway})</span>
                       </div>
-                      <div style={{ color: '#34d399', fontWeight: 700 }}>
-                        ₹{p.amount / 100} • Completed
+                      <div style={{ color: '#10b981', fontWeight: 700 }}>
+                        Completed
                       </div>
                     </div>
                   ))}
                 </div>
-              )}
-            </div>
+              </div>
+            )}
           </div>
         )}
       </div>

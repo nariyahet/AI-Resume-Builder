@@ -1,13 +1,14 @@
 import express from 'express';
-import { 
-  enhanceSummary, 
-  enhanceBullets, 
-  calculateAts, 
+import {
+  enhanceSummary,
+  enhanceBullets,
+  calculateAts,
   oneClickGenerate,
   matchJobDescription,
   generateCoverLetter,
   generateInterviewPrep,
-  parseResumeText
+  parseResumeText,
+  evaluateInterview
 } from '../controllers/aiController.js';
 import { uploadMiddleware, uploadAndParseResume } from '../controllers/uploadController.js';
 
@@ -21,6 +22,7 @@ router.post('/match-jd', matchJobDescription);
 router.post('/generate-cover-letter', generateCoverLetter);
 router.post('/interview-prep', generateInterviewPrep);
 router.post('/parse-resume', parseResumeText);
+router.post('/evaluate-interview', evaluateInterview);
 
 // 🔴 Real PDF & DOCX File Upload & Parser Endpoint
 router.post('/upload-parse', uploadMiddleware, uploadAndParseResume);

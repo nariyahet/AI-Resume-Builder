@@ -27,7 +27,7 @@ export default function PricingModal({ isOpen, onClose, onOpenShare }) {
     {
       icon: <BarChart3 size={18} style={{ color: '#10b981' }} />,
       title: '4-Dimension ATS Scanner',
-      desc: 'Real-time ATS scoring, keyword match density audit & 1-click skill injection.'
+      desc: 'Real-time ATS optimization scoring, keyword density analysis & skills alignment.'
     },
     {
       icon: <Download size={18} style={{ color: '#38bdf8' }} />,

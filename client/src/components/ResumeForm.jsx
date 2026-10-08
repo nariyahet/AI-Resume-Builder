@@ -1,14 +1,14 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { 
-  Sparkles, 
-  User, 
-  Briefcase, 
-  GraduationCap, 
-  Code, 
-  FolderGit2, 
-  Plus, 
-  Trash2, 
-  Wand2, 
+import {
+  Sparkles,
+  User,
+  Briefcase,
+  GraduationCap,
+  Code,
+  FolderGit2,
+  Plus,
+  Trash2,
+  Wand2,
   Loader2,
   Award,
   ArrowRight,
@@ -128,12 +128,28 @@ export default function ResumeForm({ resume, setResume, onSwitchToPreview }) {
         targetRole: resume.target_role || 'Software Engineer'
       });
       if (res.data?.success && res.data.resume) {
-        setResume(prev => ({
-          ...prev,
-          ...res.data.resume,
-          template_id: prev.template_id,
-          theme_color: prev.theme_color
-        }));
+        setResume(prev => {
+          const snapshot = {
+            id: `v-pre-magic-${Date.now()}`,
+            timestamp: new Date().toISOString(),
+            label: 'Pre-AI Generation Version',
+            data: { ...prev }
+          };
+          return {
+            ...prev,
+            ...res.data.resume,
+            personal_info: {
+              ...prev.personal_info,
+              ...(res.data.resume.personal_info || {}),
+              fullName: res.data.resume.personal_info?.fullName || prev.personal_info?.fullName || '',
+              email: res.data.resume.personal_info?.email || prev.personal_info?.email || '',
+              phone: res.data.resume.personal_info?.phone || prev.personal_info?.phone || ''
+            },
+            template_id: prev.template_id,
+            theme_color: prev.theme_color,
+            version_history: [snapshot, ...(prev.version_history || [])]
+          };
+        });
         setActiveTab('personal');
       }
     } catch (err) {
@@ -329,49 +345,49 @@ export default function ResumeForm({ resume, setResume, onSwitchToPreview }) {
     <div className="editor-pane">
       {/* Tabs */}
       <nav className="editor-tabs" ref={editorTabsRef} aria-label="Resume editor sections">
-        <button 
+        <button
           className={`tab-btn ${activeTab === 'magic' ? 'active' : ''}`}
           onClick={() => setActiveTab('magic')}
         >
           <Wand2 size={13} />
           <span>⚡ AI Auto-Fill</span>
         </button>
-        <button 
+        <button
           className={`tab-btn ${activeTab === 'personal' ? 'active' : ''}`}
           onClick={() => setActiveTab('personal')}
         >
           <User size={13} />
           <span>1. Profile</span>
         </button>
-        <button 
+        <button
           className={`tab-btn ${activeTab === 'experience' ? 'active' : ''}`}
           onClick={() => setActiveTab('experience')}
         >
           <Briefcase size={13} />
           <span>2. Experience</span>
         </button>
-        <button 
+        <button
           className={`tab-btn ${activeTab === 'skills' ? 'active' : ''}`}
           onClick={() => setActiveTab('skills')}
         >
           <Code size={13} />
           <span>3. Skills</span>
         </button>
-        <button 
+        <button
           className={`tab-btn ${activeTab === 'education' ? 'active' : ''}`}
           onClick={() => setActiveTab('education')}
         >
           <GraduationCap size={13} />
           <span>4. Education</span>
         </button>
-        <button 
+        <button
           className={`tab-btn ${activeTab === 'projects' ? 'active' : ''}`}
           onClick={() => setActiveTab('projects')}
         >
           <FolderGit2 size={13} />
           <span>5. Projects</span>
         </button>
-        <button 
+        <button
           className={`tab-btn ${activeTab === 'custom' ? 'active' : ''}`}
           onClick={() => setActiveTab('custom')}
         >
@@ -398,9 +414,9 @@ export default function ResumeForm({ resume, setResume, onSwitchToPreview }) {
 
             <div className="form-group">
               <label className="form-label">Target Role / Designation</label>
-              <input 
-                type="text" 
-                className="form-input" 
+              <input
+                type="text"
+                className="form-input"
                 placeholder="e.g. Senior Full Stack Developer, Marketing Specialist"
                 value={resume.target_role || ''}
                 onChange={(e) => setResume(prev => ({ ...prev, target_role: e.target.value }))}
@@ -409,7 +425,7 @@ export default function ResumeForm({ resume, setResume, onSwitchToPreview }) {
 
             <div className="form-group">
               <label className="form-label">Your Raw Details / Notes / Bio</label>
-              <textarea 
+              <textarea
                 className="form-textarea"
                 rows={6}
                 placeholder="Example: I have 3 years of experience in React and Node.js. Worked at ABC company building dashboards. Studied at GTU with 8.5 CGPA. Built an AI resume app. Email: darshan@example.com..."
@@ -418,7 +434,7 @@ export default function ResumeForm({ resume, setResume, onSwitchToPreview }) {
               />
             </div>
 
-            <button 
+            <button
               className="btn btn-ai"
               style={{ width: '100%', justifyContent: 'center', padding: '0.75rem' }}
               onClick={handleMagicGenerate}
@@ -449,9 +465,9 @@ export default function ResumeForm({ resume, setResume, onSwitchToPreview }) {
             <div className="form-grid-2">
               <div className="form-group">
                 <label className="form-label">Resume Title</label>
-                <input 
-                  type="text" 
-                  className="form-input" 
+                <input
+                  type="text"
+                  className="form-input"
                   placeholder="e.g. Full Stack Developer Resume"
                   value={resume.title || ''}
                   onChange={(e) => setResume(prev => ({ ...prev, title: e.target.value }))}
@@ -460,9 +476,9 @@ export default function ResumeForm({ resume, setResume, onSwitchToPreview }) {
 
               <div className="form-group">
                 <label className="form-label">Target Job Role</label>
-                <input 
-                  type="text" 
-                  className="form-input" 
+                <input
+                  type="text"
+                  className="form-input"
                   placeholder="e.g. Full Stack Developer"
                   value={resume.target_role || ''}
                   onChange={(e) => setResume(prev => ({ ...prev, target_role: e.target.value }))}
@@ -473,9 +489,9 @@ export default function ResumeForm({ resume, setResume, onSwitchToPreview }) {
             <div className="form-grid-2">
               <div className="form-group">
                 <label className="form-label">Full Name</label>
-                <input 
-                  type="text" 
-                  className="form-input" 
+                <input
+                  type="text"
+                  className="form-input"
                   placeholder="Darshan Patel"
                   value={resume.personal_info?.fullName || ''}
                   onChange={(e) => handlePersonalChange('fullName', e.target.value)}
@@ -484,9 +500,9 @@ export default function ResumeForm({ resume, setResume, onSwitchToPreview }) {
 
               <div className="form-group">
                 <label className="form-label">Email Address</label>
-                <input 
-                  type="email" 
-                  className="form-input" 
+                <input
+                  type="email"
+                  className="form-input"
                   placeholder="darshan@example.com"
                   value={resume.personal_info?.email || ''}
                   onChange={(e) => handlePersonalChange('email', e.target.value)}
@@ -497,9 +513,9 @@ export default function ResumeForm({ resume, setResume, onSwitchToPreview }) {
             <div className="form-grid-2">
               <div className="form-group">
                 <label className="form-label">Phone Number</label>
-                <input 
-                  type="text" 
-                  className="form-input" 
+                <input
+                  type="text"
+                  className="form-input"
                   placeholder="+91 98765 43210"
                   value={resume.personal_info?.phone || ''}
                   onChange={(e) => handlePersonalChange('phone', e.target.value)}
@@ -508,9 +524,9 @@ export default function ResumeForm({ resume, setResume, onSwitchToPreview }) {
 
               <div className="form-group">
                 <label className="form-label">Location (City, State)</label>
-                <input 
-                  type="text" 
-                  className="form-input" 
+                <input
+                  type="text"
+                  className="form-input"
                   placeholder="Ahmedabad, Gujarat"
                   value={resume.personal_info?.location || ''}
                   onChange={(e) => handlePersonalChange('location', e.target.value)}
@@ -521,9 +537,9 @@ export default function ResumeForm({ resume, setResume, onSwitchToPreview }) {
             <div className="form-grid-2">
               <div className="form-group">
                 <label className="form-label">LinkedIn Profile</label>
-                <input 
-                  type="text" 
-                  className="form-input" 
+                <input
+                  type="text"
+                  className="form-input"
                   placeholder="linkedin.com/in/username"
                   value={resume.personal_info?.linkedin || ''}
                   onChange={(e) => handlePersonalChange('linkedin', e.target.value)}
@@ -532,9 +548,9 @@ export default function ResumeForm({ resume, setResume, onSwitchToPreview }) {
 
               <div className="form-group">
                 <label className="form-label">GitHub / Portfolio</label>
-                <input 
-                  type="text" 
-                  className="form-input" 
+                <input
+                  type="text"
+                  className="form-input"
                   placeholder="github.com/username"
                   value={resume.personal_info?.github || ''}
                   onChange={(e) => handlePersonalChange('github', e.target.value)}
@@ -544,9 +560,9 @@ export default function ResumeForm({ resume, setResume, onSwitchToPreview }) {
 
             <div className="form-group">
               <label className="form-label">Website / Personal URL</label>
-              <input 
-                type="text" 
-                className="form-input" 
+              <input
+                type="text"
+                className="form-input"
                 placeholder="e.g. https://alexrivera.dev"
                 value={resume.personal_info?.website || ''}
                 onChange={(e) => handlePersonalChange('website', e.target.value)}
@@ -576,27 +592,27 @@ export default function ResumeForm({ resume, setResume, onSwitchToPreview }) {
               <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
                 {resume.personal_info?.profile_photo ? (
                   <div style={{ position: 'relative' }}>
-                    <img 
-                      src={resume.personal_info.profile_photo} 
-                      alt="Profile preview" 
-                      style={{ 
-                        width: '72px', 
-                        height: '72px', 
+                    <img
+                      src={resume.personal_info.profile_photo}
+                      alt="Profile preview"
+                      style={{
+                        width: '72px',
+                        height: '72px',
                         objectFit: 'cover',
                         borderRadius: resume.personal_info?.photo_shape === 'rounded' ? '12px' : resume.personal_info?.photo_shape === 'square' ? '2px' : '50%',
                         border: '2px solid var(--primary)'
-                      }} 
+                      }}
                     />
                   </div>
                 ) : (
-                  <div style={{ 
-                    width: '72px', 
-                    height: '72px', 
-                    borderRadius: '50%', 
-                    background: 'var(--bg-pane)', 
-                    border: '1.5px dashed var(--border-color)', 
-                    display: 'flex', 
-                    alignItems: 'center', 
+                  <div style={{
+                    width: '72px',
+                    height: '72px',
+                    borderRadius: '50%',
+                    background: 'var(--bg-pane)',
+                    border: '1.5px dashed var(--border-color)',
+                    display: 'flex',
+                    alignItems: 'center',
                     justifyContent: 'center',
                     color: 'var(--text-muted)'
                   }}>
@@ -606,15 +622,15 @@ export default function ResumeForm({ resume, setResume, onSwitchToPreview }) {
 
                 <div style={{ flex: '1 1 200px', minWidth: 0 }}>
                   <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', marginBottom: '0.5rem', flexWrap: 'wrap' }}>
-                    <label 
-                      className="btn btn-outline btn-sm" 
+                    <label
+                      className="btn btn-outline btn-sm"
                       style={{ cursor: 'pointer', margin: 0 }}
                     >
                       <Upload size={13} />
                       {resume.personal_info?.profile_photo ? 'Change Photo' : 'Upload Photo'}
-                      <input 
-                        type="file" 
-                        accept="image/png,image/jpeg,image/webp,image/jpg" 
+                      <input
+                        type="file"
+                        accept="image/png,image/jpeg,image/webp,image/jpg"
                         style={{ display: 'none' }}
                         onChange={handlePhotoUpload}
                       />
@@ -708,7 +724,7 @@ export default function ResumeForm({ resume, setResume, onSwitchToPreview }) {
             <div className="form-group" style={{ marginTop: '0.5rem' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.4rem' }}>
                 <label className="form-label" style={{ marginBottom: 0 }}>Professional Summary</label>
-                <button 
+                <button
                   className="btn btn-ai btn-sm"
                   onClick={handleEnhanceSummary}
                   disabled={aiLoading}
@@ -718,7 +734,7 @@ export default function ResumeForm({ resume, setResume, onSwitchToPreview }) {
                   <span>{aiLoading ? 'Improving...' : 'Improve with AI'}</span>
                 </button>
               </div>
-              <textarea 
+              <textarea
                 className="form-textarea"
                 rows={4}
                 placeholder="High-impact 3-4 lines highlighting your core skills, experience, and achievements..."
@@ -729,7 +745,7 @@ export default function ResumeForm({ resume, setResume, onSwitchToPreview }) {
 
             {/* Step Navigation */}
             <div className="step-nav-bar" style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '1.25rem', paddingTop: '1rem', borderTop: '1px solid var(--border-color)', flexWrap: 'wrap', gap: '0.5rem' }}>
-              <button 
+              <button
                 type="button"
                 className="btn btn-primary"
                 onClick={() => setActiveTab('experience')}
@@ -759,8 +775,8 @@ export default function ResumeForm({ resume, setResume, onSwitchToPreview }) {
                   <strong style={{ color: 'var(--text-main)', fontSize: '0.9rem' }}>
                     {exp.role || `Position #${index + 1}`} {exp.company ? `at ${exp.company}` : ''}
                   </strong>
-                  <button 
-                    className="delete-btn" 
+                  <button
+                    className="delete-btn"
                     onClick={() => removeExperience(index)}
                     title="Remove position"
                   >
@@ -771,9 +787,9 @@ export default function ResumeForm({ resume, setResume, onSwitchToPreview }) {
                 <div className="form-grid-2">
                   <div className="form-group">
                     <label className="form-label">Job Title / Role</label>
-                    <input 
-                      type="text" 
-                      className="form-input" 
+                    <input
+                      type="text"
+                      className="form-input"
                       placeholder="e.g. Lead Developer"
                       value={exp.role || ''}
                       onChange={(e) => updateExperience(index, 'role', e.target.value)}
@@ -781,9 +797,9 @@ export default function ResumeForm({ resume, setResume, onSwitchToPreview }) {
                   </div>
                   <div className="form-group">
                     <label className="form-label">Company Name</label>
-                    <input 
-                      type="text" 
-                      className="form-input" 
+                    <input
+                      type="text"
+                      className="form-input"
                       placeholder="e.g. Google / Infosys"
                       value={exp.company || ''}
                       onChange={(e) => updateExperience(index, 'company', e.target.value)}
@@ -794,9 +810,9 @@ export default function ResumeForm({ resume, setResume, onSwitchToPreview }) {
                 <div className="form-grid-2">
                   <div className="form-group">
                     <label className="form-label">Duration / Dates</label>
-                    <input 
-                      type="text" 
-                      className="form-input" 
+                    <input
+                      type="text"
+                      className="form-input"
                       placeholder="e.g. Jan 2022 - Present"
                       value={exp.startDate && exp.endDate ? `${exp.startDate} - ${exp.endDate}` : (exp.startDate || exp.endDate || exp.year || '')}
                       onChange={(e) => handleDurationChange(index, e.target.value)}
@@ -804,9 +820,9 @@ export default function ResumeForm({ resume, setResume, onSwitchToPreview }) {
                   </div>
                   <div className="form-group">
                     <label className="form-label">Location</label>
-                    <input 
-                      type="text" 
-                      className="form-input" 
+                    <input
+                      type="text"
+                      className="form-input"
                       placeholder="e.g. Ahmedabad, IN / Remote"
                       value={exp.location || ''}
                       onChange={(e) => updateExperience(index, 'location', e.target.value)}
@@ -817,7 +833,7 @@ export default function ResumeForm({ resume, setResume, onSwitchToPreview }) {
                 <div className="form-group">
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.4rem' }}>
                     <label className="form-label" style={{ marginBottom: 0 }}>Key Responsibilities & Achievements</label>
-                    <button 
+                    <button
                       className="btn btn-ai btn-sm"
                       onClick={() => handleEnhanceBullets(index, exp)}
                       disabled={activeExpEnhancing === index}
@@ -827,8 +843,8 @@ export default function ResumeForm({ resume, setResume, onSwitchToPreview }) {
                       <span>{activeExpEnhancing === index ? 'Improving...' : 'Improve with AI'}</span>
                     </button>
                   </div>
-                  <textarea 
-                    className="form-textarea" 
+                  <textarea
+                    className="form-textarea"
                     rows={4}
                     placeholder="• Spearheaded ...\n• Improved performance by 30%..."
                     value={exp.description || ''}
@@ -846,14 +862,14 @@ export default function ResumeForm({ resume, setResume, onSwitchToPreview }) {
 
             {/* Step Navigation */}
             <div className="step-nav-bar" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '1.25rem', paddingTop: '1rem', borderTop: '1px solid var(--border-color)', flexWrap: 'wrap', gap: '0.5rem' }}>
-              <button 
-                type="button" 
+              <button
+                type="button"
                 className="btn btn-outline btn-sm"
                 onClick={() => setActiveTab('personal')}
               >
                 ← 1. Profile
               </button>
-              <button 
+              <button
                 type="button"
                 className="btn btn-primary"
                 onClick={() => setActiveTab('skills')}
@@ -875,9 +891,9 @@ export default function ResumeForm({ resume, setResume, onSwitchToPreview }) {
 
             <div className="form-group">
               <label className="form-label">Type skill and press Enter</label>
-              <input 
-                type="text" 
-                className="form-input" 
+              <input
+                type="text"
+                className="form-input"
                 placeholder="e.g. React.js, Node.js, MySQL, Docker..."
                 value={skillInput}
                 onChange={(e) => setSkillInput(e.target.value)}
@@ -903,9 +919,9 @@ export default function ResumeForm({ resume, setResume, onSwitchToPreview }) {
               </span>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem', marginTop: '0.5rem' }}>
                 {['JavaScript', 'TypeScript', 'React.js', 'Next.js', 'Node.js', 'Express', 'MySQL', 'MongoDB', 'REST APIs', 'Git', 'Tailwind CSS', 'Docker'].map((s) => (
-                  <button 
-                    key={s} 
-                    className="btn btn-outline btn-sm" 
+                  <button
+                    key={s}
+                    className="btn btn-outline btn-sm"
                     style={{ fontSize: '0.75rem', padding: '0.2rem 0.5rem' }}
                     onClick={() => {
                       if (!resume.skills?.includes(s)) {
@@ -921,14 +937,14 @@ export default function ResumeForm({ resume, setResume, onSwitchToPreview }) {
 
             {/* Step Navigation */}
             <div className="step-nav-bar" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '1.25rem', paddingTop: '1rem', borderTop: '1px solid var(--border-color)', flexWrap: 'wrap', gap: '0.5rem' }}>
-              <button 
-                type="button" 
+              <button
+                type="button"
                 className="btn btn-outline btn-sm"
                 onClick={() => setActiveTab('experience')}
               >
                 ← 2. Experience
               </button>
-              <button 
+              <button
                 type="button"
                 className="btn btn-primary"
                 onClick={() => setActiveTab('education')}
@@ -965,9 +981,9 @@ export default function ResumeForm({ resume, setResume, onSwitchToPreview }) {
 
                 <div className="form-group">
                   <label className="form-label">Degree / Program</label>
-                  <input 
-                    type="text" 
-                    className="form-input" 
+                  <input
+                    type="text"
+                    className="form-input"
                     placeholder="e.g. B.Tech in Computer Engineering"
                     value={edu.degree || ''}
                     onChange={(e) => updateEducation(index, 'degree', e.target.value)}
@@ -976,9 +992,9 @@ export default function ResumeForm({ resume, setResume, onSwitchToPreview }) {
 
                 <div className="form-group">
                   <label className="form-label">University / College / School</label>
-                  <input 
-                    type="text" 
-                    className="form-input" 
+                  <input
+                    type="text"
+                    className="form-input"
                     placeholder="e.g. Gujarat Technological University"
                     value={edu.institution || ''}
                     onChange={(e) => updateEducation(index, 'institution', e.target.value)}
@@ -988,9 +1004,9 @@ export default function ResumeForm({ resume, setResume, onSwitchToPreview }) {
                 <div className="form-grid-2">
                   <div className="form-group">
                     <label className="form-label">Passing Year / Duration</label>
-                    <input 
-                      type="text" 
-                      className="form-input" 
+                    <input
+                      type="text"
+                      className="form-input"
                       placeholder="e.g. 2019 - 2023"
                       value={edu.year || ''}
                       onChange={(e) => updateEducation(index, 'year', e.target.value)}
@@ -998,9 +1014,9 @@ export default function ResumeForm({ resume, setResume, onSwitchToPreview }) {
                   </div>
                   <div className="form-group">
                     <label className="form-label">Score / CGPA / Percentage</label>
-                    <input 
-                      type="text" 
-                      className="form-input" 
+                    <input
+                      type="text"
+                      className="form-input"
                       placeholder="e.g. 8.75 CGPA or 85%"
                       value={edu.score || ''}
                       onChange={(e) => updateEducation(index, 'score', e.target.value)}
@@ -1012,14 +1028,14 @@ export default function ResumeForm({ resume, setResume, onSwitchToPreview }) {
 
             {/* Step Navigation */}
             <div className="step-nav-bar" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '1.25rem', paddingTop: '1rem', borderTop: '1px solid var(--border-color)', flexWrap: 'wrap', gap: '0.5rem' }}>
-              <button 
-                type="button" 
+              <button
+                type="button"
                 className="btn btn-outline btn-sm"
                 onClick={() => setActiveTab('skills')}
               >
                 ← 3. Skills
               </button>
-              <button 
+              <button
                 type="button"
                 className="btn btn-primary"
                 onClick={() => setActiveTab('projects')}
@@ -1057,9 +1073,9 @@ export default function ResumeForm({ resume, setResume, onSwitchToPreview }) {
                 <div className="form-grid-2">
                   <div className="form-group">
                     <label className="form-label">Project Name</label>
-                    <input 
-                      type="text" 
-                      className="form-input" 
+                    <input
+                      type="text"
+                      className="form-input"
                       placeholder="e.g. AI Resume Generator"
                       value={proj.name || ''}
                       onChange={(e) => updateProject(index, 'name', e.target.value)}
@@ -1067,9 +1083,9 @@ export default function ResumeForm({ resume, setResume, onSwitchToPreview }) {
                   </div>
                   <div className="form-group">
                     <label className="form-label">Live Link / GitHub Repo</label>
-                    <input 
-                      type="text" 
-                      className="form-input" 
+                    <input
+                      type="text"
+                      className="form-input"
                       placeholder="e.g. github.com/username/project"
                       value={proj.link || ''}
                       onChange={(e) => updateProject(index, 'link', e.target.value)}
@@ -1079,8 +1095,8 @@ export default function ResumeForm({ resume, setResume, onSwitchToPreview }) {
 
                 <div className="form-group">
                   <label className="form-label">Project Description & Tech Stack</label>
-                  <textarea 
-                    className="form-textarea" 
+                  <textarea
+                    className="form-textarea"
                     rows={3}
                     placeholder="Built full-stack application with React, Express, MySQL and Gemini API..."
                     value={proj.description || ''}
@@ -1092,14 +1108,14 @@ export default function ResumeForm({ resume, setResume, onSwitchToPreview }) {
 
             {/* Step Navigation */}
             <div className="step-nav-bar" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '1.25rem', paddingTop: '1rem', borderTop: '1px solid var(--border-color)', flexWrap: 'wrap', gap: '0.5rem' }}>
-              <button 
-                type="button" 
+              <button
+                type="button"
                 className="btn btn-outline btn-sm"
                 onClick={() => setActiveTab('education')}
               >
                 ← 4. Education
               </button>
-              <button 
+              <button
                 type="button"
                 className="btn btn-primary"
                 onClick={() => setActiveTab('custom')}
@@ -1120,7 +1136,7 @@ export default function ResumeForm({ resume, setResume, onSwitchToPreview }) {
                 <Award size={18} style={{ color: '#fbbf24' }} />
                 Custom Sections
               </span>
-              <button 
+              <button
                 className="btn btn-outline btn-sm"
                 onClick={() => {
                   setResume(prev => ({
@@ -1147,7 +1163,7 @@ export default function ResumeForm({ resume, setResume, onSwitchToPreview }) {
                   <strong style={{ color: 'var(--text-main)', fontSize: '0.9rem' }}>
                     {sec.title || `Section #${index + 1}`}
                   </strong>
-                  <button 
+                  <button
                     className="delete-btn"
                     onClick={() => {
                       setResume(prev => ({
@@ -1162,9 +1178,9 @@ export default function ResumeForm({ resume, setResume, onSwitchToPreview }) {
 
                 <div className="form-group">
                   <label className="form-label">Section Title</label>
-                  <input 
-                    type="text" 
-                    className="form-input" 
+                  <input
+                    type="text"
+                    className="form-input"
                     placeholder="e.g. Awards & Honors / Certifications / Languages"
                     value={sec.title || ''}
                     onChange={(e) => {
@@ -1177,7 +1193,7 @@ export default function ResumeForm({ resume, setResume, onSwitchToPreview }) {
 
                 <div className="form-group">
                   <label className="form-label">Content (Bullets or Text)</label>
-                  <textarea 
+                  <textarea
                     className="form-textarea"
                     rows={4}
                     placeholder="• Gold Medalist in Hackathon 2024\n• AWS Certified Cloud Solutions Architect"
@@ -1200,8 +1216,8 @@ export default function ResumeForm({ resume, setResume, onSwitchToPreview }) {
 
             {/* Step Navigation */}
             <div className="step-nav-bar" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '1.25rem', paddingTop: '1rem', borderTop: '1px solid var(--border-color)', flexWrap: 'wrap', gap: '0.75rem' }}>
-              <button 
-                type="button" 
+              <button
+                type="button"
                 className="btn btn-outline btn-sm"
                 onClick={() => setActiveTab('projects')}
               >

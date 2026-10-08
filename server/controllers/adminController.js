@@ -1,19 +1,20 @@
 import bcrypt from 'bcryptjs';
 import { getDB, getIsConnected } from '../config/db.js';
 
-// Admin Metrics Overview
+// Admin Metrics Overview (100% Free Platform Analytics)
 export async function getAdminMetrics(req, res) {
   try {
     if (!getIsConnected()) {
       return res.json({
         success: true,
         metrics: {
-          totalUsers: 142,
-          totalResumes: 389,
-          proSubscribers: 28,
-          totalApplicationsTracked: 612,
-          monthlyRevenue: '₹13,972',
-          aiRequestsToday: 420
+          totalUsers: 'Not available',
+          totalResumes: 'Not available',
+          publicResumes: 'Not available',
+          totalApplicationsTracked: 'Not available',
+          totalCoverLetters: 'Not available',
+          aiOperations: 'Not available',
+          planType: '100% Free'
         }
       });
     }
@@ -21,19 +22,21 @@ export async function getAdminMetrics(req, res) {
     const db = getDB();
     const [[{ totalUsers }]] = await db.query('SELECT COUNT(*) as totalUsers FROM users');
     const [[{ totalResumes }]] = await db.query('SELECT COUNT(*) as totalResumes FROM resumes');
-    const [[{ proSubscribers }]] = await db.query("SELECT COUNT(*) as proSubscribers FROM users WHERE plan = 'pro'");
+    const [[{ publicResumes }]] = await db.query('SELECT COUNT(*) as publicResumes FROM resumes WHERE is_public = 1 OR is_public = TRUE');
     const [[{ totalApplicationsTracked }]] = await db.query('SELECT COUNT(*) as totalApplicationsTracked FROM job_applications');
-    const [[{ totalRevenue }]] = await db.query('SELECT COALESCE(SUM(amount), 0) as totalRevenue FROM payments');
+    const [[{ totalCoverLetters }]] = await db.query('SELECT COUNT(*) as totalCoverLetters FROM cover_letters');
+    const [[{ aiOperations }]] = await db.query('SELECT COALESCE(SUM(ai_daily_count), 0) as aiOperations FROM users');
 
     res.json({
       success: true,
       metrics: {
-        totalUsers: totalUsers || 1,
-        totalResumes: totalResumes || 1,
-        proSubscribers: proSubscribers || 0,
-        totalApplicationsTracked: totalApplicationsTracked || 0,
-        monthlyRevenue: `₹${totalRevenue || 0}`,
-        aiRequestsToday: 18
+        totalUsers: totalUsers ?? 0,
+        totalResumes: totalResumes ?? 0,
+        publicResumes: publicResumes ?? 0,
+        totalApplicationsTracked: totalApplicationsTracked ?? 0,
+        totalCoverLetters: totalCoverLetters ?? 0,
+        aiOperations: aiOperations ?? 0,
+        planType: '100% Free'
       }
     });
   } catch (error) {

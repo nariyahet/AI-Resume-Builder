@@ -56,20 +56,27 @@ Rules:
 `;
 
     let summary = null;
+    let isAi = false;
     try {
       summary = await callGemini(prompt, clientKey);
+      if (summary) isAi = true;
     } catch (err) {
       console.warn('Gemini API call failed, falling back to smart template generator:', err.message);
     }
 
     if (!summary) {
-      // High-quality smart fallback
-      const role = targetRole || 'Dynamic Professional';
+      // High-quality honest fallback without fabricating achievements or metrics
+      const role = targetRole || 'Software Professional';
       const skillText = Array.isArray(skills) && skills.length > 0 ? skills.slice(0, 4).join(', ') : 'modern industry technologies';
-      summary = `Results-driven and innovative ${role} with a demonstrated track record of designing scalable solutions and streamlining mission-critical workflows. Proficient in ${skillText}, with expertise in cross-functional team leadership and rapid problem-solving. Dedicated to maximizing operational efficiency and delivering high-impact business outcomes.`;
+      summary = `Dedicated and proactive ${role} with practical experience applying ${skillText} across core project deliverables. Adept at collaborative problem-solving, structured code implementation, and meeting team milestones. Committed to continuous technical growth and delivering reliable results.`;
     }
 
-    res.json({ success: true, summary, aiPowered: !!process.env.GEMINI_API_KEY || !!clientKey });
+    res.json({
+      success: true,
+      summary,
+      aiPowered: isAi,
+      analysisMode: isAi ? 'ai' : 'rule-based'
+    });
   } catch (error) {
     console.error('Enhance summary error:', error);
     res.status(500).json({ success: false, message: 'Failed to enhance summary.' });
@@ -84,21 +91,30 @@ export async function enhanceBullets(req, res) {
 
     const prompt = `
 You are a senior tech recruiter and resume specialist.
-Rewrite the following raw job duty notes into 3 high-impact, ATS-optimized bullet points using the STAR method (Situation, Task, Action, Result) with strong action verbs and quantifiable impact.
+Rewrite the following raw job duty notes into 3 high-impact, ATS-optimized bullet points using the STAR method (Situation, Task, Action, Result) with strong action verbs.
 Role: ${role || 'Team Member'} at ${company || 'Company'}
 Raw Notes: "${rawBullets || 'Developed software features, worked with team, solved bugs.'}"
 
+RULES:
+- Improve wording, action verbs, clarity, and technical precision.
+- Do NOT fabricate metrics, percentages, uptime, or user numbers that were not provided.
+- If the candidate notes do not contain a quantifiable result, suggest: "[Add measurable result if known]".
+
 Format your response as a valid JSON array of 3 strings:
-["Action verb + achievement with measurable impact", "Engineered and streamlined ...", "Collaborated with ..."]
+["Action verb + responsibility [add measurable result if known]", "Engineered and streamlined ...", "Collaborated with ..."]
 Output ONLY the raw JSON array.
 `;
 
     let bullets = null;
+    let isAi = false;
     try {
       const responseText = await callGemini(prompt, clientKey);
       if (responseText) {
         const cleaned = responseText.replace(/```json/g, '').replace(/```/g, '').trim();
         bullets = JSON.parse(cleaned);
+        if (Array.isArray(bullets) && bullets.length > 0) {
+          isAi = true;
+        }
       }
     } catch (err) {
       console.warn('Gemini bullets parsing failed or no key:', err.message);
@@ -106,88 +122,148 @@ Output ONLY the raw JSON array.
 
     if (!bullets || !Array.isArray(bullets)) {
       bullets = [
-        `Spearheaded development of core features for ${company || 'organization'}, accelerating delivery timelines by 25%.`,
-        `Architected and optimized scalable components utilizing best practices, reducing latency and operational overhead.`,
-        `Collaborated cross-functionally with stakeholders and engineers to resolve complex technical blockers with 99.8% uptime.`
+        `Contributed to the development and release of core features for ${company || 'the team'} [add measurable result if known].`,
+        `Architected and maintained component workflows utilizing modern engineering best practices to improve overall system reliability.`,
+        `Collaborated cross-functionally with team members and technical stakeholders to troubleshoot issues and deliver project milestones.`
       ];
     }
 
-    res.json({ success: true, bullets, aiPowered: !!process.env.GEMINI_API_KEY || !!clientKey });
+    res.json({
+      success: true,
+      bullets,
+      aiPowered: isAi,
+      analysisMode: isAi ? 'ai' : 'rule-based'
+    });
   } catch (error) {
     console.error('Enhance bullets error:', error);
     res.status(500).json({ success: false, message: 'Failed to enhance bullet points.' });
   }
 }
 
-// 3. AI ATS Score & Optimization Calculator
+// 3. AI ATS Score & Optimization Calculator (Supports General Mode & Job-Specific Mode)
 export async function calculateAts(req, res) {
   try {
-    const { targetRole, resume } = req.body;
+    const { targetRole, resume, jobDescription } = req.body;
     const clientKey = req.headers['x-gemini-api-key'];
 
-    const role = targetRole || resume?.target_role || 'Software Engineer';
+    const role = targetRole || resume?.target_role || 'Software Professional';
     const skills = resume?.skills || [];
     const experience = resume?.experience || [];
     const summary = resume?.summary || '';
+    const hasJd = !!(jobDescription && jobDescription.trim());
 
     const prompt = `
-Analyze this resume for an ATS (Applicant Tracking System) check targeting the role of: "${role}".
-Resume Summary: ${summary}
+You are an expert technical recruiter and Applicant Tracking System (ATS) optimization specialist.
+Perform an honest ATS optimization analysis on the following candidate resume.
+${hasJd ? `ANALYSIS MODE: Job-Specific ATS Optimization (targeting supplied Job Description)
+TARGET JOB DESCRIPTION:
+"""${jobDescription.trim().substring(0, 3000)}"""` : `ANALYSIS MODE: General Resume ATS Optimization (targeting general industry standards for "${role}")`}
+
+CANDIDATE RESUME:
+Target Role: ${role}
+Summary: ${summary || 'None'}
 Skills: ${JSON.stringify(skills)}
 Experience: ${JSON.stringify(experience)}
 
-Return a strict JSON object with:
+EVALUATION GUIDELINES:
+- Score realistically from 0 to 100 based strictly on provided facts. Do not artificially inflate or force high scores.
+- Evaluate 4 core dimensions (each 0 to 100):
+  1. skillsAlignment: Alignment of candidate skills with ${hasJd ? 'the Job Description' : `the target role "${role}"`}
+  2. keywordAlignment: Keyword density and presence of relevant domain terms
+  3. experienceRelevance: Relevance, depth, and clarity of work experience
+  4. resumeReadability: Chronological formatting, ATS parsability, and structure
+- ${hasJd ? 'Only identify missing keywords that are actually present or directly required in the target Job Description. Do not fabricate keywords.' : 'Identify standard, relevant industry keywords commonly sought for this role that are currently absent from the resume.'}
+- Suggestions should be actionable and truthful.
+
+Return ONLY a strict JSON object with this exact structure:
 {
-  "score": <number between 70 and 98>,
-  "verdict": "<Great Match | Solid Candidate | Needs Optimization>",
+  "score": <overall optimization score 0-100>,
+  "verdict": "<Concise verdict, e.g. Strong ATS Alignment | Good Foundation with Gaps | Needs Optimization>",
+  "dimensions": {
+    "skillsAlignment": <number 0-100>,
+    "keywordAlignment": <number 0-100>,
+    "experienceRelevance": <number 0-100>,
+    "resumeReadability": <number 0-100>
+  },
   "strengths": ["<strength 1>", "<strength 2>", "<strength 3>"],
-  "missingKeywords": ["<keyword 1>", "<keyword 2>", "<keyword 3>"],
-  "suggestions": ["<actionable advice 1>", "<actionable advice 2>"]
+  "missingKeywords": ["<relevant missing keyword 1>", "<relevant missing keyword 2>"],
+  "suggestions": ["<practical optimization tip 1>", "<practical optimization tip 2>"]
 }
-Output ONLY valid JSON.
 `;
 
     let result = null;
+    let isAi = false;
     try {
       const responseText = await callGemini(prompt, clientKey);
       if (responseText) {
         const cleaned = responseText.replace(/```json/g, '').replace(/```/g, '').trim();
         result = JSON.parse(cleaned);
+        if (result && typeof result.score === 'number' && result.dimensions) {
+          isAi = true;
+        }
       }
     } catch (err) {
       console.warn('Gemini ATS score call failed, using rule-based scoring:', err.message);
     }
 
-    if (!result) {
-      // Smart rule-based ATS evaluation fallback
-      let score = 75;
-      if (summary.length > 80) score += 7;
-      if (skills.length >= 6) score += 8;
-      if (experience.length >= 2) score += 5;
-      score = Math.min(score, 94);
+    if (!result || typeof result.score !== 'number') {
+      // Evidence-based rule-based ATS evaluation fallback
+      const skillsCount = Array.isArray(skills) ? skills.length : 0;
+      const expCount = Array.isArray(experience) ? experience.length : 0;
+
+      let skillsAlignment = skillsCount >= 8 ? 84 : skillsCount >= 4 ? 70 : skillsCount >= 1 ? 55 : 30;
+      let experienceRelevance = expCount >= 3 ? 85 : expCount >= 1 ? 68 : 35;
+      let resumeReadability = 65;
+      if (summary && summary.length > 60) resumeReadability += 15;
+      if (resume?.education && resume.education.length > 0) resumeReadability += 10;
+      resumeReadability = Math.min(95, resumeReadability);
+
+      let keywordAlignment = 60;
+      let missingKeys = [];
+
+      if (hasJd) {
+        const jdLower = jobDescription.toLowerCase();
+        const matched = (skills || []).filter(s => jdLower.includes(String(s).toLowerCase()));
+        keywordAlignment = Math.min(95, Math.max(25, Math.round((matched.length / Math.max(1, skillsCount)) * 100)));
+        const commonTech = ['Git', 'REST APIs', 'Docker', 'Agile', 'CI/CD', 'Testing', 'Cloud', 'SQL', 'TypeScript'];
+        missingKeys = commonTech.filter(t => jdLower.includes(t.toLowerCase()) && !(skills || []).some(s => String(s).toLowerCase().includes(t.toLowerCase()))).slice(0, 4);
+      } else {
+        keywordAlignment = Math.min(85, Math.max(35, skillsCount * 8));
+        missingKeys = ['CI/CD Workflow', 'Agile Methodology', 'Automated Testing', 'Performance Optimization'];
+      }
+
+      const score = Math.round((skillsAlignment + keywordAlignment + experienceRelevance + resumeReadability) / 4);
 
       result = {
         score,
-        verdict: score >= 85 ? 'Excellent ATS Alignment' : 'Strong Profile with Room for Growth',
+        verdict: score >= 80 ? 'Strong ATS Alignment' : score >= 60 ? 'Moderate Alignment with Growth Opportunities' : 'Needs Optimization',
+        dimensions: {
+          skillsAlignment,
+          keywordAlignment,
+          experienceRelevance,
+          resumeReadability
+        },
         strengths: [
-          'Clear chronological career progression and readable format',
-          'Good inclusion of technical core proficiencies',
-          'Direct alignment with targeted industry standards'
+          skillsCount >= 5 ? 'Good coverage of core technical proficiencies' : 'Foundational skills listed',
+          expCount > 0 ? 'Chronological career progression is parsable' : 'Basic background provided',
+          summary ? 'Professional summary provides immediate role context' : 'Clear layout structure'
         ],
-        missingKeywords: [
-          'CI/CD Pipeline',
-          'Agile / Scrum Methodology',
-          'Performance Optimization',
-          'Data-driven Metrics (KPIs)'
-        ],
+        missingKeywords: missingKeys.length > 0 ? missingKeys : ['Version Control', 'Agile Development'],
         suggestions: [
-          'Add percentage gains or numbers in your experience bullets (e.g. "improved speed by 30%")',
-          `Include more direct keywords matching the specific "${role}" job descriptions`
+          hasJd
+            ? 'Add a missing keyword only if it accurately reflects your genuine skills and experience.'
+            : 'Incorporate industry-standard keywords that reflect the core competencies of your target role.',
+          'Where applicable, include real quantifiable outcomes in your experience bullet points to demonstrate impact.'
         ]
       };
     }
 
-    res.json({ success: true, ...result, aiPowered: !!process.env.GEMINI_API_KEY || !!clientKey });
+    res.json({
+      success: true,
+      ...result,
+      aiPowered: isAi,
+      analysisMode: isAi ? 'ai' : 'rule-based'
+    });
   } catch (error) {
     console.error('ATS calculate error:', error);
     res.status(500).json({ success: false, message: 'Failed to calculate ATS score.' });
@@ -201,122 +277,93 @@ export async function oneClickGenerate(req, res) {
     const clientKey = req.headers['x-gemini-api-key'];
 
     const prompt = `
-Convert the following unstructured user background into a polished, structured resume JSON:
+Convert the following user background notes into a polished, structured resume JSON:
 Target Role: ${targetRole || 'Professional'}
-User Background Notes: "${promptText || 'I am a developer with experience in React and Node.'}"
+User Background Notes: "${promptText || 'Developer with web experience.'}"
+
+INTEGRITY RULES:
+- Extract and structure ONLY the candidate's actual background from the notes.
+- If personal details (name, email, phone, location, links) are not provided, leave them as empty strings ("").
+- NEVER invent fictional candidate identities, fabricated degrees, imaginary employers, or fake metric percentages.
+- If information for a section is missing from the notes, return an empty array ([]).
 
 Return ONLY a strict JSON object with this exact structure:
 {
-  "title": "Professional Resume",
-  "target_role": "${targetRole || 'Software Engineer'}",
+  "title": "${targetRole || 'Professional'} Resume",
+  "target_role": "${targetRole || 'Software Professional'}",
   "personal_info": {
-    "fullName": "Candidate Name",
-    "email": "candidate@example.com",
-    "phone": "+91 98765 43210",
-    "location": "Ahmedabad, India",
-    "linkedin": "linkedin.com/in/candidate",
-    "github": "github.com/candidate",
+    "fullName": "",
+    "email": "",
+    "phone": "",
+    "location": "",
+    "linkedin": "",
+    "github": "",
     "website": ""
   },
-  "summary": "Compelling 3-sentence summary...",
-  "skills": ["Skill 1", "Skill 2", "Skill 3", "Skill 4", "Skill 5", "Skill 6"],
+  "summary": "Concise professional summary reflecting provided experience...",
+  "skills": ["Skill 1", "Skill 2"],
   "experience": [
     {
-      "company": "Tech Innovations Ltd.",
-      "role": "Senior Engineer",
-      "location": "Remote",
-      "startDate": "2023",
-      "endDate": "Present",
-      "description": "• Spearheaded scalable web application architecture.\\n• Improved deployment velocity by 40%."
+      "company": "Company Name",
+      "role": "Role Title",
+      "location": "Location",
+      "startDate": "Start Date",
+      "endDate": "End Date",
+      "description": "• Responsibilities described in notes"
     }
   ],
-  "education": [
-    {
-      "institution": "Gujarat Technological University",
-      "degree": "B.Tech in Computer Engineering",
-      "year": "2019 - 2023",
-      "score": "8.8 CGPA"
-    }
-  ],
-  "projects": [
-    {
-      "name": "Cloud Analytics Dashboard",
-      "description": "Built real-time analytics portal handling 50k+ daily events with React and Node.js.",
-      "link": "github.com/example/project"
-    }
-  ]
+  "education": [],
+  "projects": []
 }
 Output ONLY raw JSON.
 `;
 
     let generated = null;
+    let isAi = false;
     try {
       const responseText = await callGemini(prompt, clientKey);
       if (responseText) {
         const cleaned = responseText.replace(/```json/g, '').replace(/```/g, '').trim();
         generated = JSON.parse(cleaned);
+        if (generated && typeof generated === 'object') {
+          isAi = true;
+        }
       }
     } catch (err) {
-      console.warn('Gemini 1-click generation failed, using demo structured profile:', err.message);
+      console.warn('Gemini 1-click generation failed, using clean structured template:', err.message);
     }
 
     if (!generated) {
+      // Safe, honest template scaffold without inventing a fictional identity or fake achievements
+      const notesSnippet = promptText ? promptText.slice(0, 120).trim() : '';
       generated = {
-        title: `${targetRole || 'Full Stack'} Resume`,
-        target_role: targetRole || 'Full Stack Developer',
+        title: `${targetRole || 'Professional'} Resume`,
+        target_role: targetRole || 'Software Professional',
         personal_info: {
-          fullName: 'Darshan Patel',
-          email: 'darshan.patel@example.com',
-          phone: '+91 98250 12345',
-          location: 'Ahmedabad, Gujarat',
-          linkedin: 'linkedin.com/in/darshanpatel',
-          github: 'github.com/darshanpatel',
-          website: 'darshan.dev'
+          fullName: '',
+          email: '',
+          phone: '',
+          location: '',
+          linkedin: '',
+          github: '',
+          website: ''
         },
-        summary: `Accomplished and proactive ${targetRole || 'Full Stack Developer'} with 3+ years of hands-on expertise building robust, user-centric web applications. Adept at full lifecycle software engineering, API development, and database architecture. Proven history of boosting system throughput and delivering scalable cloud solutions.`,
-        skills: ['React.js', 'Node.js', 'Express.js', 'MySQL', 'JavaScript (ES6+)', 'REST APIs', 'Git / GitHub', 'Tailwind CSS', 'Docker basics'],
-        experience: [
-          {
-            company: 'Nexus Tech Labs',
-            role: 'Software Developer',
-            location: 'Ahmedabad',
-            startDate: 'Jan 2023',
-            endDate: 'Present',
-            description: '• Spearheaded development of responsive client-facing web portals utilizing React and Express.\\n• Engineered high-performance MySQL queries and indexing, slashing response latency by 35%.\\n• Collaborated with cross-functional product teams in 2-week agile sprints to ship 12+ releases.'
-          },
-          {
-            company: 'Innovate Solutions',
-            role: 'Junior Web Developer',
-            location: 'Surat',
-            startDate: 'Jul 2021',
-            endDate: 'Dec 2022',
-            description: '• Built reusable front-end UI components and integrated RESTful endpoints with secure JWT auth.\\n• Fixed 150+ bug tickets and improved test coverage from 60% to 85%.'
-          }
-        ],
-        education: [
-          {
-            institution: 'Gujarat Technological University (GTU)',
-            degree: 'Bachelor of Engineering in Information Technology',
-            year: '2017 - 2021',
-            score: '8.65 CGPA'
-          }
-        ],
-        projects: [
-          {
-            name: 'AI Resume & ATS Optimization Engine',
-            description: 'Full-stack application utilizing React, Node.js, MySQL, and Gemini API to generate ATS-ready resumes with 1-click export.',
-            link: 'github.com/patel/ai-resume'
-          },
-          {
-            name: 'E-Commerce Micro-services Platform',
-            description: 'Scalable e-commerce backend with JWT authentication, order processing, and payment gateway integration.',
-            link: 'github.com/patel/ecommerce-api'
-          }
-        ]
+        summary: notesSnippet
+          ? `Motivated ${targetRole || 'professional'} with experience in ${notesSnippet}. Focused on continuous technical growth, code reliability, and contributing effectively to team goals.`
+          : `Dedicated ${targetRole || 'professional'} skilled in technical implementation and problem-solving. Seeking to apply core proficiencies to high-impact software development deliverables.`,
+        skills: [],
+        experience: [],
+        education: [],
+        projects: []
       };
     }
 
-    res.json({ success: true, resume: generated, aiPowered: !!process.env.GEMINI_API_KEY || !!clientKey });
+    res.json({
+      success: true,
+      resume: generated,
+      aiPowered: isAi,
+      analysisMode: isAi ? 'ai' : 'rule-based'
+    });
   } catch (error) {
     console.error('1-click generate error:', error);
     res.status(500).json({ success: false, message: 'Failed to generate resume.' });
@@ -334,7 +381,7 @@ export async function matchJobDescription(req, res) {
     }
 
     const prompt = `
-You are an expert HR recruiter and ATS compliance officer.
+You are an expert HR recruiter and ATS compliance specialist.
 Compare this candidate's resume against the target Job Description (JD):
 
 TARGET JOB DESCRIPTION:
@@ -346,53 +393,73 @@ Summary: ${resume?.summary || ''}
 Skills: ${(resume?.skills || []).join(', ')}
 Experience: ${JSON.stringify(resume?.experience || [])}
 
-Analyze the match and provide recommendations.
+RULES:
+- Evaluate actual alignment objectively. Score between 0 and 100 based strictly on evidence.
+- Identify matching keywords that are ACTUALLY present in both the JD and the candidate resume.
+- Identify missing keywords that are genuinely required in the JD but absent from the candidate resume.
+- Do NOT fabricate skills, technologies, or candidate achievements.
+- In tailoredSummary, rewrite the candidate's existing background to emphasize relevance without fabricating qualifications.
+
 Return ONLY a strict JSON object with this exact structure:
 {
-  "matchScore": <number between 40 and 98>,
+  "matchScore": <number between 0 and 100>,
   "verdict": "<Strong Match | Moderate Match | Low Alignment>",
-  "matchingKeywords": ["<keyword 1>", "<keyword 2>", "<keyword 3>", "<keyword 4>"],
-  "missingKeywords": ["<missing keyword 1>", "<missing keyword 2>", "<missing keyword 3>"],
-  "tailoredSummary": "<A 3-sentence rewritten summary incorporating missing keywords and matching the JD>",
-  "actionableTips": ["<Tip 1 on adjusting resume to JD>", "<Tip 2>"]
+  "matchingKeywords": ["<keyword 1>", "<keyword 2>"],
+  "missingKeywords": ["<missing keyword 1>", "<missing keyword 2>"],
+  "tailoredSummary": "<A tailored 3-sentence summary highlighting existing candidate facts matching the JD>",
+  "actionableTips": [
+    "Add a missing keyword only if it accurately reflects your genuine experience or skills.",
+    "<Practical tip on emphasizing relevant existing experience>"
+  ]
 }
 `;
 
     let result = null;
+    let isAi = false;
     try {
       const responseText = await callGemini(prompt, clientKey);
       if (responseText) {
         const cleaned = responseText.replace(/```json/g, '').replace(/```/g, '').trim();
         result = JSON.parse(cleaned);
+        if (result && typeof result.matchScore === 'number') {
+          isAi = true;
+        }
       }
     } catch (err) {
       console.warn('Gemini JD matcher fallback:', err.message);
     }
 
     if (!result) {
-      // Smart extraction fallback
+      // Evidence-based JD matching fallback
       const jdWords = jobDescription.toLowerCase();
-      const resumeSkills = (resume?.skills || []).map(s => s.toLowerCase());
-      const matched = (resume?.skills || []).filter(s => jdWords.includes(s.toLowerCase()));
-      const commonTech = ['Docker', 'AWS', 'Kubernetes', 'TypeScript', 'GraphQL', 'CI/CD', 'Microservices', 'Jest', 'Agile'];
-      const missing = commonTech.filter(t => jdWords.includes(t.toLowerCase()) && !resumeSkills.includes(t.toLowerCase())).slice(0, 5);
+      const candidateSkills = (resume?.skills || []).map(s => String(s).trim());
+      const matched = candidateSkills.filter(s => s && jdWords.includes(s.toLowerCase()));
 
-      const score = Math.min(95, Math.max(62, 50 + (matched.length * 7)));
+      const commonTech = ['Git', 'REST APIs', 'Docker', 'Agile', 'CI/CD', 'Testing', 'Cloud', 'SQL', 'TypeScript'];
+      const missing = commonTech.filter(t => jdWords.includes(t.toLowerCase()) && !candidateSkills.some(s => s.toLowerCase() === t.toLowerCase())).slice(0, 5);
+
+      const ratio = candidateSkills.length > 0 ? (matched.length / candidateSkills.length) : 0;
+      const score = Math.min(95, Math.max(20, Math.round(ratio * 70 + (matched.length > 0 ? 25 : 10))));
 
       result = {
         matchScore: score,
-        verdict: score >= 80 ? 'Strong Match' : 'Moderate Match with Gaps',
-        matchingKeywords: matched.length > 0 ? matched : ['React.js', 'Node.js', 'API Integration'],
-        missingKeywords: missing.length > 0 ? missing : ['CI/CD Pipeline', 'AWS Cloud', 'Docker Containerization', 'Automated Testing'],
-        tailoredSummary: `Proven ${resume?.target_role || 'Software Engineer'} with hands-on expertise building enterprise-grade applications. Demonstrated success architecting scalable systems and collaborating in agile teams. Adept at rapid problem resolution, code optimization, and delivering mission-critical deliverables aligned with target specifications.`,
+        verdict: score >= 75 ? 'Strong Match' : score >= 50 ? 'Moderate Match with Gaps' : 'Low Alignment with Target Role',
+        matchingKeywords: matched,
+        missingKeywords: missing,
+        tailoredSummary: `Dedicated ${resume?.target_role || 'Software Professional'} with hands-on background in ${matched.slice(0, 3).join(', ') || 'software engineering'}. Experienced in designing reliable features, working within development workflows, and delivering deliverables aligned with project objectives.`,
         actionableTips: [
-          'Highlight specific metrics and business outcomes that match the primary responsibilities mentioned in the JD.',
-          'Inject the missing keywords into your Skills and Experience bullet points to pass ATS screening algorithms.'
+          'Add a missing keyword only if it accurately reflects your genuine skills and experience.',
+          'Highlight your direct experience with the primary responsibilities emphasized in the Job Description.'
         ]
       };
     }
 
-    res.json({ success: true, ...result, aiPowered: !!process.env.GEMINI_API_KEY || !!clientKey });
+    res.json({
+      success: true,
+      ...result,
+      aiPowered: isAi,
+      analysisMode: isAi ? 'ai' : 'rule-based'
+    });
   } catch (error) {
     console.error('JD match error:', error);
     res.status(500).json({ success: false, message: 'Failed to match Job Description.' });
@@ -424,30 +491,35 @@ Output ONLY the formatted cover letter text with proper salutation, body paragra
 `;
 
     let letter = null;
+    let isAi = false;
     try {
       letter = await callGemini(prompt, clientKey);
+      if (letter) isAi = true;
     } catch (err) {
       console.warn('Gemini cover letter fallback:', err.message);
     }
 
     if (!letter) {
-      const skillsText = (resume?.skills || []).slice(0, 4).join(', ') || 'modern web architecture and database systems';
+      const skillsText = (resume?.skills || []).slice(0, 4).join(', ') || 'modern software engineering principles';
       letter = `Dear ${hiringManager || 'Hiring Manager'},
 
-I am writing to express my enthusiastic interest in the ${targetRole} role at ${targetCompany}. With a proven track record of designing high-impact technical solutions, optimizing mission-critical workflows, and delivering user-centric software, I am eager to contribute to your engineering excellence and ongoing growth.
+I am writing to express my interest in the ${targetRole} role at ${targetCompany}. With practical experience applying ${skillsText} to deliver robust technical solutions, I am eager to contribute to your engineering initiatives.
 
-Throughout my career, I have developed deep proficiency in ${skillsText}. In my recent positions, I spearheaded end-to-end development initiatives that boosted system throughput, decreased query latencies, and improved overall operational velocity. My approach emphasizes robust architectural hygiene, clean maintainable code, and close cross-functional collaboration.
+Throughout my background, I have focused on writing clean, maintainable code, collaborating with cross-functional teams, and implementing scalable workflows. My approach emphasizes structured problem-solving, attention to detail, and a commitment to continuous learning.
 
-What excites me most about ${targetCompany} is your commitment to pioneering scalable, forward-thinking solutions. I am confident that my technical mastery, agile mindset, and passion for continuous improvement will allow me to make an immediate, meaningful impact on your team.
-
-Thank you for your time and consideration. I welcome the opportunity to discuss in greater detail how my skills align with your strategic objectives.
+I welcome the opportunity to discuss how my background and technical skills align with the goals of ${targetCompany}.
 
 Sincerely,
 ${candidateName}
 ${resume?.personal_info?.email || ''} | ${resume?.personal_info?.phone || ''}`;
     }
 
-    res.json({ success: true, coverLetter: letter, aiPowered: !!process.env.GEMINI_API_KEY || !!clientKey });
+    res.json({
+      success: true,
+      coverLetter: letter,
+      aiPowered: isAi,
+      analysisMode: isAi ? 'ai' : 'rule-based'
+    });
   } catch (error) {
     console.error('Cover letter error:', error);
     res.status(500).json({ success: false, message: 'Failed to generate cover letter.' });
@@ -464,7 +536,7 @@ export async function generateInterviewPrep(req, res) {
 
     const prompt = `
 You are a Lead Technical Interviewer and Recruiter.
-Based on the candidate's resume and target role "${role}", generate 5 realistic interview questions (3 technical + 2 behavioral/situational) along with expert high-scoring model answers and key advice.
+Based on the candidate's resume and target role "${role}", generate 5 realistic interview questions (3 technical + 2 behavioral/situational) along with expert model answers and key advice.
 Candidate Skills: ${(resume?.skills || []).join(', ')}
 
 Return a strict JSON array of 5 objects:
@@ -480,11 +552,15 @@ Output ONLY raw JSON.
 `;
 
     let questions = null;
+    let isAi = false;
     try {
       const responseText = await callGemini(prompt, clientKey);
       if (responseText) {
         const cleaned = responseText.replace(/```json/g, '').replace(/```/g, '').trim();
         questions = JSON.parse(cleaned);
+        if (Array.isArray(questions) && questions.length > 0) {
+          isAi = true;
+        }
       }
     } catch (err) {
       console.warn('Gemini interview prep fallback:', err.message);
@@ -494,38 +570,43 @@ Output ONLY raw JSON.
       questions = [
         {
           type: 'Technical',
-          question: `How do you approach database performance optimization and query indexing when handling high-volume traffic in ${role}?`,
-          idealAnswer: 'Explain how you identify slow queries using EXPLAIN plans, implement composite indexing on high-frequency filters, leverage caching layers (Redis/in-memory), and structure normalized vs denormalized schemas depending on read/write ratios.',
-          proTip: 'Give a concrete example from your past projects where query latency was reduced by a specific percentage.'
+          question: `How do you approach performance optimization and architecture design for core features in ${role}?`,
+          idealAnswer: 'Explain how you identify bottlenecks with profiling tools, structure efficient algorithms and data access, implement caching where appropriate, and ensure clean separation of concerns.',
+          proTip: 'Highlight real engineering habits and trade-offs rather than generic definitions.'
         },
         {
           type: 'Technical',
-          question: 'How do you ensure application security, specifically regarding JWT token expiration, CORS policies, and SQL injection?',
-          idealAnswer: 'Discuss using parameterized prepared statements for SQL, storing JWTs securely with HttpOnly cookies or short expirations with refresh mechanisms, and configuring restrictive CORS origins instead of wildcard asterisks.',
-          proTip: 'Interviewers look for security-first engineering habits rather than treating security as an afterthought.'
+          question: 'How do you ensure application security and reliable state management in your projects?',
+          idealAnswer: 'Discuss input validation, parameterized queries, secure credential handling, and keeping state predictable through structured patterns.',
+          proTip: 'Show security-conscious habits and thorough unit testing approaches.'
         },
         {
           type: 'Technical',
-          question: 'Can you describe your component design strategy in React and how you prevent unnecessary re-renders?',
-          idealAnswer: 'Highlight component decomposition, effective use of memoization (useMemo, useCallback), keeping state local whenever possible, and utilizing efficient global state management patterns.',
-          proTip: 'Mention real profiling tools like React DevTools Profiler to demonstrate hands-on debugging experience.'
+          question: 'Can you describe your component and API design methodology to ensure maintainability?',
+          idealAnswer: 'Detail modular decomposition, clear interface contracts, handling edge cases gracefully, and comprehensive documentation.',
+          proTip: 'Interviewers look for maintainability and scalability thinking.'
         },
         {
           type: 'Behavioral',
-          question: 'Describe a time when you disagreed with a colleague or product decision. How did you resolve it?',
-          idealAnswer: 'Use STAR: Situation was a tight deadline where feature scope was debatable; Task was aligning priorities; Action was using data/benchmarks to demonstrate trade-offs objectively; Result was consensus and on-time delivery.',
-          proTip: 'Avoid personal conflict framing; frame it as collaborative problem-solving centered on user and business needs.'
+          question: 'Describe a time when you disagreed with a teammate or technical decision. How did you handle it?',
+          idealAnswer: 'Use STAR: Situation was a differing viewpoint on architecture or priorities; Task was reaching alignment; Action was evaluating trade-offs with data objectively; Result was consensus and delivery.',
+          proTip: 'Focus on collaborative resolution and shared project goals.'
         },
         {
           type: 'Behavioral',
-          question: 'Tell me about a challenging production bug you encountered and how you resolved it under pressure.',
-          idealAnswer: 'Detail the triage process: isolating logs, rolling back or patching safely, communicating transparently with stakeholders, and implementing post-mortem unit tests to guarantee zero recurrence.',
-          proTip: 'Show composure and emphasize long-term preventative measures (automated tests/monitoring).'
+          question: 'Tell me about a challenging bug or production incident you investigated and resolved.',
+          idealAnswer: 'Walk through isolating symptoms via logs/metrics, identifying the root cause, deploying a safe fix, and adding automated regression tests.',
+          proTip: 'Emphasize root-cause analysis and preventative measures.'
         }
       ];
     }
 
-    res.json({ success: true, questions, aiPowered: !!process.env.GEMINI_API_KEY || !!clientKey });
+    res.json({
+      success: true,
+      questions,
+      aiPowered: isAi,
+      analysisMode: isAi ? 'ai' : 'rule-based'
+    });
   } catch (error) {
     console.error('Interview prep error:', error);
     res.status(500).json({ success: false, message: 'Failed to generate interview prep questions.' });
@@ -554,16 +635,16 @@ Return ONLY valid JSON matching this schema:
   "title": "Extracted Resume",
   "target_role": "Target or Most Recent Job Title",
   "personal_info": {
-    "fullName": "Name found in text",
-    "email": "Email address",
-    "phone": "Phone number",
-    "location": "City, State or Country",
-    "linkedin": "LinkedIn URL",
-    "github": "GitHub URL",
+    "fullName": "Name found in text or empty",
+    "email": "Email address or empty",
+    "phone": "Phone number or empty",
+    "location": "City, State or Country or empty",
+    "linkedin": "LinkedIn URL or empty",
+    "github": "GitHub URL or empty",
     "website": ""
   },
-  "summary": "Extracted or synthesized professional summary",
-  "skills": ["Skill 1", "Skill 2", "Skill 3", "Skill 4", "Skill 5"],
+  "summary": "Extracted professional summary",
+  "skills": ["Skill 1", "Skill 2"],
   "experience": [
     {
       "company": "Company Name",
@@ -579,7 +660,7 @@ Return ONLY valid JSON matching this schema:
       "institution": "School/College",
       "degree": "Degree/Branch",
       "year": "Years",
-      "score": "CGPA or percentage"
+      "score": "Score or empty"
     }
   ],
   "projects": [
@@ -593,61 +674,168 @@ Return ONLY valid JSON matching this schema:
 `;
 
     let parsed = null;
+    let isAi = false;
     try {
       const responseText = await callGemini(prompt, clientKey);
       if (responseText) {
         const cleaned = responseText.replace(/```json/g, '').replace(/```/g, '').trim();
         parsed = JSON.parse(cleaned);
+        if (parsed && typeof parsed === 'object') {
+          isAi = true;
+        }
       }
     } catch (err) {
       console.warn('Gemini parser fallback:', err.message);
     }
 
     if (!parsed) {
-      // Basic heuristic extraction
+      // Basic heuristic extraction without fabricating identities or employers
       const lines = resumeText.split('\n').map(l => l.trim()).filter(Boolean);
       const emailMatch = resumeText.match(/[\w.-]+@[\w.-]+\.\w+/);
       const phoneMatch = resumeText.match(/[\+]?[(]?[0-9]{3}[)]?[-\s.]?[0-9]{3}[-\s.]?[0-9]{4,6}/);
 
       parsed = {
         title: 'Imported Resume',
-        target_role: lines[1] || 'Software Professional',
+        target_role: lines[1] || 'Professional',
         personal_info: {
-          fullName: lines[0] || 'Imported Candidate',
+          fullName: lines[0] || '',
           email: emailMatch ? emailMatch[0] : '',
           phone: phoneMatch ? phoneMatch[0] : '',
-          location: 'India',
+          location: '',
           linkedin: '',
           github: '',
           website: ''
         },
-        summary: lines.slice(2, 5).join(' ') || 'Experienced professional with proven domain track record.',
-        skills: ['JavaScript', 'React.js', 'Node.js', 'SQL', 'Git'],
-        experience: [
-          {
-            company: 'Previous Company',
-            role: lines[1] || 'Professional',
-            location: '',
-            startDate: '2021',
-            endDate: 'Present',
-            description: '• Spearheaded key deliverables and projects aligned with organizational goals.'
-          }
-        ],
-        education: [
-          {
-            institution: 'University / College',
-            degree: 'Bachelor Degree',
-            year: '2017 - 2021',
-            score: ''
-          }
-        ],
+        summary: lines.slice(2, 5).join(' ') || '',
+        skills: [],
+        experience: [],
+        education: [],
         projects: []
       };
     }
 
-    res.json({ success: true, resume: parsed, aiPowered: !!process.env.GEMINI_API_KEY || !!clientKey });
+    res.json({
+      success: true,
+      resume: parsed,
+      aiPowered: isAi,
+      analysisMode: isAi ? 'ai' : 'rule-based'
+    });
   } catch (error) {
     console.error('Resume parse error:', error);
     res.status(500).json({ success: false, message: 'Failed to parse resume.' });
+  }
+}
+
+// 9. Real AI Interactive Interview Practice Evaluator (STAR Method)
+export async function evaluateInterview(req, res) {
+  try {
+    const { question, answer, resume, targetRole } = req.body;
+    const clientKey = req.headers['x-gemini-api-key'];
+
+    if (!question || !answer || !answer.trim()) {
+      return res.status(400).json({
+        success: false,
+        message: 'Both interview question and candidate answer are required for evaluation.'
+      });
+    }
+
+    const role = targetRole || resume?.target_role || 'Software Professional';
+    const candidateSkills = Array.isArray(resume?.skills) ? resume.skills.join(', ') : '';
+
+    const prompt = `
+You are a Lead Hiring Manager and Senior Recruiter evaluating a candidate's practice interview response.
+Evaluate the answer with objective technical depth and STAR framework standards.
+
+CONTEXT:
+Target Role: "${role}"
+Candidate Skills (Context): ${candidateSkills || 'Not specified'}
+Interview Question: "${question}"
+Candidate Answer:
+"""${answer.trim().substring(0, 3000)}"""
+
+EVALUATION CRITERIA:
+1. Relevance to the question
+2. Technical correctness and domain knowledge (when applicable)
+3. Problem-solving approach
+4. Ownership and personal contribution
+5. Clarity of communication
+6. STAR method structure (Situation, Task, Action, Result)
+7. Specificity (avoiding vague buzzwords)
+8. Results and measurable impact
+9. Role alignment for "${role}"
+
+STRICT INTEGRITY RULES:
+- NEVER invent or assume companies, project names, achievements, or metrics that the candidate did not mention.
+- If the candidate did not provide a quantifiable metric or result, DO NOT invent numbers (such as "35% faster" or "99.9% uptime"). Instead, in the improved answer use the placeholder: "[Add a real measurable result if available]".
+- Score realistically from 0 to 100 based strictly on provided evidence. Do not artificially inflate scores.
+
+Output ONLY a valid JSON object matching this exact schema:
+{
+  "score": <overall score 0-100>,
+  "starScore": <STAR structure score 0-100>,
+  "relevanceScore": <relevance score 0-100>,
+  "technicalDepthScore": <technical depth score 0-100>,
+  "communicationScore": <communication score 0-100>,
+  "strengths": ["<strength 1 based on actual answer>", "<strength 2>"],
+  "improvements": ["<actionable improvement 1>", "<actionable improvement 2>"],
+  "starBreakdown": {
+    "situation": {
+      "present": <boolean>,
+      "feedback": "<concise feedback on Situation>"
+    },
+    "task": {
+      "present": <boolean>,
+      "feedback": "<concise feedback on Task>"
+    },
+    "action": {
+      "present": <boolean>,
+      "feedback": "<concise feedback on Action>"
+    },
+    "result": {
+      "present": <boolean>,
+      "feedback": "<concise feedback on Result>"
+    }
+  },
+  "missingElements": ["<missing element 1>"],
+  "followUpQuestions": ["<realistic follow-up question 1>", "<realistic follow-up question 2>"],
+  "improvedAnswer": "<A polished version of the candidate's actual answer using STAR structure. Keeps strictly to candidate's own facts; uses [Add a real measurable result if available] where metrics are needed.>"
+}
+`;
+
+    let evaluation = null;
+    try {
+      const responseText = await callGemini(prompt, clientKey);
+      if (responseText) {
+        const cleaned = responseText.replace(/```json/g, '').replace(/```/g, '').trim();
+        evaluation = JSON.parse(cleaned);
+      }
+    } catch (err) {
+      console.warn('Gemini interview evaluation call failed:', err.message);
+    }
+
+    if (!evaluation || typeof evaluation.score !== 'number') {
+      // Per PART 4: If Gemini is unavailable, DO NOT generate a fake AI score.
+      return res.status(503).json({
+        success: false,
+        aiPowered: false,
+        code: 'AI_UNAVAILABLE',
+        message: 'AI evaluation is currently unavailable. Please configure Gemini AI and try again.'
+      });
+    }
+
+    return res.json({
+      success: true,
+      aiPowered: true,
+      analysisMode: 'ai',
+      ...evaluation
+    });
+  } catch (error) {
+    console.error('Evaluate interview error:', error);
+    return res.status(500).json({
+      success: false,
+      aiPowered: false,
+      code: 'SERVER_ERROR',
+      message: 'Failed to evaluate interview answer.'
+    });
   }
 }
