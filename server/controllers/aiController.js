@@ -58,7 +58,10 @@ async function recordAiOperation(userId) {
   if (!userId || !getIsConnected()) return;
   try {
     const db = getDB();
-    await db.query('UPDATE users SET ai_daily_count = COALESCE(ai_daily_count, 0) + 1 WHERE id = ?', [userId]);
+    await db.query(
+      'UPDATE users SET ai_daily_count = COALESCE(ai_daily_count, 0) + 1, ai_last_reset = CURRENT_DATE() WHERE id = ?',
+      [userId]
+    );
   } catch (err) {
     console.warn('Failed to record AI operation counter:', err.message);
   }
