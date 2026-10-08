@@ -15,6 +15,7 @@ import axiosClient from '../api/axiosClient';
 export default function AdminDashboardModal({ isOpen, onClose }) {
   const [metrics, setMetrics] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
     if (isOpen) {
@@ -24,6 +25,7 @@ export default function AdminDashboardModal({ isOpen, onClose }) {
 
   const fetchMetrics = async () => {
     setLoading(true);
+    setError(null);
     try {
       const res = await axiosClient.get('/admin/metrics');
       if (res.data?.success) {
@@ -31,6 +33,7 @@ export default function AdminDashboardModal({ isOpen, onClose }) {
       }
     } catch (e) {
       console.warn('Admin metrics error:', e);
+      setError(e.response?.data?.message || 'Access denied. Administrator privileges required.');
     } finally {
       setLoading(false);
     }
@@ -64,7 +67,17 @@ export default function AdminDashboardModal({ isOpen, onClose }) {
           Real-time metrics on user accounts, cloud resumes, job applications, public portfolios, and Gemini AI operations. 100% Free platform with zero paywalls.
         </p>
 
-        {loading ? (
+        {error ? (
+          <div style={{ textAlign: 'center', padding: '2.5rem 1rem', background: 'rgba(239, 68, 68, 0.08)', border: '1px solid rgba(239, 68, 68, 0.25)', borderRadius: 'var(--radius-md)', margin: '1rem 0' }}>
+            <ShieldCheck size={36} style={{ color: '#ef4444', margin: '0 auto 0.75rem' }} />
+            <h4 style={{ color: 'var(--text-main)', fontSize: '1rem', fontWeight: 700, marginBottom: '0.35rem' }}>
+              Access Denied
+            </h4>
+            <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', margin: 0 }}>
+              {error}
+            </p>
+          </div>
+        ) : loading ? (
           <div style={{ textAlign: 'center', padding: '3rem 1rem' }}>
             <Loader2 size={32} className="animate-spin" style={{ color: 'var(--primary)', margin: '0 auto 1rem' }} />
             <p style={{ color: 'var(--text-main)', fontSize: '0.875rem' }}>Loading platform metrics...</p>

@@ -33,8 +33,13 @@ export async function saveResume(req, res) {
       theme_color = '#2563eb',
       page_style = 'modern',
       ats_score = 0,
-      ats_feedback = {}
+      ats_feedback = {},
+      is_public = true,
+      share_slug = null
     } = req.body;
+
+    const isPublicVal = is_public === false || is_public === 0 ? 0 : 1;
+    const shareSlugVal = share_slug || null;
 
     if (!getIsConnected()) {
       return res.status(503).json({ success: false, message: 'Database is not connected.' });
@@ -58,7 +63,7 @@ export async function saveResume(req, res) {
           experience = ?, education = ?, skills = ?, projects = ?, 
           certifications = ?, custom_sections = ?, version_history = ?,
           template_id = ?, theme_color = ?, page_style = ?,
-          ats_score = ?, ats_feedback = ?
+          ats_score = ?, ats_feedback = ?, is_public = ?, share_slug = ?
          WHERE id = ? AND user_id = ?`,
         [
           title,
@@ -77,6 +82,8 @@ export async function saveResume(req, res) {
           page_style || 'modern',
           ats_score || 0,
           typeof ats_feedback === 'string' ? ats_feedback : JSON.stringify(ats_feedback || {}),
+          isPublicVal,
+          shareSlugVal,
           resumeId,
           userId
         ]
@@ -89,7 +96,9 @@ export async function saveResume(req, res) {
         resume: {
           ...req.body,
           id: Number(resumeId),
-          user_id: userId
+          user_id: userId,
+          is_public: isPublicVal === 1,
+          share_slug: shareSlugVal
         }
       });
     } else {
@@ -99,8 +108,9 @@ export async function saveResume(req, res) {
           user_id, title, target_role, personal_info, summary,
           experience, education, skills, projects, certifications,
           custom_sections, version_history,
-          template_id, theme_color, page_style, ats_score, ats_feedback
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          template_id, theme_color, page_style, ats_score, ats_feedback,
+          is_public, share_slug
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           userId,
           title,
@@ -118,7 +128,9 @@ export async function saveResume(req, res) {
           theme_color,
           page_style || 'modern',
           ats_score || 0,
-          typeof ats_feedback === 'string' ? ats_feedback : JSON.stringify(ats_feedback || {})
+          typeof ats_feedback === 'string' ? ats_feedback : JSON.stringify(ats_feedback || {}),
+          isPublicVal,
+          shareSlugVal
         ]
       );
 
@@ -130,7 +142,9 @@ export async function saveResume(req, res) {
         resume: {
           ...req.body,
           id: newId,
-          user_id: userId
+          user_id: userId,
+          is_public: isPublicVal === 1,
+          share_slug: shareSlugVal
         }
       });
     }
@@ -151,11 +165,16 @@ export async function getUserResumes(req, res) {
 
     const db = getDB();
     const [rows] = await db.query(
-      'SELECT id, user_id, title, target_role, template_id, theme_color, page_style, ats_score, updated_at FROM resumes WHERE user_id = ? ORDER BY updated_at DESC',
+      'SELECT id, user_id, title, target_role, template_id, theme_color, page_style, ats_score, is_public, share_slug, updated_at FROM resumes WHERE user_id = ? ORDER BY updated_at DESC',
       [req.user.id]
     );
 
-    res.json({ success: true, resumes: rows });
+    const resumes = rows.map(r => ({
+      ...r,
+      is_public: r.is_public !== 0 && r.is_public !== false
+    }));
+
+    res.json({ success: true, resumes });
   } catch (error) {
     console.error('Fetch resumes error:', error);
     res.status(500).json({ success: false, message: 'Server error fetching resumes.' });
@@ -185,6 +204,7 @@ export async function getResumeById(req, res) {
 
     const resume = {
       ...r,
+      is_public: r.is_public !== 0 && r.is_public !== false,
       personal_info: safeParse(r.personal_info, {}),
       experience: safeParse(r.experience, []),
       education: safeParse(r.education, []),
@@ -296,23 +316,36 @@ export async function cloneResume(req, res) {
   }
 }
 
-// Public web resume view
+// Public web resume view (enforces database-level public visibility)
 export async function getPublicResume(req, res) {
   try {
     const { id } = req.params;
     if (!getIsConnected()) {
-      return res.status(404).json({ success: false, message: 'Database not connected.' });
+      return res.status(503).json({ success: false, message: 'Database not connected.' });
     }
 
     const db = getDB();
-    const [rows] = await db.query('SELECT * FROM resumes WHERE id = ?', [id]);
+    // Enforce public visibility strictly at database query level
+    const [rows] = await db.query(
+      'SELECT * FROM resumes WHERE (id = ? OR share_slug = ?) AND is_public = 1',
+      [id, id]
+    );
     if (rows.length === 0) {
-      return res.status(404).json({ success: false, message: 'Resume not found.' });
+      return res.status(404).json({ success: false, message: 'Resume not found or is set to private.' });
     }
 
     const r = rows[0];
+
+    // Increment public view counter
+    try {
+      await db.query('UPDATE resumes SET view_count = view_count + 1 WHERE id = ?', [r.id]);
+    } catch {
+      // non-blocking
+    }
+
     const resume = {
       ...r,
+      is_public: true,
       personal_info: safeParse(r.personal_info, {}),
       experience: safeParse(r.experience, []),
       education: safeParse(r.education, []),

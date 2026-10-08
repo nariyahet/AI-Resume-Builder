@@ -5,13 +5,13 @@ import {
   updateApplication, 
   deleteApplication 
 } from '../controllers/jobTrackerController.js';
-import { authMiddleware, optionalAuthMiddleware } from '../middleware/authMiddleware.js';
+import { authMiddleware } from '../middleware/authMiddleware.js';
 
 const router = express.Router();
 
-router.get('/', optionalAuthMiddleware, getApplications);
-router.post('/', optionalAuthMiddleware, createApplication);
-router.put('/:id', optionalAuthMiddleware, updateApplication);
-router.delete('/:id', optionalAuthMiddleware, deleteApplication);
+router.get('/', authMiddleware, getApplications);
+router.post('/', authMiddleware, createApplication);
+router.put('/:id', authMiddleware, updateApplication);
+router.delete('/:id', authMiddleware, deleteApplication);
 
 export default router;

@@ -33,13 +33,13 @@ export async function register(req, res) {
     );
 
     const userId = result.insertId;
-    const token = jwt.sign({ id: userId, email, name }, JWT_SECRET, { expiresIn: '7d' });
+    const token = jwt.sign({ id: userId, email, name, role: 'user' }, JWT_SECRET, { expiresIn: '7d' });
 
     res.status(201).json({
       success: true,
       message: 'Account registered successfully!',
       token,
-      user: { id: userId, name, email }
+      user: { id: userId, name, email, role: 'user' }
     });
   } catch (error) {
     console.error('Register error:', error);
@@ -73,13 +73,13 @@ export async function login(req, res) {
       return res.status(401).json({ success: false, message: 'Invalid email or password.' });
     }
 
-    const token = jwt.sign({ id: user.id, email: user.email, name: user.name }, JWT_SECRET, { expiresIn: '7d' });
+    const token = jwt.sign({ id: user.id, email: user.email, name: user.name, role: user.role || 'user' }, JWT_SECRET, { expiresIn: '7d' });
 
     res.json({
       success: true,
       message: 'Logged in successfully!',
       token,
-      user: { id: user.id, name: user.name, email: user.email }
+      user: { id: user.id, name: user.name, email: user.email, role: user.role || 'user' }
     });
   } catch (error) {
     console.error('Login error:', error);
@@ -93,7 +93,7 @@ export async function getMe(req, res) {
       return res.json({ success: true, user: req.user });
     }
     const db = getDB();
-    const [rows] = await db.query('SELECT id, name, email, created_at FROM users WHERE id = ?', [req.user.id]);
+    const [rows] = await db.query('SELECT id, name, email, role, created_at FROM users WHERE id = ?', [req.user.id]);
     if (rows.length === 0) {
       return res.status(404).json({ success: false, message: 'User not found.' });
     }

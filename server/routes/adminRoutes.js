@@ -4,12 +4,12 @@ import {
   updateProfile, 
   deleteAccount 
 } from '../controllers/adminController.js';
-import { optionalAuthMiddleware } from '../middleware/authMiddleware.js';
+import { authMiddleware, adminMiddleware } from '../middleware/authMiddleware.js';
 
 const router = express.Router();
 
-router.get('/metrics', getAdminMetrics);
-router.put('/profile', optionalAuthMiddleware, updateProfile);
-router.delete('/account', optionalAuthMiddleware, deleteAccount);
+router.get('/metrics', adminMiddleware, getAdminMetrics);
+router.put('/profile', authMiddleware, updateProfile);
+router.delete('/account', authMiddleware, deleteAccount);
 
 export default router;

@@ -3,7 +3,11 @@ import { getDB, getIsConnected } from '../config/db.js';
 export async function getApplications(req, res) {
   try {
     const userId = req.user ? req.user.id : null;
-    if (!getIsConnected() || !userId) {
+    if (!userId) {
+      return res.status(401).json({ success: false, message: 'Authentication required.' });
+    }
+
+    if (!getIsConnected()) {
       return res.json({ success: true, applications: [] });
     }
 
@@ -22,6 +26,10 @@ export async function getApplications(req, res) {
 export async function createApplication(req, res) {
   try {
     const userId = req.user ? req.user.id : null;
+    if (!userId) {
+      return res.status(401).json({ success: false, message: 'Authentication required.' });
+    }
+
     const { company, role, location, salary, applied_date, status = 'Applied', notes, resume_id } = req.body;
 
     if (!company || !role) {
@@ -56,6 +64,11 @@ export async function createApplication(req, res) {
 
 export async function updateApplication(req, res) {
   try {
+    const userId = req.user ? req.user.id : null;
+    if (!userId) {
+      return res.status(401).json({ success: false, message: 'Authentication required.' });
+    }
+
     const { id } = req.params;
     const { company, role, location, salary, applied_date, status, notes } = req.body;
 
@@ -64,10 +77,14 @@ export async function updateApplication(req, res) {
     }
 
     const db = getDB();
-    await db.query(
-      `UPDATE job_applications SET company = ?, role = ?, location = ?, salary = ?, applied_date = ?, status = ?, notes = ? WHERE id = ?`,
-      [company, role, location, salary, applied_date, status, notes, id]
+    const [result] = await db.query(
+      `UPDATE job_applications SET company = ?, role = ?, location = ?, salary = ?, applied_date = ?, status = ?, notes = ? WHERE id = ? AND user_id = ?`,
+      [company, role, location, salary, applied_date, status, notes, id, userId]
     );
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ success: false, message: 'Application not found or not owned by user.' });
+    }
 
     res.json({ success: true, message: 'Application updated successfully.' });
   } catch (error) {
@@ -77,13 +94,23 @@ export async function updateApplication(req, res) {
 
 export async function deleteApplication(req, res) {
   try {
+    const userId = req.user ? req.user.id : null;
+    if (!userId) {
+      return res.status(401).json({ success: false, message: 'Authentication required.' });
+    }
+
     const { id } = req.params;
     if (!getIsConnected()) {
       return res.json({ success: true, message: 'Deleted locally.' });
     }
 
     const db = getDB();
-    await db.query('DELETE FROM job_applications WHERE id = ?', [id]);
+    const [result] = await db.query('DELETE FROM job_applications WHERE id = ? AND user_id = ?', [id, userId]);
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ success: false, message: 'Application not found or not owned by user.' });
+    }
+
     res.json({ success: true, message: 'Application removed.' });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Server error deleting application.' });

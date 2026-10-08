@@ -410,7 +410,7 @@ export default function Navbar({
                       <span>Account & Quotas</span>
                     </button>
 
-                    {(!user.role || user.role === 'admin' || user.isAdmin) && (
+                    {user?.role === 'admin' && (
                       <button
                         className="btn btn-outline btn-sm"
                         style={{ justifyContent: 'flex-start', border: 'none', padding: '0.45rem 0.65rem' }}
@@ -944,7 +944,7 @@ export default function Navbar({
                       <Settings size={15} />
                       <span>Account Settings ({user.name})</span>
                     </button>
-                    {(!user.role || user.role === 'admin' || user.isAdmin) && (
+                    {user?.role === 'admin' && (
                       <button
                         className="btn btn-outline btn-sm"
                         style={{ width: '100%', justifyContent: 'flex-start' }}

@@ -4,12 +4,12 @@ import {
   saveCoverLetter, 
   deleteCoverLetter 
 } from '../controllers/coverLetterController.js';
-import { optionalAuthMiddleware } from '../middleware/authMiddleware.js';
+import { authMiddleware } from '../middleware/authMiddleware.js';
 
 const router = express.Router();
 
-router.get('/', optionalAuthMiddleware, getCoverLetters);
-router.post('/', optionalAuthMiddleware, saveCoverLetter);
-router.delete('/:id', optionalAuthMiddleware, deleteCoverLetter);
+router.get('/', authMiddleware, getCoverLetters);
+router.post('/', authMiddleware, saveCoverLetter);
+router.delete('/:id', authMiddleware, deleteCoverLetter);
 
 export default router;
