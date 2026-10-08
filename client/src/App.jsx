@@ -28,10 +28,12 @@ import { getCanonicalPersistedResumePayload } from './utils/resumeCanonical';
 import { Edit3, Eye } from 'lucide-react';
 
 export default function App() {
-  const { user } = useAuth();
+  const { user, loading } = useAuth();
 
-  // View mode: 'editor' or 'dashboard'
-  const [currentView, setCurrentView] = useState('editor');
+  const isPublicShare = typeof window !== 'undefined' && Boolean(new URLSearchParams(window.location.search).get('view'));
+
+  // View mode: 'editor' or 'dashboard' (root URL defaults to dashboard unless public share link)
+  const [currentView, setCurrentView] = useState(() => (isPublicShare ? 'editor' : 'dashboard'));
 
   // Mobile mode tab: 'editor' or 'preview'
   const [mobileTab, setMobileTab] = useState('editor');
@@ -74,6 +76,7 @@ export default function App() {
   const isSavingRef = useRef(false);
   const deletedResumeIdsRef = useRef(new Set());
   const prevUserRef = useRef(user);
+  const hasInitializedAuthRef = useRef(false);
 
   // ☀️ / 🌙 Theme Mode ('dark' | 'light')
   const [theme, setTheme] = useState(() => {
@@ -89,17 +92,47 @@ export default function App() {
     setTheme(prev => (prev === 'light' ? 'dark' : 'light'));
   };
 
-  // When user logs out, clear editor state and reset to clean empty resume
+  // Synchronize initial root view with auth state after loading, and handle login/logout transitions
   useEffect(() => {
+    if (loading) return;
+
+    // Initial mount synchronization once auth verification completes
+    if (!hasInitializedAuthRef.current) {
+      hasInitializedAuthRef.current = true;
+      if (!isPublicShare) {
+        if (!user) {
+          setCurrentView('dashboard');
+          setShowAuthModal(true);
+        } else {
+          setCurrentView('dashboard');
+          setShowAuthModal(false);
+        }
+      }
+      prevUserRef.current = user;
+      return;
+    }
+
+    // Dynamic state transition: Logged out -> Logged in (successful login)
+    if (!prevUserRef.current && user) {
+      if (!isPublicShare) {
+        setCurrentView('dashboard');
+      }
+      setShowAuthModal(false);
+    }
+
+    // Dynamic state transition: Logged in -> Logged out (logout)
     if (prevUserRef.current && !user) {
       setResume({ ...emptyResume, id: null });
       localStorage.removeItem('ai_resume_current_draft');
       setSaveStatus('');
       lastSavedPayloadRef.current = null;
       deletedResumeIdsRef.current.clear();
+      setCurrentView('dashboard');
+      setShowAuthModal(true);
     }
+
     prevUserRef.current = user;
-  }, [user]);
+  }, [loading, user, isPublicShare]);
 
   // If user is authenticated and resume has an ID, make server data authoritative
   useEffect(() => {
@@ -521,6 +554,28 @@ export default function App() {
     }
     setCurrentView(view);
   };
+
+  if (loading && !isPublicShare) {
+    return (
+      <div style={{
+        minHeight: '100vh',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        background: 'var(--bg-main, #0b0f19)'
+      }}>
+        <div style={{
+          width: '32px',
+          height: '32px',
+          border: '3px solid rgba(59, 130, 246, 0.2)',
+          borderTopColor: 'var(--primary, #3b82f6)',
+          borderRadius: '50%',
+          animation: 'spin 0.8s linear infinite'
+        }} />
+        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+      </div>
+    );
+  }
 
   return (
     <div className="app-shell">
