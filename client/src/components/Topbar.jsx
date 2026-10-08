@@ -63,7 +63,11 @@ export default function Topbar({
 
       {/* Autosave Pill Status (Editor View) */}
       {currentView === 'editor' && saveStatus && (
-        <div className={`topbar-save-pill ${saveStatus === 'Saving...' ? 'saving' : saveStatus === 'Save failed' ? 'failed' : 'saved'}`}>
+        <div
+          className={`topbar-save-pill ${saveStatus === 'Saving...' ? 'saving' : saveStatus === 'Save failed' ? 'failed' : 'saved'}`}
+          aria-live="polite"
+          aria-label={`Autosave status: ${saveStatus}`}
+        >
           {saveStatus === 'Saving...' ? (
             <>
               <Loader2 size={12} className="animate-spin" />
@@ -91,6 +95,7 @@ export default function Topbar({
           className="tb-action-btn tb-ats-btn"
           onClick={onOpenATS}
           title="Check ATS Compatibility Score"
+          aria-label={`Check ATS compatibility${atsScore ? `: ${atsScore}%` : ''}`}
         >
           <BarChart3 size={15} style={{ color: 'var(--green)' }} />
           <span>ATS Check {atsScore ? `(${atsScore}%)` : ''}</span>
@@ -103,6 +108,7 @@ export default function Topbar({
             className="tb-action-btn tb-share-btn"
             onClick={onOpenShare}
             title="Share public web link & QR code"
+            aria-label="Share resume"
           >
             <Share2 size={15} style={{ color: 'var(--sky)' }} />
             <span>Share</span>
@@ -115,34 +121,21 @@ export default function Topbar({
           className="tb-action-btn tb-free-badge"
           onClick={onOpenPricing}
           title="AI Resume Studio is 100% Free Forever"
+          aria-label="View the all-features-free pledge"
         >
           <Sparkles size={14} style={{ color: 'var(--primary)' }} />
           <span>All Features Free</span>
         </button>
 
-        {/* Theme Toggle */}
-        <button
-          type="button"
-          className="tb-icon-btn"
-          onClick={onToggleTheme}
-          title={theme === 'light' ? 'Switch to Dark Mode' : 'Switch to Light Mode'}
-          aria-label="Toggle theme"
-        >
-          {theme === 'light' ? (
-            <Moon size={16} style={{ color: '#6366f1' }} />
-          ) : (
-            <Sun size={16} style={{ color: '#fbbf24' }} />
-          )}
-        </button>
-
         {/* Export / Download Dropdown Menu */}
-        <div style={{ position: 'relative' }}>
+        <div className="tb-export-wrap" style={{ position: 'relative' }}>
           <button
             type="button"
             className="tb-download-btn"
             onClick={() => setShowDownloadMenu(!showDownloadMenu)}
             disabled={isDownloading}
             title="Export resume in PDF, Word, or Text"
+            aria-label={isDownloading ? 'Exporting resume' : 'Export resume'}
           >
             <Download size={15} />
             <span>{isDownloading ? 'Exporting...' : 'Export'}</span>
@@ -195,8 +188,26 @@ export default function Topbar({
             </>
           )}
         </div>
+      </div>
 
-        {/* User Account Button (Desktop) */}
+      {/* Topbar Utility: Theme Toggle + Profile / Sign In */}
+      <div className="topbar-utility">
+        {/* Theme Toggle */}
+        <button
+          type="button"
+          className="tb-icon-btn"
+          onClick={onToggleTheme}
+          title={theme === 'light' ? 'Switch to Dark Mode' : 'Switch to Light Mode'}
+          aria-label="Toggle theme"
+        >
+          {theme === 'light' ? (
+            <Moon size={16} style={{ color: '#6366f1' }} />
+          ) : (
+            <Sun size={16} style={{ color: '#fbbf24' }} />
+          )}
+        </button>
+
+        {/* User Account Button */}
         {user ? (
           <button
             type="button"
@@ -214,6 +225,7 @@ export default function Topbar({
             type="button"
             className="tb-action-btn tb-signin-btn"
             onClick={onOpenAuth}
+            aria-label="Sign in or register"
           >
             <User size={14} />
             <span>Sign In</span>

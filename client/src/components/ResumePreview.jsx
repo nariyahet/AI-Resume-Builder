@@ -24,13 +24,13 @@ export default function ResumePreview({ resume, setResume, onOpenShare }) {
   const getAutoFitScale = () => {
     if (typeof window === 'undefined') return 1;
     const w = window.innerWidth;
-    if (w <= 1080) {
-      const avail = Math.max(260, w - 24);
-      return Math.min(1, Number((avail / 794).toFixed(2)));
-    } else {
-      const avail = Math.max(300, w - 530 - 48);
-      return Math.min(1.1, Math.max(0.4, Number((avail / 794).toFixed(2))));
-    }
+    const isDesktop = w > 900;
+    const avail = isDesktop ? Math.max(280, w - 252 - 530 - 48) : Math.max(260, w - 24);
+    return Math.min(1.0, Math.max(0.35, Number((avail / 794).toFixed(2))));
+
+
+
+
   };
 
   const [scale, setScale] = useState(() => getAutoFitScale());

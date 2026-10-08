@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { 
   Sparkles, 
   User, 
@@ -25,6 +25,33 @@ export default function ResumeForm({ resume, setResume, onSwitchToPreview }) {
   const [magicPrompt, setMagicPrompt] = useState('');
   const [skillInput, setSkillInput] = useState('');
   const [activeExpEnhancing, setActiveExpEnhancing] = useState(null);
+  const editorTabsRef = useRef(null);
+
+  // Keep the selected editor step visible inside the horizontal tab rail.
+  useEffect(() => {
+    const container = editorTabsRef.current;
+    if (!container) return;
+    const activeButton = container.querySelector('.tab-btn.active');
+    if (!activeButton) return;
+
+    const containerRect = container.getBoundingClientRect();
+    const activeRect = activeButton.getBoundingClientRect();
+    const relativeLeft = activeRect.left - containerRect.left;
+    const relativeRight = activeRect.right - containerRect.left;
+    const edgeMargin = 16;
+
+    if (relativeLeft < edgeMargin) {
+      container.scrollTo({
+        left: Math.max(0, container.scrollLeft + relativeLeft - edgeMargin),
+        behavior: 'smooth'
+      });
+    } else if (relativeRight > containerRect.width - edgeMargin) {
+      container.scrollTo({
+        left: container.scrollLeft + (relativeRight - containerRect.width) + edgeMargin,
+        behavior: 'smooth'
+      });
+    }
+  }, [activeTab]);
 
   // Profile Photo Upload Handlers
   const handlePhotoUpload = (e) => {
@@ -301,7 +328,7 @@ export default function ResumeForm({ resume, setResume, onSwitchToPreview }) {
   return (
     <div className="editor-pane">
       {/* Tabs */}
-      <div className="editor-tabs">
+      <nav className="editor-tabs" ref={editorTabsRef} aria-label="Resume editor sections">
         <button 
           className={`tab-btn ${activeTab === 'magic' ? 'active' : ''}`}
           onClick={() => setActiveTab('magic')}
@@ -351,7 +378,7 @@ export default function ResumeForm({ resume, setResume, onSwitchToPreview }) {
           <Award size={13} />
           <span>6. Custom</span>
         </button>
-      </div>
+      </nav>
 
       {/* Editor Content Area */}
       <div className="editor-scroll">
@@ -577,7 +604,7 @@ export default function ResumeForm({ resume, setResume, onSwitchToPreview }) {
                   </div>
                 )}
 
-                <div style={{ flex: 1, minWidth: '200px' }}>
+                <div style={{ flex: '1 1 200px', minWidth: 0 }}>
                   <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', marginBottom: '0.5rem', flexWrap: 'wrap' }}>
                     <label 
                       className="btn btn-outline btn-sm" 
@@ -812,7 +839,7 @@ export default function ResumeForm({ resume, setResume, onSwitchToPreview }) {
             ))}
 
             {(resume.experience || []).length === 0 && (
-              <p style={{ textAlign: 'center', color: '#64748b', fontSize: '0.85rem', padding: '1.5rem' }}>
+              <p style={{ textAlign: 'center', color: 'var(--text-subtle)', fontSize: '0.85rem', padding: '1.5rem' }}>
                 No work experience added yet. Click "+ Add Job" above or use 1-Click AI.
               </p>
             )}
@@ -871,7 +898,7 @@ export default function ResumeForm({ resume, setResume, onSwitchToPreview }) {
 
             {/* Quick Skill Recommendations */}
             <div style={{ marginTop: '1.5rem' }}>
-              <span style={{ fontSize: '0.75rem', color: '#94a3b8', textTransform: 'uppercase', fontWeight: 600 }}>
+              <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 600 }}>
                 Popular Tech Recommendations (Click to Add):
               </span>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem', marginTop: '0.5rem' }}>
@@ -1166,7 +1193,7 @@ export default function ResumeForm({ resume, setResume, onSwitchToPreview }) {
             ))}
 
             {(resume.custom_sections || []).length === 0 && (
-              <div style={{ textAlign: 'center', padding: '2rem 1rem', color: '#64748b', fontSize: '0.85rem' }}>
+              <div style={{ textAlign: 'center', padding: '2rem 1rem', color: 'var(--text-subtle)', fontSize: '0.85rem' }}>
                 No custom sections added yet. Click "+ Add Section" above.
               </div>
             )}

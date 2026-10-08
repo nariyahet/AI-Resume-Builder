@@ -16,15 +16,15 @@
   --danger: #ef4444;
 
   /* Reference Design Tokens (Dark Theme Default) */
-  --bg: #0a0e17;
-  --surface: #141e33;
-  --surface-2: #1b263b;
-  --ink: #f8fafc;
+  --bg: #0b0f17;
+  --surface: #111827;
+  --surface-2: #1a2333;
+  --ink: #f9fafb;
   --ink-soft: #cbd5e1;
   --muted: #94a3b8;
   --muted-dim: #64748b;
-  --line: #22334d;
-  --line-strong: rgba(255, 255, 255, 0.15);
+  --line: #1e293b;
+  --line-strong: rgba(255, 255, 255, 0.12);
 
   --green: #10b981;
   --green-dark: #059669;
@@ -46,16 +46,16 @@
   --sky-soft: rgba(14, 165, 233, 0.12);
 
   /* Dark Mode Default Tokens */
-  --bg-dark: #0a0e17;
-  --bg-pane: #0f172a;
-  --bg-card: #141e33;
-  --bg-card-hover: #1b263b;
+  --bg-dark: #0b0f17;
+  --bg-pane: #101622;
+  --bg-card: #151d2c;
+  --bg-card-hover: #1c2638;
   --text-main: #f8fafc;
   --text-muted: #cbd5e1;
   --text-subtle: #94a3b8;
-  --border-color: #22334d;
+  --border-color: #222f42;
   --border-light: rgba(255, 255, 255, 0.08);
-  --navbar-bg: rgba(10, 14, 23, 0.88);
+  --navbar-bg: rgba(11, 15, 23, 0.88);
 
   --font-heading: 'Plus Jakarta Sans', 'Outfit', sans-serif;
   --font-body: 'Inter', sans-serif;
@@ -861,11 +861,11 @@ body {
 }
 
 /* Scale preview on desktop screens */
-@media (max-width: 1400px) and (min-width: 901px) {
+/* dynamic preview scale handled via component getAutoFitScale
   .resume-sheet {
     transform: scale(0.85);
   }
-}
+*/
 
 /* ============================================================== */
 /* TEMPLATES STYLING                                              */
@@ -2008,7 +2008,13 @@ body {
   align-items: center;
   gap: 8px;
   margin-left: auto;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
+}
+.topbar-utility {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: none;
 }
 
 .tb-action-btn {
@@ -2586,6 +2592,287 @@ body {
   }
   .tb-ats-btn span {
     display: none;
+  }
+}
+
+/* ==============================================================
+   EDITOR SCROLLING, RESPONSIVE WORKSPACE & THEME CONTRAST
+   Targeted overrides for the SaaS shell and split editor.
+   ============================================================== */
+
+/* Keep native controls consistent with the selected application theme. */
+:root {
+  color-scheme: dark;
+  --status-success-text: #6ee7b7;
+  --status-warning-text: #fcd34d;
+  --status-danger-text: #fca5a5;
+}
+
+[data-theme='light'] {
+  color-scheme: light;
+  --primary: #7c3aed;
+  --primary-hover: #6d28d9;
+  --accent-cyan: #0e7490;
+  --ai-purple: #7c3aed;
+  --green: #059669;
+  --green-dark: #047857;
+  --amber: #b45309;
+  --rose: #be123c;
+  --sky: #0369a1;
+  --danger: #b91c1c;
+  --text-subtle: #557064;
+  --status-success-text: #047857;
+  --status-warning-text: #92400e;
+  --status-danger-text: #b91c1c;
+}
+
+.topbar-save-pill.saved {
+  color: var(--status-success-text);
+}
+.topbar-save-pill.saving {
+  color: var(--status-warning-text);
+}
+.topbar-save-pill.failed {
+  color: var(--status-danger-text);
+}
+.tb-ats-btn:hover {
+  color: var(--status-success-text);
+}
+.tb-share-btn:hover {
+  color: var(--sky);
+}
+
+/* The split pane must be allowed to shrink; each pane owns its own scrolling. */
+.workspace-wrapper {
+  flex: 1 1 auto;
+  min-height: 0;
+  height: auto;
+}
+.workspace-container {
+  grid-template-columns: minmax(0, 530px) minmax(0, 1fr);
+  min-height: 0;
+}
+.workspace-pane {
+  min-width: 0;
+  min-height: 0;
+}
+
+/* The section bar is intentionally a horizontal rail instead of a clipped row. */
+.editor-tabs {
+  min-width: 0;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  overflow-y: hidden;
+  overscroll-behavior-x: contain;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-light) transparent;
+  scroll-snap-type: x proximity;
+}
+.editor-tabs::-webkit-scrollbar {
+  height: 6px;
+}
+.editor-tabs::-webkit-scrollbar-track {
+  background: transparent;
+}
+.editor-tabs::-webkit-scrollbar-thumb {
+  background: var(--border-light);
+}
+.editor-tabs .tab-btn {
+  flex: 0 0 auto;
+  scroll-snap-align: start;
+}
+
+/* Preview controls and the A4 sheet remain usable at constrained widths. */
+.preview-scroll-area {
+  min-width: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+
+@media (max-width: 1080px) {
+  .main-viewport {
+    height: 100vh;
+    height: 100dvh;
+  }
+  .workspace-wrapper {
+    flex: 1 1 0;
+    min-height: 0;
+    height: auto;
+  }
+  .mobile-view-bar {
+    flex: 0 0 auto;
+  }
+  .workspace-container {
+    height: auto !important;
+    min-height: 0;
+  }
+  .workspace-container.mobile-tab-editor .pane-editor,
+  .workspace-container.mobile-tab-preview .pane-preview {
+    min-height: 0 !important;
+  }
+}
+
+@media (max-width: 900px) {
+  .app-topbar {
+    min-width: 0;
+  }
+  .topbar-title-group {
+    min-width: 0;
+    flex: 0 1 auto;
+  }
+  .topbar-title-group h1,
+  .topbar-title-group small {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .topbar-save-pill {
+    flex: 0 0 auto;
+  }
+  .topbar-actions {
+    min-width: 0;
+    flex: 1 1 auto;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    overflow-y: hidden;
+    overscroll-behavior-x: contain;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+  .topbar-actions::-webkit-scrollbar {
+    display: none;
+  }
+  .topbar-actions > * {
+    flex: 0 0 auto;
+  }
+}
+
+@media (max-width: 640px) {
+  .preview-toolbar {
+    flex-wrap: nowrap;
+    justify-content: flex-start;
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+  .preview-toolbar::-webkit-scrollbar {
+    display: none;
+  }
+  .preview-toolbar .toolbar-group {
+    flex: 0 0 auto;
+  }
+}
+
+@media (max-width: 768px) {
+  .app-topbar {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto auto;
+    grid-template-rows: auto auto;
+    align-items: center;
+    gap: 8px 10px;
+    padding: 8px 12px;
+  }
+  .topbar-mobile-menu {
+    grid-column: 1;
+    grid-row: 1;
+    display: grid;
+  }
+  .topbar-title-group {
+    grid-column: 2;
+    grid-row: 1;
+    min-width: 0;
+  }
+  .topbar-title-group h1 {
+    font-size: 1.05rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .topbar-title-group small {
+    font-size: 0.725rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .topbar-save-pill {
+    grid-column: 3;
+    grid-row: 1;
+    flex: 0 0 auto;
+    margin: 0;
+  }
+  .topbar-utility {
+    grid-column: 4;
+    grid-row: 1;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-left: auto;
+  }
+  .topbar-actions {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    width: 100%;
+    margin-left: 0;
+    padding-top: 2px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+  }
+  .topbar-actions::-webkit-scrollbar {
+    display: none;
+  }
+  .topbar-actions > * {
+    flex: 0 0 auto;
+  }
+  .topbar-actions .tb-action-btn,
+  .topbar-actions .tb-download-btn {
+    height: 34px;
+    padding: 6px 11px;
+    font-size: 0.775rem;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+  }
+  .tb-download-dropdown {
+    right: 0;
+    max-width: min(290px, calc(100vw - 20px));
+  }
+}
+
+@media (max-width: 640px) {
+  .form-grid-2 {
+    grid-template-columns: 1fr;
+    gap: 0.75rem;
+  }
+  .editor-scroll {
+    padding: 1rem 0.85rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .topbar-title-group small,
+  .topbar-save-pill span {
+    display: none;
+  }
+  .topbar-save-pill {
+    width: 30px;
+    height: 30px;
+    justify-content: center;
+    padding: 0;
+  }
+  .step-nav-bar {
+    flex-direction: column !important;
+    align-items: stretch !important;
+  }
+  .step-nav-bar .btn {
+    width: 100%;
+    justify-content: center;
   }
 }
 
