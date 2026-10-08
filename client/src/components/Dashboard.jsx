@@ -27,6 +27,7 @@ import { sampleResume } from '../data/sampleResume';
 import { exportResumeToDocx } from '../utils/docxExport';
 
 export default function Dashboard({
+  viewMode = 'dashboard',
   onSelectResume,
   onCreateNew,
   onBackToEditor,
@@ -185,8 +186,10 @@ export default function Dashboard({
         </span>
       </div>
 
-      {/* 1. HERO BANNER */}
-      <div className="dashboard-hero">
+      {/* 1. HERO BANNER, STATS & AI SUITE (Dashboard Overview) */}
+      {viewMode !== 'my-resumes' && (
+        <>
+          <div className="dashboard-hero">
         <div className="hero-content">
           <div className="hero-badge">
             <Sparkles size={13} />
@@ -363,6 +366,8 @@ export default function Dashboard({
           </div>
         </div>
       </div>
+    </>
+  )}
 
       {/* 4. MY RESUMES SECTION */}
       <div style={{ marginBottom: '2.5rem' }}>

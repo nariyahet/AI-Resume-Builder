@@ -211,12 +211,12 @@ export default function Navbar({
           {/* Desktop View Switchers */}
           <div className="desktop-nav-group">
             <button
-              className={`btn btn-sm ${currentView === 'dashboard' ? 'btn-primary' : 'btn-outline'}`}
-              onClick={() => onToggleView(currentView === 'dashboard' ? 'editor' : 'dashboard')}
+              className={`btn btn-sm ${currentView === 'dashboard' || currentView === 'my-resumes' ? 'btn-primary' : 'btn-outline'}`}
+              onClick={() => onToggleView(currentView === 'dashboard' || currentView === 'my-resumes' ? 'editor' : 'my-resumes')}
               title="Switch between Editor and My Resumes Dashboard"
             >
               <LayoutDashboard size={14} />
-              <span>{currentView === 'dashboard' ? 'Editor' : 'My Resumes'}</span>
+              <span>{currentView === 'dashboard' || currentView === 'my-resumes' ? 'Editor' : 'My Resumes'}</span>
             </button>
 
             <button
@@ -561,12 +561,12 @@ export default function Navbar({
           >
             {/* 1. My Resumes / Editor */}
             <button
-              className={`btn btn-sm strip-btn ${currentView === 'dashboard' ? 'btn-primary' : 'btn-outline'}`}
-              onClick={() => onToggleView(currentView === 'dashboard' ? 'editor' : 'dashboard')}
+              className={`btn btn-sm strip-btn ${currentView === 'dashboard' || currentView === 'my-resumes' ? 'btn-primary' : 'btn-outline'}`}
+              onClick={() => onToggleView(currentView === 'dashboard' || currentView === 'my-resumes' ? 'editor' : 'my-resumes')}
               title="Switch between Editor and My Resumes Dashboard"
             >
               <LayoutDashboard size={14} />
-              <span>{currentView === 'dashboard' ? 'Editor' : 'My Resumes'}</span>
+              <span>{currentView === 'dashboard' || currentView === 'my-resumes' ? 'Editor' : 'My Resumes'}</span>
             </button>
 
             {/* 2. Job Tracker */}
@@ -758,12 +758,12 @@ export default function Navbar({
               <div className="mobile-drawer-section">
                 <span className="mobile-drawer-section-title">Workspace</span>
                 <button
-                  className={`btn btn-sm ${currentView === 'dashboard' ? 'btn-primary' : 'btn-outline'}`}
+                  className={`btn btn-sm ${currentView === 'dashboard' || currentView === 'my-resumes' ? 'btn-primary' : 'btn-outline'}`}
                   style={{ width: '100%', justifyContent: 'flex-start' }}
-                  onClick={() => { onToggleView(currentView === 'dashboard' ? 'editor' : 'dashboard'); closeMobileMenu(); }}
+                  onClick={() => { onToggleView(currentView === 'dashboard' || currentView === 'my-resumes' ? 'editor' : 'my-resumes'); closeMobileMenu(); }}
                 >
                   <LayoutDashboard size={15} />
-                  <span>{currentView === 'dashboard' ? 'Resume Editor' : 'My Resumes'}</span>
+                  <span>{currentView === 'dashboard' || currentView === 'my-resumes' ? 'Resume Editor' : 'My Resumes'}</span>
                 </button>
                 <button
                   className="btn btn-outline btn-sm"

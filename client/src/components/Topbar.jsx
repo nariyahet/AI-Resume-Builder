@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import {
   Menu,
   Download,
@@ -38,6 +39,36 @@ export default function Topbar({
 }) {
   const { user } = useAuth();
   const [showDownloadMenu, setShowDownloadMenu] = useState(false);
+  const [dropdownPos, setDropdownPos] = useState({ top: 0, right: 0 });
+  const exportBtnRef = useRef(null);
+
+  const updateDropdownPos = () => {
+    if (exportBtnRef.current) {
+      const rect = exportBtnRef.current.getBoundingClientRect();
+      setDropdownPos({
+        top: Math.round(rect.bottom + 6),
+        right: Math.max(12, Math.round(window.innerWidth - rect.right))
+      });
+    }
+  };
+
+  const toggleDownloadMenu = () => {
+    if (!showDownloadMenu) {
+      updateDropdownPos();
+    }
+    setShowDownloadMenu(prev => !prev);
+  };
+
+  useEffect(() => {
+    if (!showDownloadMenu) return;
+    const handleClose = () => setShowDownloadMenu(false);
+    window.addEventListener('resize', handleClose);
+    window.addEventListener('scroll', handleClose, true);
+    return () => {
+      window.removeEventListener('resize', handleClose);
+      window.removeEventListener('scroll', handleClose, true);
+    };
+  }, [showDownloadMenu]);
 
   return (
     <header className="app-topbar">
@@ -53,10 +84,18 @@ export default function Topbar({
 
       {/* Page Title & Context */}
       <div className="topbar-title-group">
-        <h1>{currentView === 'dashboard' ? 'Dashboard' : 'Resume Editor'}</h1>
+        <h1>
+          {currentView === 'dashboard'
+            ? 'Dashboard'
+            : currentView === 'my-resumes'
+            ? 'My Resumes'
+            : 'Resume Editor'}
+        </h1>
         <small>
           {currentView === 'dashboard'
             ? 'Career command center & resume library'
+            : currentView === 'my-resumes'
+            ? 'Manage, customize, and download your resumes'
             : (resumeTitle || 'Untitled Resume') + (targetRole ? ` • ${targetRole}` : '')}
         </small>
       </div>
@@ -130,9 +169,10 @@ export default function Topbar({
         {/* Export / Download Dropdown Menu */}
         <div className="tb-export-wrap" style={{ position: 'relative' }}>
           <button
+            ref={exportBtnRef}
             type="button"
             className="tb-download-btn"
-            onClick={() => setShowDownloadMenu(!showDownloadMenu)}
+            onClick={toggleDownloadMenu}
             disabled={isDownloading}
             title="Export resume in PDF, Word, or Text"
             aria-label={isDownloading ? 'Exporting resume' : 'Export resume'}
@@ -142,13 +182,22 @@ export default function Topbar({
             <ChevronDown size={13} />
           </button>
 
-          {showDownloadMenu && (
+          {showDownloadMenu && typeof document !== 'undefined' && createPortal(
             <>
               <div
-                style={{ position: 'fixed', inset: 0, zIndex: 1099 }}
+                style={{ position: 'fixed', inset: 0, zIndex: 1199 }}
                 onClick={() => setShowDownloadMenu(false)}
               />
-              <div className="tb-download-dropdown">
+              <div
+                className="tb-download-dropdown"
+                style={{
+                  position: 'fixed',
+                  top: `${dropdownPos.top}px`,
+                  right: `${dropdownPos.right}px`,
+                  marginTop: 0,
+                  zIndex: 1200
+                }}
+              >
                 <button
                   type="button"
                   className="tb-dropdown-item"
@@ -185,7 +234,8 @@ export default function Topbar({
                   </div>
                 </button>
               </div>
-            </>
+            </>,
+            document.body
           )}
         </div>
       </div>

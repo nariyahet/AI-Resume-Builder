@@ -104,8 +104,8 @@ export default function Sidebar({
 
             <button
               type="button"
-              className="side-nav-item"
-              onClick={() => handleNavClick(() => onToggleView('dashboard'))}
+              className={`side-nav-item ${currentView === 'my-resumes' ? 'active' : ''}`}
+              onClick={() => handleNavClick(() => onToggleView('my-resumes'))}
             >
               <FileSpreadsheet size={17} style={{ color: 'var(--primary)' }} />
               <span>My Resumes</span>

@@ -512,7 +512,7 @@ export default function App() {
   };
 
   const handleToggleView = (view) => {
-    if (view === 'dashboard') {
+    if (view === 'dashboard' || view === 'my-resumes') {
       if (autosaveTimerRef.current) {
         clearTimeout(autosaveTimerRef.current);
         autosaveTimerRef.current = null;
@@ -541,7 +541,7 @@ export default function App() {
         onOpenAiKey={() => setShowAiKeyModal(true)}
         onOpenAccountSettings={() => setShowAccountSettings(true)}
         onOpenAuth={() => setShowAuthModal(true)}
-        onOpenResumeParser={() => setShowResumeParser(true)}
+        onOpenResumeParser={() => setShowParser(true)}
         isOpen={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
       />
@@ -569,8 +569,9 @@ export default function App() {
         />
 
         {/* VIEW 1: MY RESUMES DASHBOARD */}
-        {currentView === 'dashboard' ? (
+        {currentView === 'dashboard' || currentView === 'my-resumes' ? (
           <Dashboard
+            viewMode={currentView}
             onSelectResume={handleSelectResume}
             onCreateNew={handleCreateNew}
             onBackToEditor={() => setCurrentView('editor')}
