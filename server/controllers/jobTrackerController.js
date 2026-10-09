@@ -77,17 +77,28 @@ export async function updateApplication(req, res) {
     }
 
     const db = getDB();
-    const [result] = await db.query(
-      `UPDATE job_applications SET company = ?, role = ?, location = ?, salary = ?, applied_date = ?, status = ?, notes = ? WHERE id = ? AND user_id = ?`,
-      [company, role, location, salary, applied_date, status, notes, id, userId]
-    );
-
-    if (result.affectedRows === 0) {
+    const [existing] = await db.query('SELECT * FROM job_applications WHERE id = ? AND user_id = ?', [id, userId]);
+    if (existing.length === 0) {
       return res.status(404).json({ success: false, message: 'Application not found or not owned by user.' });
     }
 
+    const current = existing[0];
+    const updatedCompany = company !== undefined ? company : current.company;
+    const updatedRole = role !== undefined ? role : current.role;
+    const updatedLocation = location !== undefined ? location : current.location;
+    const updatedSalary = salary !== undefined ? salary : current.salary;
+    const updatedAppliedDate = applied_date !== undefined ? applied_date : current.applied_date;
+    const updatedStatus = status !== undefined ? status : current.status;
+    const updatedNotes = notes !== undefined ? notes : current.notes;
+
+    await db.query(
+      `UPDATE job_applications SET company = ?, role = ?, location = ?, salary = ?, applied_date = ?, status = ?, notes = ? WHERE id = ? AND user_id = ?`,
+      [updatedCompany, updatedRole, updatedLocation, updatedSalary, updatedAppliedDate, updatedStatus, updatedNotes, id, userId]
+    );
+
     res.json({ success: true, message: 'Application updated successfully.' });
   } catch (error) {
+    console.error('Update application error:', error);
     res.status(500).json({ success: false, message: 'Server error updating application.' });
   }
 }

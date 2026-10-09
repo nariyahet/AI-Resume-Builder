@@ -37,6 +37,13 @@ export default function ATSScoreModal({ isOpen, onClose, resume, setResume }) {
       });
       if (res.data?.success) {
         setAtsData(res.data);
+        if (setResume) {
+          setResume(prev => ({
+            ...prev,
+            ats_score: res.data.score,
+            ats_feedback: res.data
+          }));
+        }
       }
     } catch (err) {
       console.error('ATS calc error:', err);

@@ -28,7 +28,7 @@ export default function ShareModal({ isOpen, onClose, resume, setResume }) {
   const resumeId = resume?.id || '';
   const shareSlug = resume?.share_slug || resumeId;
   const isPublic = resume?.is_public !== false;
-  const viewCount = resume?.view_count || 12;
+  const viewCount = resume?.view_count !== undefined && resume?.view_count !== null ? Number(resume.view_count) : 0;
 
   const shareUrl = `${origin}/?view=${shareSlug}`;
   const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(shareUrl)}`;

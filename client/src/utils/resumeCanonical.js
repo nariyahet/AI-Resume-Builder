@@ -1,3 +1,47 @@
+function normalizeAtsScore(score) {
+  if (score === null || score === undefined || score === '') return 0;
+  const num = Number(score);
+  return Number.isFinite(num) && num >= 0 ? Math.round(num) : 0;
+}
+
+function normalizeAtsFeedback(feedback) {
+  if (feedback === null || feedback === undefined || feedback === '') return null;
+  let parsed = feedback;
+  if (typeof feedback === 'string') {
+    const trimmed = feedback.trim();
+    if (!trimmed) return null;
+    try {
+      parsed = JSON.parse(trimmed);
+    } catch {
+      return trimmed;
+    }
+  }
+  if (!parsed || typeof parsed !== 'object') {
+    return parsed ?? null;
+  }
+
+  const sortDeep = (item) => {
+    if (item === null || item === undefined) return null;
+    if (Array.isArray(item)) {
+      return item.map(sortDeep);
+    }
+    if (typeof item === 'object') {
+      const sortedKeys = Object.keys(item).sort();
+      const result = {};
+      for (const key of sortedKeys) {
+        result[key] = sortDeep(item[key]);
+      }
+      return result;
+    }
+    if (typeof item === 'string') {
+      return item.trim();
+    }
+    return item;
+  };
+
+  return sortDeep(parsed);
+}
+
 /**
  * Produces a stable, deterministic JSON string representation of ONLY the
  * persisted resume content fields.
@@ -70,7 +114,9 @@ export function getCanonicalPersistedResumePayload(resume) {
           title: cleanStr(c.title || c.heading),
           content: cleanStr(c.content)
         }))
-      : []
+      : [],
+    ats_score: normalizeAtsScore(resume.ats_score),
+    ats_feedback: normalizeAtsFeedback(resume.ats_feedback)
   };
 
   return JSON.stringify(canonical);
