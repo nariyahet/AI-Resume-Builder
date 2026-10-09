@@ -659,16 +659,30 @@ ${resume?.personal_info?.email || ''} | ${resume?.personal_info?.phone || ''}`;
 export async function generateInterviewPrep(req, res) {
   try {
     const userId = req.user?.id;
-    const { targetRole, resume } = req.body;
+    const { targetRole, resume, regenerate, previousQuestions } = req.body;
     const clientKey = req.headers['x-gemini-api-key'];
 
     const role = targetRole || resume?.target_role || 'Software Engineer';
+    const isRegenerate = Boolean(regenerate) || (Array.isArray(previousQuestions) && previousQuestions.length > 0);
+    const prevList = Array.isArray(previousQuestions)
+      ? previousQuestions.map(q => (typeof q === 'string' ? q.trim() : '')).filter(Boolean)
+      : [];
 
-    const prompt = `
+    let prompt = `
 You are a Lead Technical Interviewer and Recruiter.
 Based on the candidate's resume and target role "${role}", generate 5 realistic interview questions (3 technical + 2 behavioral/situational) along with expert model answers and key advice.
 Candidate Skills: ${(resume?.skills || []).join(', ')}
+`;
 
+    if (isRegenerate && prevList.length > 0) {
+      prompt += `
+CRITICAL INSTRUCTION FOR REGENERATION:
+The candidate requested a fresh set of questions. You MUST generate 5 completely NEW and DIFFERENT questions. Do NOT repeat or closely rephrase any of these previous questions:
+${prevList.slice(0, 10).map((q, i) => `${i + 1}. ${q}`).join('\n')}
+`;
+    }
+
+    prompt += `
 Return a strict JSON array of 5 objects:
 [
   {
@@ -685,7 +699,10 @@ Output ONLY raw JSON.
     let isAi = false;
     let truncationError = false;
     try {
-      const responseText = await callGemini(prompt, clientKey, { maxOutputTokens: 4000 });
+      const responseText = await callGemini(prompt, clientKey, {
+        maxOutputTokens: 4000,
+        temperature: isRegenerate ? 0.85 : 0.7
+      });
       if (responseText) {
         const cleaned = responseText.replace(/```json/gi, '').replace(/```/g, '').trim();
         questions = JSON.parse(cleaned);
@@ -708,7 +725,7 @@ Output ONLY raw JSON.
     }
 
     if (!questions || !Array.isArray(questions)) {
-      questions = [
+      const fallbackPool = [
         {
           type: 'Technical',
           question: `How do you approach performance optimization and architecture design for core features in ${role}?`,
@@ -728,6 +745,24 @@ Output ONLY raw JSON.
           proTip: 'Interviewers look for maintainability and scalability thinking.'
         },
         {
+          type: 'Technical',
+          question: `What strategies do you use for automated testing and preventing regressions in ${role}?`,
+          idealAnswer: 'Discuss unit testing critical business logic, integration tests for API workflows, end-to-end regression checks, and CI pipeline automation.',
+          proTip: 'Demonstrate balance between test coverage speed and defect prevention.'
+        },
+        {
+          type: 'Technical',
+          question: 'How do you diagnose and resolve complex asynchronous data synchronization or race conditions?',
+          idealAnswer: 'Explain tracing data flow, reproducing race conditions in isolated environments, implementing idempotent operations, and leveraging appropriate locking or optimistic concurrency controls.',
+          proTip: 'Concrete examples of distributed or stateful edge cases show senior technical maturity.'
+        },
+        {
+          type: 'Technical',
+          question: 'How do you handle technical debt while keeping velocity high on active deliverables?',
+          idealAnswer: 'Walk through incremental refactoring alongside feature work, documenting high-risk modules, establishing clear code standards, and negotiating tech debt time during sprint planning.',
+          proTip: 'Frame technical debt pragmatically in terms of delivery risk and maintenance cost.'
+        },
+        {
           type: 'Behavioral',
           question: 'Describe a time when you disagreed with a teammate or technical decision. How did you handle it?',
           idealAnswer: 'Use STAR: Situation was a differing viewpoint on architecture or priorities; Task was reaching alignment; Action was evaluating trade-offs with data objectively; Result was consensus and delivery.',
@@ -738,8 +773,41 @@ Output ONLY raw JSON.
           question: 'Tell me about a challenging bug or production incident you investigated and resolved.',
           idealAnswer: 'Walk through isolating symptoms via logs/metrics, identifying the root cause, deploying a safe fix, and adding automated regression tests.',
           proTip: 'Emphasize root-cause analysis and preventative measures.'
+        },
+        {
+          type: 'Behavioral',
+          question: 'Describe a situation where project requirements were ambiguous or rapidly changing. How did you succeed?',
+          idealAnswer: 'Explain clarifying requirements with stakeholders, breaking scope into verifiable iterative milestones, and maintaining frequent communication.',
+          proTip: 'Shows adaptability, proactive initiative, and stakeholder management skills.'
+        },
+        {
+          type: 'Behavioral',
+          question: 'How do you balance high code quality with aggressive delivery timelines?',
+          idealAnswer: 'Discuss prioritizing critical path architecture and security while identifying non-critical polish that can be phased cleanly, avoiding premature optimization.',
+          proTip: 'Hiring managers value engineers who align technical excellence with business outcomes.'
         }
       ];
+
+      if (isRegenerate && prevList.length > 0) {
+        // Filter out questions previously seen by comparing normalized question prefix
+        const remaining = fallbackPool.filter(item =>
+          !prevList.some(prev => prev.toLowerCase().includes(item.question.slice(0, 25).toLowerCase()))
+        );
+        const techPool = remaining.filter(q => q.type === 'Technical');
+        const behavPool = remaining.filter(q => q.type === 'Behavioral');
+
+        const selectedTech = techPool.slice(0, 3);
+        const selectedBehav = behavPool.slice(0, 2);
+        questions = [...selectedTech, ...selectedBehav];
+
+        if (questions.length < 5) {
+          const needed = 5 - questions.length;
+          const filler = fallbackPool.filter(q => !questions.some(sel => sel.question === q.question)).slice(0, needed);
+          questions = [...questions, ...filler];
+        }
+      } else {
+        questions = fallbackPool.slice(0, 3).concat(fallbackPool.slice(6, 8));
+      }
     }
 
     if (isAi && userId) {

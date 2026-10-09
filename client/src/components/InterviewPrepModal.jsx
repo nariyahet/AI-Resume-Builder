@@ -19,20 +19,23 @@ export default function InterviewPrepModal({ isOpen, onClose, resume }) {
 
   if (!isOpen) return null;
 
-  const handleGenerate = async () => {
+  const handleGenerate = async (isRegenerate = false) => {
     setLoading(true);
     try {
-      const res = await axiosClient.post('/ai/interview-prep', {
+      const payload = {
         targetRole: resume?.target_role,
-        resume
-      });
+        resume,
+        regenerate: Boolean(isRegenerate),
+        previousQuestions: isRegenerate && Array.isArray(questions) ? questions.map(q => q.question) : []
+      };
+      const res = await axiosClient.post('/ai/interview-prep', payload);
       if (res.data?.success && Array.isArray(res.data.questions)) {
         setQuestions(res.data.questions);
         setIsAiPowered(!!res.data.aiPowered);
         setExpandedIndex(0);
       }
     } catch (err) {
-      alert('Failed to generate interview questions.');
+      alert('Failed to generate interview questions. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -70,7 +73,7 @@ export default function InterviewPrepModal({ isOpen, onClose, resume }) {
             <button
               className="btn btn-ai"
               style={{ justifyContent: 'center', margin: '0 auto' }}
-              onClick={handleGenerate}
+              onClick={() => handleGenerate(false)}
               disabled={loading}
             >
               {loading ? (
@@ -99,10 +102,20 @@ export default function InterviewPrepModal({ isOpen, onClose, resume }) {
               </div>
               <button
                 className="btn btn-outline btn-sm"
-                onClick={handleGenerate}
+                onClick={() => handleGenerate(true)}
                 disabled={loading}
               >
-                <Sparkles size={12} /> Regenerate
+                {loading ? (
+                  <>
+                    <Loader2 size={12} className="animate-spin" />
+                    <span>Regenerating...</span>
+                  </>
+                ) : (
+                  <>
+                    <Sparkles size={12} />
+                    <span>Regenerate</span>
+                  </>
+                )}
               </button>
             </div>
 
