@@ -1,6 +1,6 @@
+import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
-import dotenv from 'dotenv';
 import { initDB } from './config/db.js';
 import authRoutes from './routes/authRoutes.js';
 import resumeRoutes from './routes/resumeRoutes.js';
@@ -10,7 +10,11 @@ import coverLetterRoutes from './routes/coverLetterRoutes.js';
 import billingRoutes from './routes/billingRoutes.js';
 import adminRoutes from './routes/adminRoutes.js';
 
-dotenv.config();
+// Ensure the backend refuses to start safely when JWT_SECRET is missing in production
+if (process.env.NODE_ENV === 'production' && !process.env.JWT_SECRET) {
+  console.error('FATAL: JWT_SECRET environment variable is missing in production. Server cannot start.');
+  process.exit(1);
+}
 
 const app = express();
 const PORT = process.env.PORT || 5000;

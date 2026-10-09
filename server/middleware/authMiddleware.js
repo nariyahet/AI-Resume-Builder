@@ -1,6 +1,14 @@
 import jwt from 'jsonwebtoken';
 import { getDB, getIsConnected } from '../config/db.js';
 
+export function getJwtSecret() {
+  const secret = process.env.JWT_SECRET;
+  if (!secret) {
+    throw new Error('JWT_SECRET environment variable is not configured.');
+  }
+  return secret;
+}
+
 export function authMiddleware(req, res, next) {
   try {
     const authHeader = req.headers.authorization;
@@ -9,7 +17,7 @@ export function authMiddleware(req, res, next) {
     }
 
     const token = authHeader.split(' ')[1];
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'super_secret_ai_resume_jwt_key_2026_xyz');
+    const decoded = jwt.verify(token, getJwtSecret());
     req.user = decoded; // { id, email, name, role }
     next();
   } catch (error) {
@@ -23,7 +31,7 @@ export function optionalAuthMiddleware(req, res, next) {
     const authHeader = req.headers.authorization;
     if (authHeader && authHeader.startsWith('Bearer ')) {
       const token = authHeader.split(' ')[1];
-      const decoded = jwt.verify(token, process.env.JWT_SECRET || 'super_secret_ai_resume_jwt_key_2026_xyz');
+      const decoded = jwt.verify(token, getJwtSecret());
       req.user = decoded;
     }
   } catch (err) {
@@ -41,7 +49,7 @@ export async function adminMiddleware(req, res, next) {
     }
 
     const token = authHeader.split(' ')[1];
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'super_secret_ai_resume_jwt_key_2026_xyz');
+    const decoded = jwt.verify(token, getJwtSecret());
     req.user = decoded;
 
     if (getIsConnected()) {

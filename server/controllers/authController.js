@@ -1,8 +1,7 @@
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { getDB, getIsConnected } from '../config/db.js';
-
-const JWT_SECRET = process.env.JWT_SECRET || 'super_secret_ai_resume_jwt_key_2026_xyz';
+import { getJwtSecret } from '../middleware/authMiddleware.js';
 
 export async function register(req, res) {
   try {
@@ -33,7 +32,7 @@ export async function register(req, res) {
     );
 
     const userId = result.insertId;
-    const token = jwt.sign({ id: userId, email, name, role: 'user' }, JWT_SECRET, { expiresIn: '7d' });
+    const token = jwt.sign({ id: userId, email, name, role: 'user' }, getJwtSecret(), { expiresIn: '7d' });
 
     res.status(201).json({
       success: true,
@@ -73,7 +72,7 @@ export async function login(req, res) {
       return res.status(401).json({ success: false, message: 'Invalid email or password.' });
     }
 
-    const token = jwt.sign({ id: user.id, email: user.email, name: user.name, role: user.role || 'user' }, JWT_SECRET, { expiresIn: '7d' });
+    const token = jwt.sign({ id: user.id, email: user.email, name: user.name, role: user.role || 'user' }, getJwtSecret(), { expiresIn: '7d' });
 
     res.json({
       success: true,
