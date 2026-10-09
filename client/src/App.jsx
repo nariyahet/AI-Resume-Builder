@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
-import html2pdf from 'html2pdf.js';
+import { exportResumeToPdf } from './utils/pdfExport';
+import PublicResumeView from './components/PublicResumeView';
 import Sidebar from './components/Sidebar';
 import Topbar from './components/Topbar';
 import ResumeForm from './components/ResumeForm';
@@ -31,6 +32,11 @@ export default function App() {
   const { user, loading } = useAuth();
 
   const isPublicShare = typeof window !== 'undefined' && Boolean(new URLSearchParams(window.location.search).get('view'));
+
+  // Public share resume states
+  const [publicResume, setPublicResume] = useState(null);
+  const [publicLoading, setPublicLoading] = useState(() => isPublicShare);
+  const [publicError, setPublicError] = useState('');
 
   // View mode: 'editor' or 'dashboard' (root URL defaults to dashboard unless public share link)
   const [currentView, setCurrentView] = useState(() => (isPublicShare ? 'editor' : 'dashboard'));
@@ -165,23 +171,33 @@ export default function App() {
 
   // Check URL params for public web resume view (?view=ID)
   useEffect(() => {
+    if (!isPublicShare) return;
     const params = new URLSearchParams(window.location.search);
     const viewId = params.get('view');
     if (viewId) {
-      async function loadPublicResume() {
-        try {
-          const res = await axiosClient.get(`/resumes/public/${viewId}`);
+      let isMounted = true;
+      setPublicLoading(true);
+      setPublicError('');
+      axiosClient.get(`/resumes/public/${viewId}`)
+        .then(res => {
+          if (!isMounted) return;
           if (res.data?.success && res.data.resume) {
-            setResume(res.data.resume);
-            lastSavedPayloadRef.current = getCanonicalPersistedResumePayload(res.data.resume);
+            setPublicResume(res.data.resume);
+          } else {
+            setPublicError(res.data?.message || 'Resume not found or is set to private.');
           }
-        } catch {
-          console.warn('Public view load failed, using local resume.');
-        }
-      }
-      loadPublicResume();
+        })
+        .catch(err => {
+          if (!isMounted) return;
+          setPublicError(err.response?.data?.message || 'Resume not found or is set to private.');
+        })
+        .finally(() => {
+          if (isMounted) setPublicLoading(false);
+        });
+
+      return () => { isMounted = false; };
     }
-  }, []);
+  }, [isPublicShare]);
 
   // Cancel any pending autosave debounce when leaving the editor
   useEffect(() => {
@@ -193,10 +209,11 @@ export default function App() {
     }
   }, [currentView]);
 
-  // Always auto-save draft in localStorage as client recovery fallback
+  // Always auto-save draft in localStorage as client recovery fallback (disabled for public links)
   useEffect(() => {
+    if (isPublicShare) return;
     localStorage.setItem('ai_resume_current_draft', JSON.stringify(resume));
-  }, [resume]);
+  }, [resume, isPublicShare]);
 
   // Real Debounced Cloud Autosave for authenticated users
   useEffect(() => {
@@ -376,83 +393,66 @@ export default function App() {
       data: { ...resume }
     };
 
-    setResume(prev => ({
-      ...prev,
-      ...parsedData,
-      template_id: prev.template_id,
-      theme_color: prev.theme_color,
-      version_history: [snapshot, ...(prev.version_history || [])]
-    }));
+    setResume(prev => {
+      // Build safe merged personal_info preserving existing fields if parsed values are absent
+      const mergedPersonalInfo = { ...(prev.personal_info || {}) };
+      if (parsedData.personal_info && typeof parsedData.personal_info === 'object') {
+        Object.entries(parsedData.personal_info).forEach(([key, val]) => {
+          if (typeof val === 'string' && val.trim()) {
+            mergedPersonalInfo[key] = val.trim();
+          }
+        });
+      }
+
+      return {
+        ...prev,
+        title: (parsedData.title && parsedData.title !== 'Imported Resume' && parsedData.title !== 'Extracted Resume')
+          ? parsedData.title
+          : (prev.title || 'My Resume'),
+        target_role: (parsedData.target_role && parsedData.target_role.trim() && parsedData.target_role !== 'Professional')
+          ? parsedData.target_role.trim()
+          : (prev.target_role || ''),
+        personal_info: mergedPersonalInfo,
+        summary: (parsedData.summary && parsedData.summary.trim())
+          ? parsedData.summary.trim()
+          : (prev.summary || ''),
+        skills: (Array.isArray(parsedData.skills) && parsedData.skills.length > 0)
+          ? parsedData.skills
+          : (prev.skills || []),
+        experience: (Array.isArray(parsedData.experience) && parsedData.experience.length > 0)
+          ? parsedData.experience
+          : (prev.experience || []),
+        education: (Array.isArray(parsedData.education) && parsedData.education.length > 0)
+          ? parsedData.education
+          : (prev.education || []),
+        projects: (Array.isArray(parsedData.projects) && parsedData.projects.length > 0)
+          ? parsedData.projects
+          : (prev.projects || []),
+        certifications: (Array.isArray(parsedData.certifications) && parsedData.certifications.length > 0)
+          ? parsedData.certifications
+          : (prev.certifications || []),
+        // Strictly preserve custom sections and styling choices
+        custom_sections: prev.custom_sections || [],
+        template_id: prev.template_id,
+        theme_color: prev.theme_color,
+        page_style: prev.page_style,
+        ats_score: prev.ats_score,
+        ats_feedback: prev.ats_feedback,
+        version_history: [snapshot, ...(prev.version_history || [])]
+      };
+    });
+
     setSaveStatus('🎉 Document parsed and imported successfully!');
     setTimeout(() => setSaveStatus(''), 4000);
     setCurrentView('editor');
   };
 
-  // 1-Click High-Quality PDF Export
+  // 1-Click High-Quality PDF Export (Guaranteed zero blank 2nd page)
   const handleDownloadPDF = async () => {
-    const sourceEl = document.getElementById('resume-print-area');
-    if (!sourceEl) {
-      alert('Resume preview is not ready. Please make sure the resume preview is visible.');
-      return;
-    }
-
     setIsDownloading(true);
-
-    // Create an unscaled offscreen sandbox mounted to the DOM
-    const sandbox = document.createElement('div');
-    sandbox.setAttribute('aria-hidden', 'true');
-    sandbox.style.position = 'fixed';
-    sandbox.style.left = '-9999px';
-    sandbox.style.top = '0';
-    sandbox.style.width = '794px';
-    sandbox.style.minHeight = '1123px';
-    sandbox.style.zIndex = '-9999';
-    sandbox.style.background = '#ffffff';
-    sandbox.style.overflow = 'visible';
-
-    // Clone the resume node deeply
-    const clone = sourceEl.cloneNode(true);
-    clone.id = 'resume-print-area-clone';
-    clone.style.transform = 'none';
-    clone.style.transformOrigin = 'top left';
-    clone.style.position = 'relative';
-    clone.style.top = '0';
-    clone.style.left = '0';
-    clone.style.width = '794px';
-    clone.style.minHeight = '1123px';
-    clone.style.margin = '0';
-    clone.style.boxSizing = 'border-box';
-    clone.style.background = '#ffffff';
-
-    sandbox.appendChild(clone);
-    document.body.appendChild(sandbox);
-
     try {
-      const opt = {
-        margin: [0, 0, 0, 0],
-        filename: `${(resume.personal_info?.fullName || 'Resume').replace(/\s+/g, '_')}_Resume.pdf`,
-        image: { type: 'jpeg', quality: 0.98 },
-        html2canvas: {
-          scale: 2,
-          useCORS: true,
-          letterRendering: true,
-          scrollY: 0,
-          scrollX: 0,
-          windowWidth: 794,
-          backgroundColor: '#ffffff'
-        },
-        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
-        pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
-      };
-
-      await html2pdf().set(opt).from(clone).save();
-    } catch (err) {
-      console.error('html2pdf error, using print fallback:', err);
-      window.print();
+      await exportResumeToPdf(resume, 'resume-print-area');
     } finally {
-      if (document.body.contains(sandbox)) {
-        document.body.removeChild(sandbox);
-      }
       setIsDownloading(false);
     }
   };
@@ -574,6 +574,19 @@ export default function App() {
         }} />
         <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
       </div>
+    );
+  }
+
+  if (isPublicShare) {
+    return (
+      <PublicResumeView
+        resume={publicResume}
+        loading={publicLoading}
+        error={publicError}
+        onNavigateHome={() => {
+          window.location.href = window.location.pathname;
+        }}
+      />
     );
   }
 

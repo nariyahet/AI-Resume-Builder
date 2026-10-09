@@ -19,11 +19,15 @@ import {
 import { exportResumeToDocx } from '../utils/docxExport';
 import { COLOR_PALETTES, PAGE_STYLES } from '../data/customizationOptions';
 
-export default function ResumePreview({ resume, setResume, onOpenShare }) {
+export default function ResumePreview({ resume, setResume, onOpenShare, readOnly = false }) {
   // Mobile & desktop auto-fit scale calculator
   const getAutoFitScale = () => {
     if (typeof window === 'undefined') return 1;
     const w = window.innerWidth;
+    if (readOnly) {
+      const avail = Math.min(840, Math.max(300, w - 32));
+      return Math.min(1.0, Math.max(0.35, Number((avail / 794).toFixed(2))));
+    }
     const isDesktop = w > 900;
     const avail = isDesktop ? Math.max(280, w - 252 - 530 - 48) : Math.max(260, w - 24);
     return Math.min(1.0, Math.max(0.35, Number((avail / 794).toFixed(2))));
@@ -34,7 +38,7 @@ export default function ResumePreview({ resume, setResume, onOpenShare }) {
   };
 
   const [scale, setScale] = useState(() => getAutoFitScale());
-  const [fontFamily, setFontFamily] = useState('Inter');
+  const [fontFamily, setFontFamily] = useState(() => resume?.fontFamily || resume?.font_family || 'Inter');
   const [spacingDensity, setSpacingDensity] = useState('normal'); // 'compact', 'normal', 'relaxed'
 
   // Auto-adapt scale on screen resize
@@ -136,6 +140,7 @@ export default function ResumePreview({ resume, setResume, onOpenShare }) {
   return (
     <div className="preview-pane">
       {/* Top Toolbar */}
+      {!readOnly && (
       <div className="preview-toolbar no-print">
         {/* Template Selector */}
         <div className="toolbar-group">
@@ -286,6 +291,7 @@ export default function ResumePreview({ resume, setResume, onOpenShare }) {
           )}
         </div>
       </div>
+      )}
 
       {/* A4 Resume Container Area */}
       <div className="preview-scroll-area">

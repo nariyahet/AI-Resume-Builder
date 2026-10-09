@@ -1066,6 +1066,8 @@ body {
 /* Shared Item Details */
 .resume-item {
   margin-bottom: 0.75rem;
+  page-break-inside: avoid;
+  break-inside: avoid;
 }
 
 .resume-item-top {
@@ -2886,11 +2888,11 @@ body {
     padding: 0 !important;
   }
 
-  .navbar, .editor-pane, .preview-toolbar, .modal-overlay, .no-print {
+  .navbar, .editor-pane, .preview-toolbar, .modal-overlay, .public-resume-header, .no-print {
     display: none !important;
   }
 
-  .workspace-container, .preview-pane, .preview-scroll-area {
+  .workspace-container, .preview-pane, .preview-scroll-area, .public-resume-main {
     display: block !important;
     height: auto !important;
     overflow: visible !important;
@@ -2908,4 +2910,85 @@ body {
     padding: 14mm !important;
     margin: 0 !important;
   }
+}
+
+/* ============================================================== */
+/* PUBLIC READ-ONLY RESUME VIEW STYLING                          */
+/* ============================================================== */
+.public-resume-shell {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-dark);
+  color: var(--text-main);
+}
+
+.public-resume-header {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.75rem 1.5rem;
+  background: var(--bg-card);
+  border-bottom: 1px solid var(--border-color);
+  box-shadow: var(--shadow-sm);
+}
+
+.public-header-brand {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  cursor: pointer;
+}
+
+.public-brand-title {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--text-main);
+  letter-spacing: -0.02em;
+}
+
+.public-badge {
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 0.2rem 0.55rem;
+  border-radius: 9999px;
+  background: rgba(99, 102, 241, 0.12);
+  color: var(--primary);
+  border: 1px solid rgba(99, 102, 241, 0.25);
+}
+
+.public-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.public-resume-main {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding: 2rem 1rem;
+  background: radial-gradient(circle at top center, var(--bg-card) 0%, var(--bg-dark) 85%);
+  overflow-y: auto;
+}
+
+.public-empty-card {
+  max-width: 480px;
+  width: 100%;
+  margin: 4rem auto;
+  padding: 2.5rem 2rem;
+  text-align: center;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
+}
+
+.resume-section-title {
+  page-break-after: avoid;
+  break-after: avoid;
 }

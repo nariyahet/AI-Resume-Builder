@@ -827,6 +827,471 @@ Output ONLY raw JSON.
 }
 
 // 8. Smart Resume Parser (Extract unstructured text into structured resume)
+// Helper to strip label prefixes such as "Name:", "Email:", "Summary:", etc.
+function stripLabel(str, labelRegex) {
+  if (typeof str !== 'string') return '';
+  let cleaned = str.trim();
+  if (labelRegex) {
+    cleaned = cleaned.replace(labelRegex, '').trim();
+  }
+  // Strip leading/trailing bullets, colons, or dashes
+  cleaned = cleaned.replace(/^[:\-\u2022*|#\s]+/, '').replace(/[:\s]+$/, '').trim();
+  return cleaned;
+}
+
+function sanitizeTargetRole(val) {
+  let cleaned = stripLabel(val, /^(?:target\s*role|target\s*job\s*role|job\s*title|role|position|title)\s*:\s*/i);
+  // Never allow emails or phone numbers to bleed into target_role
+  if (/[\w.-]+@[\w.-]+\.\w+/.test(cleaned)) {
+    return '';
+  }
+  if (/^[\s\d+().-]{7,}$/.test(cleaned) || /^(?:phone|tel|email|mobile):/i.test(val)) {
+    return '';
+  }
+  return cleaned;
+}
+
+function sanitizeSummary(val) {
+  let cleaned = stripLabel(val, /^(?:professional\s*summary|executive\s*summary|summary|profile|about\s*me|objective|career\s*objective)\s*:\s*/i);
+  // Strip accidental contact info prepended to summary
+  cleaned = cleaned.replace(/^(?:phone|email|tel|mobile|name|full\s*name)\s*:\s*[^\n]+\n?/gi, '').trim();
+  return cleaned;
+}
+
+export function sanitizeParsedResume(parsed) {
+  if (!parsed || typeof parsed !== 'object') return parsed;
+
+  const pInfo = parsed.personal_info || {};
+  const cleanedPersonalInfo = {
+    fullName: stripLabel(pInfo.fullName, /^(?:name|full\s*name|candidate\s*name)\s*:\s*/i),
+    email: stripLabel(pInfo.email, /^(?:email|email\s*address|e-mail)\s*:\s*/i),
+    phone: stripLabel(pInfo.phone, /^(?:phone|phone\s*number|tel|telephone|mobile|cell)\s*:\s*/i),
+    location: stripLabel(pInfo.location, /^(?:location|address|city|country)\s*:\s*/i),
+    linkedin: stripLabel(pInfo.linkedin, /^(?:linkedin|linkedin\s*url|linkedin\s*profile)\s*:\s*/i),
+    github: stripLabel(pInfo.github, /^(?:github|github\s*url|github\s*profile)\s*:\s*/i),
+    website: stripLabel(pInfo.website, /^(?:website|portfolio|web)\s*:\s*/i)
+  };
+
+  const emailRegex = /[\w.+-]+@[\w.-]+\.[a-zA-Z]{2,}/;
+  if (cleanedPersonalInfo.email) {
+    const emMatch = cleanedPersonalInfo.email.match(emailRegex);
+    if (emMatch) cleanedPersonalInfo.email = emMatch[0];
+  }
+
+  const targetRole = sanitizeTargetRole(parsed.target_role || '');
+  const summary = sanitizeSummary(parsed.summary || '');
+
+  let skills = [];
+  if (Array.isArray(parsed.skills)) {
+    skills = parsed.skills
+      .map(s => {
+        if (typeof s !== 'string') return '';
+        let cleaned = stripLabel(s, /^(?:skill|technology|tool)\s*:\s*/i);
+        return cleaned.replace(/^[-•*]\s*/, '').trim();
+      })
+      .filter(Boolean);
+  }
+
+  let experience = [];
+  if (Array.isArray(parsed.experience)) {
+    experience = parsed.experience.map(e => ({
+      company: stripLabel(e.company, /^(?:company|employer|organization)\s*:\s*/i),
+      role: stripLabel(e.role, /^(?:role|position|job\s*title|title)\s*:\s*/i),
+      location: stripLabel(e.location, /^(?:location|city|country)\s*:\s*/i),
+      startDate: stripLabel(e.startDate, /^(?:start\s*date|from)\s*:\s*/i),
+      endDate: stripLabel(e.endDate, /^(?:end\s*date|to)\s*:\s*/i),
+      description: typeof e.description === 'string' ? e.description.trim() : ''
+    })).filter(e => e.company || e.role);
+  }
+
+  let education = [];
+  if (Array.isArray(parsed.education)) {
+    education = parsed.education.map(ed => ({
+      institution: stripLabel(ed.institution, /^(?:institution|school|university|college)\s*:\s*/i),
+      degree: stripLabel(ed.degree, /^(?:degree|major|program)\s*:\s*/i),
+      year: stripLabel(ed.year, /^(?:year|years|graduation)\s*:\s*/i),
+      score: stripLabel(ed.score, /^(?:score|gpa|grade)\s*:\s*/i)
+    })).filter(ed => ed.institution || ed.degree);
+  }
+
+  let projects = [];
+  if (Array.isArray(parsed.projects)) {
+    projects = parsed.projects.map(pr => ({
+      name: stripLabel(pr.name, /^(?:project\s*name|project|title)\s*:\s*/i),
+      description: typeof pr.description === 'string' ? pr.description.trim() : '',
+      link: stripLabel(pr.link, /^(?:link|url|github)\s*:\s*/i)
+    })).filter(pr => pr.name);
+  }
+
+  return {
+    ...parsed,
+    title: (parsed.title && parsed.title !== 'Imported Resume' && parsed.title !== 'Extracted Resume') ? parsed.title : (targetRole ? `${targetRole} Resume` : 'Imported Resume'),
+    target_role: targetRole,
+    personal_info: cleanedPersonalInfo,
+    summary,
+    skills,
+    experience,
+    education,
+    projects
+  };
+}
+
+export function parseResumeRuleBased(resumeText) {
+  const lines = resumeText.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+  if (lines.length === 0) {
+    return {
+      title: 'Imported Resume',
+      target_role: '',
+      personal_info: { fullName: '', email: '', phone: '', location: '', linkedin: '', github: '', website: '' },
+      summary: '',
+      skills: [],
+      experience: [],
+      education: [],
+      projects: []
+    };
+  }
+
+  // 1. Regular expression matches for contact details
+  const emailRegex = /[\w.+-]+@[\w.-]+\.[a-zA-Z]{2,}/;
+  const phoneRegex = /(?:\+?\d{1,3}[-.\s]?)?\(?\d{2,4}\)?[-.\s]?\d{3,4}[-.\s]?\d{3,5}/;
+  const linkedinRegex = /(?:https?:\/\/)?(?:www\.)?linkedin\.com\/in\/[\w.-]+/i;
+  const githubRegex = /(?:https?:\/\/)?(?:www\.)?github\.com\/[\w.-]+/i;
+  const websiteRegex = /(?:https?:\/\/)?(?:www\.)?[a-zA-Z0-9][-a-zA-Z0-9]{0,62}\.(?:com|org|net|io|dev|me|app)(?:\/[^\s]*)?/i;
+
+  const emailMatch = resumeText.match(emailRegex);
+  const phoneMatch = resumeText.match(phoneRegex);
+  const linkedinMatch = resumeText.match(linkedinRegex);
+  const githubMatch = resumeText.match(githubRegex);
+
+  let website = '';
+  const webMatches = resumeText.match(new RegExp(websiteRegex, 'gi')) || [];
+  for (const m of webMatches) {
+    if (!m.includes('linkedin.com') && !m.includes('github.com')) {
+      const isEmailDomain = new RegExp(`[\\w.-]+@${m.replace(/^https?:\\\/\\\//, '').replace(/^www\\./, '')}`, 'i').test(resumeText);
+      if (!isEmailDomain) {
+        website = m;
+        break;
+      }
+    }
+  }
+
+  // 2. Section categorization
+  const sectionHeaders = [
+    { type: 'summary', regex: /^(?:professional\s+summary|executive\s+summary|summary|profile|about\s+me|career\s+objective|objective)(?::\s*(.*))?$/i },
+    { type: 'skills', regex: /^(?:technical\s+skills|core\s+competencies|key\s+skills|skills|technologies|tools\s+&?\s+technologies|skills\s+&?\s+tools)(?::\s*(.*))?$/i },
+    { type: 'experience', regex: /^(?:work\s+experience|professional\s+experience|experience|employment\s+history|work\s+history|employment)(?::\s*(.*))?$/i },
+    { type: 'education', regex: /^(?:education|academic\s+background|academic\s+qualifications|qualifications)(?::\s*(.*))?$/i },
+    { type: 'projects', regex: /^(?:projects|personal\s+projects|key\s+projects|portfolio\s+projects)(?::\s*(.*))?$/i },
+    { type: 'certifications', regex: /^(?:certifications|licenses\s+&?\s+certifications|certificates)(?::\s*(.*))?$/i }
+  ];
+
+  function getSectionMatch(line) {
+    const clean = line.replace(/[-#*]+$/, '').trim();
+    for (const sh of sectionHeaders) {
+      const match = clean.match(sh.regex);
+      if (match) {
+        return { type: sh.type, inlineContent: (match[1] || '').trim() };
+      }
+    }
+    return null;
+  }
+
+  const sections = {
+    header: [],
+    summary: [],
+    skills: [],
+    experience: [],
+    education: [],
+    projects: [],
+    certifications: []
+  };
+
+  let currentSection = 'header';
+  for (const line of lines) {
+    const detected = getSectionMatch(line);
+    if (detected) {
+      currentSection = detected.type;
+      if (detected.inlineContent) {
+        sections[currentSection].push(detected.inlineContent);
+      }
+      continue;
+    }
+    sections[currentSection].push(line);
+  }
+
+  // 3. Header processing for Name, Target Role, Location, Contact
+  let extractedName = '';
+  let extractedRole = '';
+  let extractedLocation = '';
+  let extractedEmail = '';
+  let extractedPhone = '';
+  let extractedLinkedin = '';
+  let extractedGithub = '';
+  let extractedWebsite = '';
+
+  for (const line of sections.header) {
+    if (/^(?:name|full\s*name|candidate\s*name)\s*:\s*/i.test(line)) {
+      extractedName = stripLabel(line, /^(?:name|full\s*name|candidate\s*name)\s*:\s*/i);
+    } else if (/^(?:target\s*role|target\s*job\s*role|job\s*title|role|position|title)\s*:\s*/i.test(line)) {
+      extractedRole = sanitizeTargetRole(line);
+    } else if (/^(?:email|email\s*address|e-mail)\s*:\s*/i.test(line)) {
+      extractedEmail = stripLabel(line, /^(?:email|email\s*address|e-mail)\s*:\s*/i);
+    } else if (/^(?:phone|phone\s*number|tel|telephone|mobile|cell)\s*:\s*/i.test(line)) {
+      extractedPhone = stripLabel(line, /^(?:phone|phone\s*number|tel|telephone|mobile|cell)\s*:\s*/i);
+    } else if (/^(?:location|address|city|country)\s*:\s*/i.test(line)) {
+      extractedLocation = stripLabel(line, /^(?:location|address|city|country)\s*:\s*/i);
+    } else if (/^(?:linkedin|linkedin\s*url|linkedin\s*profile)\s*:\s*/i.test(line)) {
+      extractedLinkedin = stripLabel(line, /^(?:linkedin|linkedin\s*url|linkedin\s*profile)\s*:\s*/i);
+    } else if (/^(?:github|github\s*url|github\s*profile)\s*:\s*/i.test(line)) {
+      extractedGithub = stripLabel(line, /^(?:github|github\s*url|github\s*profile)\s*:\s*/i);
+    } else if (/^(?:website|portfolio|web)\s*:\s*/i.test(line)) {
+      extractedWebsite = stripLabel(line, /^(?:website|portfolio|web)\s*:\s*/i);
+    }
+  }
+
+  if (!extractedName && sections.header.length > 0) {
+    for (let i = 0; i < Math.min(3, sections.header.length); i++) {
+      const line = sections.header[i];
+      if (
+        emailRegex.test(line) ||
+        phoneRegex.test(line) ||
+        linkedinRegex.test(line) ||
+        githubRegex.test(line) ||
+        /^(?:target\s*role|role|title|location|address):/i.test(line)
+      ) {
+        continue;
+      }
+      extractedName = stripLabel(line, /^(?:name|full\s*name):\s*/i);
+      break;
+    }
+  }
+
+  if (!extractedRole && sections.header.length > 1) {
+    for (let i = 0; i < sections.header.length; i++) {
+      const line = sections.header[i];
+      if (
+        line === extractedName ||
+        /^(?:name|full\s*name|candidate\s*name)\s*:/i.test(line) ||
+        (extractedName && line.toLowerCase().includes(extractedName.toLowerCase()))
+      ) {
+        continue;
+      }
+      if (
+        emailRegex.test(line) ||
+        phoneRegex.test(line) ||
+        linkedinRegex.test(line) ||
+        githubRegex.test(line) ||
+        /^(?:phone|email|location|address):/i.test(line) ||
+        /^[A-Za-z\s]+,\s*[A-Za-z\s]+$/.test(line)
+      ) {
+        if (!extractedLocation && /^[A-Za-z\s]+,\s*[A-Za-z\s]+$/.test(line)) {
+          extractedLocation = line;
+        }
+        continue;
+      }
+      if (line.length < 60 && !line.includes('|')) {
+        extractedRole = sanitizeTargetRole(line);
+        break;
+      }
+    }
+  }
+
+  if (!extractedLocation) {
+    for (const line of sections.header) {
+      if (line.includes('|')) {
+        const parts = line.split('|').map(p => p.trim());
+        for (const p of parts) {
+          if (!emailRegex.test(p) && !phoneRegex.test(p) && !linkedinRegex.test(p) && !githubRegex.test(p) && !p.startsWith('http') && p.length > 2 && p.length < 50) {
+            extractedLocation = stripLabel(p, /^(?:location|address):/i);
+            break;
+          }
+        }
+      }
+      if (extractedLocation) break;
+    }
+  }
+
+  // 4. Summary Parsing
+  let summary = '';
+  if (sections.summary.length > 0) {
+    summary = sanitizeSummary(sections.summary.join(' '));
+  }
+
+  // 5. Skills Parsing
+  const skills = [];
+  if (sections.skills.length > 0) {
+    for (const line of sections.skills) {
+      const cleanLine = line.replace(/^(?:languages|frontend|backend|frameworks|database|databases|tools|technologies|cloud|devops)\s*:\s*/i, '');
+      const tokens = cleanLine.split(/[,;•|\*]+/).map(s => s.trim()).filter(Boolean);
+      for (const tok of tokens) {
+        const cleanedTok = tok.replace(/^[-•*]\s*/, '').trim();
+        if (cleanedTok.length > 1 && cleanedTok.length < 50 && !skills.includes(cleanedTok)) {
+          skills.push(cleanedTok);
+        }
+      }
+    }
+  }
+
+  // 6. Experience Parsing
+  const experience = [];
+  if (sections.experience.length > 0) {
+    let currentExp = null;
+    for (const line of sections.experience) {
+      const dateRangeMatch = line.match(/(?:(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\s+)?\d{4}\s*(?:-|–|to)\s*(?:(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\s+\d{4}|present|\d{4})/i);
+      const isBullet = /^[-•*]\s*/.test(line);
+
+      if (!isBullet && (line.includes('|') || dateRangeMatch || /^(?:company|role|title):/i.test(line))) {
+        if (currentExp && (currentExp.company || currentExp.role)) {
+          experience.push(currentExp);
+        }
+        let comp = '';
+        let role = '';
+        let start = '';
+        let end = '';
+        let loc = '';
+
+        if (line.includes('|')) {
+          const parts = line.split('|').map(p => p.trim());
+          comp = parts[0] || '';
+          role = parts[1] || '';
+          if (parts[2]) {
+            if (dateRangeMatch) {
+              const dParts = parts[2].split(/[-–]|to/i).map(s => s.trim());
+              start = dParts[0] || '';
+              end = dParts[1] || '';
+            } else {
+              loc = parts[2];
+            }
+          }
+        } else if (/^(?:company|organization)\s*:\s*/i.test(line)) {
+          comp = stripLabel(line, /^(?:company|organization)\s*:\s*/i);
+        } else if (/^(?:role|position|title)\s*:\s*/i.test(line)) {
+          role = stripLabel(line, /^(?:role|position|title)\s*:\s*/i);
+        } else {
+          comp = line;
+        }
+
+        currentExp = {
+          company: stripLabel(comp, /^(?:company|employer)\s*:\s*/i),
+          role: stripLabel(role, /^(?:role|position|title)\s*:\s*/i),
+          location: loc,
+          startDate: start,
+          endDate: end,
+          description: ''
+        };
+      } else if (currentExp) {
+        const bulletText = line.replace(/^[-•*]\s*/, '').trim();
+        if (bulletText) {
+          currentExp.description = currentExp.description
+            ? `${currentExp.description}\n• ${bulletText}`
+            : `• ${bulletText}`;
+        }
+      }
+    }
+    if (currentExp && (currentExp.company || currentExp.role)) {
+      experience.push(currentExp);
+    }
+  }
+
+  // 7. Education Parsing
+  const education = [];
+  if (sections.education.length > 0) {
+    let currentEdu = null;
+    for (const line of sections.education) {
+      if (/^(?:institution|school|university|college)\s*:\s*/i.test(line) || line.includes('|') || /(?:bachelor|master|phd|associate|b\.s\.|b\.a\.|m\.s\.|m\.a\.|diploma|degree)/i.test(line)) {
+        if (currentEdu && (currentEdu.institution || currentEdu.degree)) {
+          education.push(currentEdu);
+        }
+        let inst = '';
+        let deg = '';
+        let yr = '';
+        const yearMatch = line.match(/\b(19\d{2}|20\d{2})\s*(?:-|–|to)?\s*(19\d{2}|20\d{2})?\b/);
+
+        if (line.includes('|')) {
+          const parts = line.split('|').map(p => p.trim());
+          inst = parts[0] || '';
+          deg = parts[1] || '';
+          yr = parts[2] || (yearMatch ? yearMatch[0] : '');
+        } else if (/^(?:institution|school|university)\s*:\s*/i.test(line)) {
+          inst = stripLabel(line, /^(?:institution|school|university)\s*:\s*/i);
+        } else if (/^(?:degree|major|program)\s*:\s*/i.test(line)) {
+          deg = stripLabel(line, /^(?:degree|major|program)\s*:\s*/i);
+        } else {
+          inst = line;
+        }
+
+        currentEdu = {
+          institution: stripLabel(inst, /^(?:institution|school|university)\s*:\s*/i),
+          degree: stripLabel(deg, /^(?:degree|major)\s*:\s*/i),
+          year: yr || (yearMatch ? yearMatch[0] : ''),
+          score: ''
+        };
+      } else if (currentEdu && !currentEdu.degree && line.length < 80) {
+        currentEdu.degree = stripLabel(line, /^(?:degree|major)\s*:\s*/i);
+      }
+    }
+    if (currentEdu && (currentEdu.institution || currentEdu.degree)) {
+      education.push(currentEdu);
+    }
+  }
+
+  // 8. Projects Parsing
+  const projects = [];
+  if (sections.projects.length > 0) {
+    let currentProj = null;
+    for (const line of sections.projects) {
+      const isBullet = /^[-•*]\s*/.test(line);
+      if (!isBullet && (/^(?:project\s*name|project)\s*:\s*/i.test(line) || (line.length < 60 && !line.includes('http')))) {
+        if (currentProj && currentProj.name) {
+          projects.push(currentProj);
+        }
+        currentProj = {
+          name: stripLabel(line, /^(?:project\s*name|project)\s*:\s*/i),
+          description: '',
+          link: ''
+        };
+      } else if (currentProj) {
+        if (/https?:\/\//i.test(line)) {
+          const urlMatch = line.match(/https?:\/\/[^\s]+/);
+          if (urlMatch) currentProj.link = urlMatch[0];
+        } else {
+          const descLine = line.replace(/^[-•*]\s*/, '').trim();
+          if (descLine) {
+            currentProj.description = currentProj.description
+              ? `${currentProj.description} ${descLine}`
+              : descLine;
+          }
+        }
+      }
+    }
+    if (currentProj && currentProj.name) {
+      projects.push(currentProj);
+    }
+  }
+
+  const result = {
+    title: extractedRole ? `${extractedRole} Resume` : 'Imported Resume',
+    target_role: extractedRole,
+    personal_info: {
+      fullName: extractedName,
+      email: extractedEmail || (emailMatch ? emailMatch[0] : ''),
+      phone: extractedPhone || (phoneMatch ? phoneMatch[0] : ''),
+      location: extractedLocation,
+      linkedin: extractedLinkedin || (linkedinMatch ? linkedinMatch[0] : ''),
+      github: extractedGithub || (githubMatch ? githubMatch[0] : ''),
+      website: extractedWebsite || website || ''
+    },
+    summary,
+    skills,
+    experience,
+    education,
+    projects
+  };
+
+  return sanitizeParsedResume(result);
+}
+
+// 8. Smart Resume Parser (Extract unstructured text into structured resume)
 export async function parseResumeText(req, res) {
   try {
     const userId = req.user?.id;
@@ -841,12 +1306,18 @@ export async function parseResumeText(req, res) {
 You are an advanced Resume Parsing Engine.
 Parse the following raw resume text and extract all details into a clean, complete structured JSON object.
 
+CRITICAL EXTRACTION RULES:
+- Extract ONLY clean values. DO NOT include field labels such as "Name:", "Email:", "Phone:", "Target Role:", "Summary:", or "Company:" in any field value.
+- "target_role" MUST be the candidate's professional job title or target role. NEVER put email, phone number, address, or other contact info in "target_role".
+- "summary" MUST be strictly the professional summary, profile, or objective. NEVER prepend or concatenate email, phone, skills, or other sections into "summary".
+- If a field is not present in the text, leave it as an empty string or empty array. DO NOT invent details.
+
 RAW RESUME TEXT:
 """${resumeText.substring(0, 4000)}"""
 
 Return ONLY valid JSON matching this schema:
 {
-  "title": "Extracted Resume",
+  "title": "Clean Role Title or Imported Resume",
   "target_role": "Target or Most Recent Job Title",
   "personal_info": {
     "fullName": "Name found in text or empty",
@@ -896,6 +1367,7 @@ Return ONLY valid JSON matching this schema:
         const cleaned = responseText.replace(/```json/gi, '').replace(/```/g, '').trim();
         parsed = JSON.parse(cleaned);
         if (parsed && typeof parsed === 'object') {
+          parsed = sanitizeParsedResume(parsed);
           isAi = true;
         }
       }
@@ -914,29 +1386,8 @@ Return ONLY valid JSON matching this schema:
     }
 
     if (!parsed) {
-      // Basic heuristic extraction without fabricating identities or employers
-      const lines = resumeText.split('\n').map(l => l.trim()).filter(Boolean);
-      const emailMatch = resumeText.match(/[\w.-]+@[\w.-]+\.\w+/);
-      const phoneMatch = resumeText.match(/[\+]?[(]?[0-9]{3}[)]?[-\s.]?[0-9]{3}[-\s.]?[0-9]{4,6}/);
-
-      parsed = {
-        title: 'Imported Resume',
-        target_role: lines[1] || 'Professional',
-        personal_info: {
-          fullName: lines[0] || '',
-          email: emailMatch ? emailMatch[0] : '',
-          phone: phoneMatch ? phoneMatch[0] : '',
-          location: '',
-          linkedin: '',
-          github: '',
-          website: ''
-        },
-        summary: lines.slice(2, 5).join(' ') || '',
-        skills: [],
-        experience: [],
-        education: [],
-        projects: []
-      };
+      // Robust rule-based extraction
+      parsed = parseResumeRuleBased(resumeText);
     }
 
     if (isAi && userId) {
@@ -954,6 +1405,7 @@ Return ONLY valid JSON matching this schema:
     res.status(500).json({ success: false, message: 'Failed to parse resume.' });
   }
 }
+
 
 // 9. Real AI Interactive Interview Practice Evaluator (STAR Method)
 export async function evaluateInterview(req, res) {
