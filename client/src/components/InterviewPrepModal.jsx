@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   X,
   Sparkles,
@@ -17,22 +17,49 @@ export default function InterviewPrepModal({ isOpen, onClose, resume }) {
   const [loading, setLoading] = useState(false);
   const [expandedIndex, setExpandedIndex] = useState(0);
 
+  // Cumulative session history to guarantee zero repetition across multiple regenerations
+  const seenQuestionsRef = useRef(new Set());
+
+  // Initialize or synchronize seen questions when questions exist
+  useEffect(() => {
+    if (Array.isArray(questions) && questions.length > 0) {
+      questions.forEach(q => {
+        if (q && q.question) seenQuestionsRef.current.add(q.question.trim());
+      });
+    }
+  }, [questions]);
+
+  // Reset session history when opening for a different resume
+  const lastResumeIdRef = useRef(resume?.id);
+  useEffect(() => {
+    if (resume?.id !== lastResumeIdRef.current) {
+      lastResumeIdRef.current = resume?.id;
+      seenQuestionsRef.current.clear();
+      setQuestions([]);
+    }
+  }, [resume?.id]);
+
   if (!isOpen) return null;
 
   const handleGenerate = async (isRegenerate = false) => {
     setLoading(true);
     try {
+      const prevList = isRegenerate ? Array.from(seenQuestionsRef.current) : [];
       const payload = {
         targetRole: resume?.target_role,
         resume,
         regenerate: Boolean(isRegenerate),
-        previousQuestions: isRegenerate && Array.isArray(questions) ? questions.map(q => q.question) : []
+        previousQuestions: prevList
       };
       const res = await axiosClient.post('/ai/interview-prep', payload);
-      if (res.data?.success && Array.isArray(res.data.questions)) {
+      if (res.data?.success && Array.isArray(res.data.questions) && res.data.questions.length > 0) {
         setQuestions(res.data.questions);
         setIsAiPowered(!!res.data.aiPowered);
         setExpandedIndex(0);
+        // Track the newly returned questions in cumulative session history
+        res.data.questions.forEach(q => {
+          if (q && q.question) seenQuestionsRef.current.add(q.question.trim());
+        });
       }
     } catch (err) {
       alert('Failed to generate interview questions. Please try again.');

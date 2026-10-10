@@ -655,6 +655,31 @@ ${resume?.personal_info?.email || ''} | ${resume?.personal_info?.phone || ''}`;
   }
 }
 
+// Helper for comparing interview questions and preventing repetition across regenerations
+function normalizeQuestionText(q) {
+  if (typeof q !== 'string') return '';
+  return q.toLowerCase().replace(/[^a-z0-9]/g, ' ').replace(/\s+/g, ' ').trim();
+}
+
+function areQuestionsSimilar(q1, q2) {
+  const norm1 = normalizeQuestionText(q1);
+  const norm2 = normalizeQuestionText(q2);
+  if (!norm1 || !norm2) return false;
+  if (norm1 === norm2) return true;
+  if (norm1.includes(norm2) || norm2.includes(norm1)) return true;
+
+  const words1 = new Set(norm1.split(' ').filter(w => w.length > 3));
+  const words2 = new Set(norm2.split(' ').filter(w => w.length > 3));
+  if (words1.size === 0 || words2.size === 0) return false;
+
+  let intersection = 0;
+  for (const w of words1) {
+    if (words2.has(w)) intersection++;
+  }
+  const union = new Set([...words1, ...words2]).size;
+  return (intersection / union) >= 0.5;
+}
+
 // 7. AI Interview Preparation Q&A Generator
 export async function generateInterviewPrep(req, res) {
   try {
@@ -668,6 +693,229 @@ export async function generateInterviewPrep(req, res) {
       ? previousQuestions.map(q => (typeof q === 'string' ? q.trim() : '')).filter(Boolean)
       : [];
 
+    // Comprehensive 36-question bank (22 technical, 14 behavioral) to guarantee zero repetition across 5+ consecutive regenerations
+    const fallbackPool = [
+      // Technical Questions (22)
+      {
+        type: 'Technical',
+        question: `How do you approach performance optimization and architecture design for core features in ${role}?`,
+        idealAnswer: 'Explain how you identify bottlenecks with profiling tools, structure efficient algorithms and data access, implement caching where appropriate, and ensure clean separation of concerns.',
+        proTip: 'Highlight real engineering habits and trade-offs rather than generic definitions.'
+      },
+      {
+        type: 'Technical',
+        question: 'How do you ensure application security and reliable state management in your projects?',
+        idealAnswer: 'Discuss input validation, parameterized queries, secure credential handling, and keeping state predictable through structured patterns.',
+        proTip: 'Show security-conscious habits and thorough unit testing approaches.'
+      },
+      {
+        type: 'Technical',
+        question: 'Can you describe your component and API design methodology to ensure maintainability?',
+        idealAnswer: 'Detail modular decomposition, clear interface contracts, handling edge cases gracefully, and comprehensive documentation.',
+        proTip: 'Interviewers look for maintainability and scalability thinking.'
+      },
+      {
+        type: 'Technical',
+        question: `What strategies do you use for automated testing and preventing regressions in ${role}?`,
+        idealAnswer: 'Discuss unit testing critical business logic, integration tests for API workflows, end-to-end regression checks, and CI pipeline automation.',
+        proTip: 'Demonstrate balance between test coverage speed and defect prevention.'
+      },
+      {
+        type: 'Technical',
+        question: 'How do you diagnose and resolve complex asynchronous data synchronization or race conditions?',
+        idealAnswer: 'Explain tracing data flow, reproducing race conditions in isolated environments, implementing idempotent operations, and leveraging appropriate locking or optimistic concurrency controls.',
+        proTip: 'Concrete examples of distributed or stateful edge cases show senior technical maturity.'
+      },
+      {
+        type: 'Technical',
+        question: 'How do you handle technical debt while keeping velocity high on active deliverables?',
+        idealAnswer: 'Walk through incremental refactoring alongside feature work, documenting high-risk modules, establishing clear code standards, and negotiating tech debt time during sprint planning.',
+        proTip: 'Frame technical debt pragmatically in terms of delivery risk and maintenance cost.'
+      },
+      {
+        type: 'Technical',
+        question: 'How do you design database indexing, query execution planning, and schema migrations for high concurrency?',
+        idealAnswer: 'Detail compound indexing strategies, examining EXPLAIN query plans, avoiding full table scans, and using non-blocking schema migration patterns in production.',
+        proTip: 'Discuss specific SQL query performance improvements and latency measurements.'
+      },
+      {
+        type: 'Technical',
+        question: 'What caching patterns do you leverage and how do you handle cache invalidation and stampedes?',
+        idealAnswer: 'Cover Cache-Aside, Write-Through, stale-while-revalidate, setting deterministic TTLs, and using mutexes or probabilistic early expiration to avoid cache stampedes.',
+        proTip: 'Mentioning cache consistency guarantees and invalidation trade-offs demonstrates production depth.'
+      },
+      {
+        type: 'Technical',
+        question: 'How do you implement resilient error handling, graceful degradation, and centralized observability?',
+        idealAnswer: 'Discuss structured error hierarchies, circuit breakers for upstream service calls, fallback states for users, and correlated request ID logging with APM metrics.',
+        proTip: 'Recruiters want to see that failure modes are anticipated rather than reactive.'
+      },
+      {
+        type: 'Technical',
+        question: 'Can you explain your approach to containerization with Docker and automated CI/CD pipeline deployments?',
+        idealAnswer: 'Cover multi-stage Docker builds to minimize attack surface and image size, automated test gates in CI, and blue-green or rolling canary deployments.',
+        proTip: 'Demonstrating end-to-end ownership from local dev to cloud deployment is a huge differentiator.'
+      },
+      {
+        type: 'Technical',
+        question: 'How do you evaluate trade-offs between real-time WebSockets and lightweight REST polling?',
+        idealAnswer: 'Explain connection overhead, stateful socket server scalability, proxy buffering, versus simple stateless HTTP polling with conditional headers like If-None-Match.',
+        proTip: 'Base your choice on message frequency, latency tolerance, and infrastructure complexity.'
+      },
+      {
+        type: 'Technical',
+        question: 'How do you isolate and eliminate memory leaks or CPU bottlenecks in modern Node.js and client applications?',
+        idealAnswer: 'Detail capturing heap snapshots, tracking unreleased event listeners or closures, inspecting flame graphs in Chrome DevTools/v8-profiler, and verifying GC behaviour.',
+        proTip: 'Give a specific debugging war story rather than theoretical advice.'
+      },
+      {
+        type: 'Technical',
+        question: 'How do you enforce robust authentication and authorization (JWT, OAuth2, RBAC) across multi-tenant applications?',
+        idealAnswer: 'Explain short-lived access tokens, secure httpOnly refresh cookies, cryptographic signature verification, and tenant-scoped database query filters.',
+        proTip: 'Highlighting multi-tenant data isolation shows enterprise security readiness.'
+      },
+      {
+        type: 'Technical',
+        question: 'What architectural considerations guide your decision between microservices and a modular monolith?',
+        idealAnswer: 'Evaluate team size, domain boundary maturity, deployment cadence, operational overhead, network latency, and distributed transaction complexity.',
+        proTip: 'Emphasize starting with a clean modular monolith and decomposing only when scale or organizational boundaries demand it.'
+      },
+      {
+        type: 'Technical',
+        question: 'How do you optimize initial frontend bundle sizes, code splitting, and Core Web Vitals?',
+        idealAnswer: 'Cover dynamic route imports, tree-shaking dead code, optimizing critical rendering path (LCP/CLS), compressing static assets, and deferring non-critical scripts.',
+        proTip: 'Connecting front-end performance directly to user retention and SEO builds credibility.'
+      },
+      {
+        type: 'Technical',
+        question: 'How do you design idempotent RESTful APIs and handle webhook retries safely?',
+        idealAnswer: 'Detail idempotent tokens, unique transaction keys in database constraints, exponential backoff with jitter for retries, and acknowledging webhooks before long-running async tasks.',
+        proTip: 'Idempotency in payments and data updates is a favorite senior interview topic.'
+      },
+      {
+        type: 'Technical',
+        question: 'How do you manage database transaction isolation levels and prevent phantom reads or dirty writes?',
+        idealAnswer: 'Walk through Read Committed versus Serializable isolation, row-level pessimistic locking (SELECT FOR UPDATE) versus optimistic locking via version columns.',
+        proTip: 'Explain when optimistic locking is preferable for high-read, low-contention workloads.'
+      },
+      {
+        type: 'Technical',
+        question: 'How do you design a scalable message queue architecture for background tasks and batch jobs?',
+        idealAnswer: 'Discuss producer-consumer patterns, dead-letter queues (DLQ) for failed messages, worker autoscaling, and ensuring at-least-once processing idempotence.',
+        proTip: 'Focus on failure recovery and preventing queue poisoning.'
+      },
+      {
+        type: 'Technical',
+        question: 'What is your strategy for maintaining backward compatibility when evolving public API contracts?',
+        idealAnswer: 'Explain semantic versioning, URI/header versioning, non-breaking additive schema changes, contract testing with OpenAPI/Pact, and deprecation schedules.',
+        proTip: 'Shows respect for client consumers and zero-downtime deployment practices.'
+      },
+      {
+        type: 'Technical',
+        question: 'How do you handle large file uploads and binary streaming without exhausting server memory?',
+        idealAnswer: 'Explain streaming multipart form data directly to cloud storage via presigned S3 URLs or chunked uploads, avoiding buffering large payloads in memory.',
+        proTip: 'Presigned upload URLs show modern cloud architectural competence.'
+      },
+      {
+        type: 'Technical',
+        question: 'How do you secure third-party API integrations, rate limits, and secret management in production?',
+        idealAnswer: 'Discuss KMS / secret managers, rotation policies, outbound egress filtering, circuit breakers, and adhering to third-party rate limits via leaky bucket algorithms.',
+        proTip: 'Emphasize least-privilege API keys and never hardcoding secrets in source control.'
+      },
+      {
+        type: 'Technical',
+        question: 'How do you approach refactoring a legacy monolithic codebase without introducing regressions?',
+        idealAnswer: 'Explain characterization tests (approval tests) to snapshot existing behavior, the Strangler Fig pattern for incremental extraction, and continuous regression verification.',
+        proTip: 'Demonstrates surgical, disciplined engineering over risky ground-up rewrites.'
+      },
+
+      // Behavioral & Situational Questions (14)
+      {
+        type: 'Behavioral',
+        question: 'Describe a time when you disagreed with a teammate or technical decision. How did you handle it?',
+        idealAnswer: 'Use STAR: Situation was a differing viewpoint on architecture or priorities; Task was reaching alignment; Action was evaluating trade-offs with data objectively; Result was consensus and delivery.',
+        proTip: 'Focus on collaborative resolution and shared project goals.'
+      },
+      {
+        type: 'Behavioral',
+        question: 'Tell me about a challenging bug or production incident you investigated and resolved under pressure.',
+        idealAnswer: 'Walk through isolating symptoms via logs/metrics, identifying the root cause, deploying a safe fix, and adding automated regression tests.',
+        proTip: 'Emphasize root-cause analysis and preventative measures.'
+      },
+      {
+        type: 'Behavioral',
+        question: 'Describe a situation where project requirements were ambiguous or rapidly changing. How did you succeed?',
+        idealAnswer: 'Explain clarifying requirements with stakeholders, breaking scope into verifiable iterative milestones, and maintaining frequent communication.',
+        proTip: 'Shows adaptability, proactive initiative, and stakeholder management skills.'
+      },
+      {
+        type: 'Behavioral',
+        question: 'How do you balance high code quality with aggressive delivery timelines?',
+        idealAnswer: 'Discuss prioritizing critical path architecture and security while identifying non-critical polish that can be phased cleanly, avoiding premature optimization.',
+        proTip: 'Hiring managers value engineers who align technical excellence with business outcomes.'
+      },
+      {
+        type: 'Behavioral',
+        question: 'Tell me about a time you mentored a junior engineer or championed code review best practices.',
+        idealAnswer: 'Explain pairing sessions, explaining the "why" behind patterns, creating constructive review checklists, and celebrating team members milestones.',
+        proTip: 'Demonstrates leadership, empathy, and positive cultural impact.'
+      },
+      {
+        type: 'Behavioral',
+        question: 'Describe an instance where a deployment caused a regression and how you took ownership to remediate it.',
+        idealAnswer: 'Walk through immediate rollback/fix-forward, communicating transparently with impacted users, and conducting a blameless post-mortem with preventative tests.',
+        proTip: 'Blameless accountability and systemic prevention impress engineering leaders.'
+      },
+      {
+        type: 'Behavioral',
+        question: 'How do you collaborate with non-technical stakeholders to translate business goals into technical milestones?',
+        idealAnswer: 'Discuss framing technical choices in terms of user experience, conversion impact, and risk reduction rather than technical jargon.',
+        proTip: 'Proves cross-functional empathy and product-minded engineering.'
+      },
+      {
+        type: 'Behavioral',
+        question: 'Tell me about a time you had to learn an unfamiliar library or framework rapidly to deliver a critical milestone.',
+        idealAnswer: 'Explain building a rapid proof of concept, reviewing official documentation and source code, validating edge cases, and delivering on schedule.',
+        proTip: 'Highlights high velocity, self-direction, and fast ramp-up capabilities.'
+      },
+      {
+        type: 'Behavioral',
+        question: 'Describe a situation where you identified an inefficiency in team workflow and took initiative to fix it.',
+        idealAnswer: 'Detail noticing repetitive manual deployments or test runs, automating the workflow with scripts/CI, and measuring the saved engineering hours.',
+        proTip: 'Shows multiplier effect and proactive ownership.'
+      },
+      {
+        type: 'Behavioral',
+        question: 'How do you prioritize competing high-priority tasks during an intensive release sprint?',
+        idealAnswer: 'Discuss assessing user impact, consulting with product managers on critical paths, time-boxing tasks, and communicating blockers early.',
+        proTip: 'Demonstrates composure, executive presence, and pragmatic execution.'
+      },
+      {
+        type: 'Behavioral',
+        question: 'Tell me about a time you had to advocate for technical refactoring against pressure to only ship new features.',
+        idealAnswer: 'Explain quantifying maintenance cost, increased error rates, or sprint delays to business stakeholders to secure dedicated refactoring bandwidth.',
+        proTip: 'Framing technical health in business terms is the hallmark of a senior engineer.'
+      },
+      {
+        type: 'Behavioral',
+        question: 'Describe an experience receiving difficult constructive feedback. How did you process and apply it?',
+        idealAnswer: 'Explain listening with an open mind, asking clarifying questions for examples, creating an action plan, and following up on progress.',
+        proTip: 'Shows coachability, emotional intelligence, and growth mindset.'
+      },
+      {
+        type: 'Behavioral',
+        question: 'Tell me about a project that did not achieve its intended goal or was cancelled. What was your takeaway?',
+        idealAnswer: 'Focus on retrospective insights, recognizing early warning signals, and carrying valuable architectural components into future initiatives.',
+        proTip: 'Authentic resilience and analytical reflection signal mature professionalism.'
+      },
+      {
+        type: 'Behavioral',
+        question: 'How do you maintain focus, code quality, and team morale during high-pressure release deadlines?',
+        idealAnswer: 'Discuss breaking complex problems into achievable daily tasks, peer check-ins, avoiding shortcuts on critical test paths, and maintaining transparent communication.',
+        proTip: 'Shows steady team leadership under stressful conditions.'
+      }
+    ];
+
     let prompt = `
 You are a Lead Technical Interviewer and Recruiter.
 Based on the candidate's resume and target role "${role}", generate 5 realistic interview questions (3 technical + 2 behavioral/situational) along with expert model answers and key advice.
@@ -677,8 +925,9 @@ Candidate Skills: ${(resume?.skills || []).join(', ')}
     if (isRegenerate && prevList.length > 0) {
       prompt += `
 CRITICAL INSTRUCTION FOR REGENERATION:
-The candidate requested a fresh set of questions. You MUST generate 5 completely NEW and DIFFERENT questions. Do NOT repeat or closely rephrase any of these previous questions:
-${prevList.slice(0, 10).map((q, i) => `${i + 1}. ${q}`).join('\n')}
+The candidate requested a fresh set of questions. You MUST generate 5 completely NEW, DIVERSE questions covering different topics.
+DO NOT repeat, rephrase, or duplicate any of these previously seen questions:
+${prevList.slice(0, 25).map((q, i) => `${i + 1}. ${q}`).join('\n')}
 `;
     }
 
@@ -701,13 +950,26 @@ Output ONLY raw JSON.
     try {
       const responseText = await callGemini(prompt, clientKey, {
         maxOutputTokens: 4000,
-        temperature: isRegenerate ? 0.85 : 0.7
+        temperature: isRegenerate ? 0.9 : 0.7
       });
       if (responseText) {
         const cleaned = responseText.replace(/```json/gi, '').replace(/```/g, '').trim();
-        questions = JSON.parse(cleaned);
-        if (Array.isArray(questions) && questions.length > 0) {
-          isAi = true;
+        const parsedQuestions = JSON.parse(cleaned);
+        if (Array.isArray(parsedQuestions) && parsedQuestions.length > 0) {
+          // Filter candidate questions against all previously seen questions
+          const uniqueAiQuestions = [];
+          for (const cand of parsedQuestions) {
+            if (!cand || !cand.question) continue;
+            const isDup = prevList.some(prev => areQuestionsSimilar(prev, cand.question))
+              || uniqueAiQuestions.some(seen => areQuestionsSimilar(seen.question, cand.question));
+            if (!isDup) {
+              uniqueAiQuestions.push(cand);
+            }
+          }
+          if (uniqueAiQuestions.length > 0) {
+            questions = uniqueAiQuestions;
+            isAi = true;
+          }
         }
       }
     } catch (err) {
@@ -724,90 +986,46 @@ Output ONLY raw JSON.
       });
     }
 
-    if (!questions || !Array.isArray(questions)) {
-      const fallbackPool = [
-        {
-          type: 'Technical',
-          question: `How do you approach performance optimization and architecture design for core features in ${role}?`,
-          idealAnswer: 'Explain how you identify bottlenecks with profiling tools, structure efficient algorithms and data access, implement caching where appropriate, and ensure clean separation of concerns.',
-          proTip: 'Highlight real engineering habits and trade-offs rather than generic definitions.'
-        },
-        {
-          type: 'Technical',
-          question: 'How do you ensure application security and reliable state management in your projects?',
-          idealAnswer: 'Discuss input validation, parameterized queries, secure credential handling, and keeping state predictable through structured patterns.',
-          proTip: 'Show security-conscious habits and thorough unit testing approaches.'
-        },
-        {
-          type: 'Technical',
-          question: 'Can you describe your component and API design methodology to ensure maintainability?',
-          idealAnswer: 'Detail modular decomposition, clear interface contracts, handling edge cases gracefully, and comprehensive documentation.',
-          proTip: 'Interviewers look for maintainability and scalability thinking.'
-        },
-        {
-          type: 'Technical',
-          question: `What strategies do you use for automated testing and preventing regressions in ${role}?`,
-          idealAnswer: 'Discuss unit testing critical business logic, integration tests for API workflows, end-to-end regression checks, and CI pipeline automation.',
-          proTip: 'Demonstrate balance between test coverage speed and defect prevention.'
-        },
-        {
-          type: 'Technical',
-          question: 'How do you diagnose and resolve complex asynchronous data synchronization or race conditions?',
-          idealAnswer: 'Explain tracing data flow, reproducing race conditions in isolated environments, implementing idempotent operations, and leveraging appropriate locking or optimistic concurrency controls.',
-          proTip: 'Concrete examples of distributed or stateful edge cases show senior technical maturity.'
-        },
-        {
-          type: 'Technical',
-          question: 'How do you handle technical debt while keeping velocity high on active deliverables?',
-          idealAnswer: 'Walk through incremental refactoring alongside feature work, documenting high-risk modules, establishing clear code standards, and negotiating tech debt time during sprint planning.',
-          proTip: 'Frame technical debt pragmatically in terms of delivery risk and maintenance cost.'
-        },
-        {
-          type: 'Behavioral',
-          question: 'Describe a time when you disagreed with a teammate or technical decision. How did you handle it?',
-          idealAnswer: 'Use STAR: Situation was a differing viewpoint on architecture or priorities; Task was reaching alignment; Action was evaluating trade-offs with data objectively; Result was consensus and delivery.',
-          proTip: 'Focus on collaborative resolution and shared project goals.'
-        },
-        {
-          type: 'Behavioral',
-          question: 'Tell me about a challenging bug or production incident you investigated and resolved.',
-          idealAnswer: 'Walk through isolating symptoms via logs/metrics, identifying the root cause, deploying a safe fix, and adding automated regression tests.',
-          proTip: 'Emphasize root-cause analysis and preventative measures.'
-        },
-        {
-          type: 'Behavioral',
-          question: 'Describe a situation where project requirements were ambiguous or rapidly changing. How did you succeed?',
-          idealAnswer: 'Explain clarifying requirements with stakeholders, breaking scope into verifiable iterative milestones, and maintaining frequent communication.',
-          proTip: 'Shows adaptability, proactive initiative, and stakeholder management skills.'
-        },
-        {
-          type: 'Behavioral',
-          question: 'How do you balance high code quality with aggressive delivery timelines?',
-          idealAnswer: 'Discuss prioritizing critical path architecture and security while identifying non-critical polish that can be phased cleanly, avoiding premature optimization.',
-          proTip: 'Hiring managers value engineers who align technical excellence with business outcomes.'
-        }
-      ];
+    // If AI did not produce a full set of 5 unique questions, backfill from non-seen fallbackPool
+    if (!questions || !Array.isArray(questions) || questions.length < 5) {
+      const existing = Array.isArray(questions) ? [...questions] : [];
+      const combinedHistory = [...prevList, ...existing.map(q => q.question)];
 
-      if (isRegenerate && prevList.length > 0) {
-        // Filter out questions previously seen by comparing normalized question prefix
-        const remaining = fallbackPool.filter(item =>
-          !prevList.some(prev => prev.toLowerCase().includes(item.question.slice(0, 25).toLowerCase()))
-        );
-        const techPool = remaining.filter(q => q.type === 'Technical');
-        const behavPool = remaining.filter(q => q.type === 'Behavioral');
+      // Filter fallback pool excluding all questions seen previously or in current batch
+      const remainingPool = fallbackPool.filter(item =>
+        !combinedHistory.some(seen => areQuestionsSimilar(seen, item.question))
+      );
 
-        const selectedTech = techPool.slice(0, 3);
-        const selectedBehav = behavPool.slice(0, 2);
-        questions = [...selectedTech, ...selectedBehav];
+      const needed = 5 - existing.length;
+      let techNeeded = Math.max(0, 3 - existing.filter(q => q.type === 'Technical').length);
+      let behavNeeded = Math.max(0, 2 - existing.filter(q => q.type === 'Behavioral').length);
 
-        if (questions.length < 5) {
-          const needed = 5 - questions.length;
-          const filler = fallbackPool.filter(q => !questions.some(sel => sel.question === q.question)).slice(0, needed);
-          questions = [...questions, ...filler];
-        }
-      } else {
-        questions = fallbackPool.slice(0, 3).concat(fallbackPool.slice(6, 8));
+      const availableTech = remainingPool.filter(q => q.type === 'Technical');
+      const availableBehav = remainingPool.filter(q => q.type === 'Behavioral');
+
+      const pickedTech = availableTech.slice(0, techNeeded);
+      const pickedBehav = availableBehav.slice(0, behavNeeded);
+      let filler = [...pickedTech, ...pickedBehav];
+
+      // If needed remaining count is still not met, pull from any remaining items in pool
+      if (filler.length < needed) {
+        const stillNeeded = needed - filler.length;
+        const extra = remainingPool
+          .filter(q => !filler.some(f => f.question === q.question))
+          .slice(0, stillNeeded);
+        filler = [...filler, ...extra];
       }
+
+      // If pool was completely exhausted across many rounds, rotate from original pool avoiding immediate duplicates
+      if (filler.length < needed) {
+        const stillNeeded = needed - filler.length;
+        const emergency = fallbackPool
+          .filter(q => !existing.some(e => areQuestionsSimilar(e.question, q.question)) && !filler.some(f => areQuestionsSimilar(f.question, q.question)))
+          .slice(0, stillNeeded);
+        filler = [...filler, ...emergency];
+      }
+
+      questions = [...existing, ...filler].slice(0, 5);
     }
 
     if (isAi && userId) {
@@ -838,6 +1056,34 @@ function stripLabel(str, labelRegex) {
   cleaned = cleaned.replace(/^[:\-\u2022*|#\s]+/, '').replace(/[:\s]+$/, '').trim();
   return cleaned;
 }
+
+const pureDateRegex = /^(?:(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\.?\s*)?(?:19\d{2}|20\d{2})\s*(?:[-–—/]|to)\s*(?:(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\.?\s*)?(?:19\d{2}|20\d{2}|present|current)\b/i;
+const yearOnlyRegex = /^(?:19\d{2}|20\d{2})\s*(?:[-–—/]|to)\s*(?:19\d{2}|20\d{2}|present|current)$/i;
+const singleYearRegex = /^(?:19\d{2}|20\d{2})$/;
+
+export function isStandaloneDate(str) {
+  if (!str || typeof str !== 'string') return false;
+  const s = str.trim();
+  return pureDateRegex.test(s) || yearOnlyRegex.test(s) || singleYearRegex.test(s);
+}
+
+export function extractDateTokens(str) {
+  if (!str || typeof str !== 'string') return { start: '', end: '', raw: '' };
+  const m = str.match(/(?:(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\.?\s*)?(?:19\d{2}|20\d{2})\s*(?:[-–—/]|to)\s*(?:(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\.?\s*)?(?:19\d{2}|20\d{2}|present|current)\b/i)
+    || str.match(/\b(19\d{2}|20\d{2})\s*(?:[-–—/]|to)\s*(19\d{2}|20\d{2}|present|current)\b/i)
+    || str.match(/\b(19\d{2}|20\d{2})\b/);
+  if (!m) return { start: '', end: '', raw: '' };
+  const raw = m[0].trim();
+  const parts = raw.split(/\s*(?:[-–—/]|to)\s*/i);
+  return {
+    start: parts[0] || '',
+    end: parts[1] || '',
+    raw
+  };
+}
+
+export const degreeKeywordRegex = /\b(?:bca|mca|b\.?tech|btech|m\.?tech|mtech|b\.?e\.?|be|m\.?e\.?|me|b\.?sc|bsc|m\.?sc|msc|b\.?com|bcom|m\.?com|mcom|bba|mba|b\.?s\.?|bs|b\.?a\.?|ba|m\.?s\.?|ms|m\.?a\.?|ma|bachelor(?:'s)?|master(?:'s)?|phd|doctorate|diploma|associate|degree|matriculation|secondary|high\s*school)\b/i;
+export const instKeywordRegex = /\b(?:college|university|institute|school|academy|vidyalaya|campus|polytechnic)\b/i;
 
 function sanitizeTargetRole(val) {
   let cleaned = stripLabel(val, /^(?:target\s*role|target\s*job\s*role|job\s*title|role|position|title)\s*:\s*/i);
@@ -894,29 +1140,112 @@ export function sanitizeParsedResume(parsed) {
 
   let experience = [];
   if (Array.isArray(parsed.experience)) {
-    experience = parsed.experience.map(e => ({
-      company: stripLabel(e.company, /^(?:company|employer|organization)\s*:\s*/i),
-      role: stripLabel(e.role, /^(?:role|position|job\s*title|title)\s*:\s*/i),
-      location: stripLabel(e.location, /^(?:location|city|country)\s*:\s*/i),
-      startDate: stripLabel(e.startDate, /^(?:start\s*date|from)\s*:\s*/i),
-      endDate: stripLabel(e.endDate, /^(?:end\s*date|to)\s*:\s*/i),
-      description: typeof e.description === 'string' ? e.description.trim() : ''
-    })).filter(e => e.company || e.role);
+    experience = parsed.experience.map((e, idx) => {
+      let company = stripLabel(e.company, /^(?:company|employer|organization)\s*:\s*/i);
+      let role = stripLabel(e.role, /^(?:role|position|job\s*title|title)\s*:\s*/i);
+      let startDate = stripLabel(e.startDate, /^(?:start\s*date|from)\s*:\s*/i);
+      let endDate = stripLabel(e.endDate, /^(?:end\s*date|to)\s*:\s*/i);
+      let year = stripLabel(e.year, /^(?:year|duration|dates?|period)\s*:\s*/i);
+
+      // 1. Separate "Role at Company" if packed into role or company
+      if (!company && role && /^(.+?)\s+(?:at|@)\s+(.+)$/i.test(role)) {
+        const atMatch = role.match(/^(.+?)\s+(?:at|@)\s+(.+)$/i);
+        role = atMatch[1].trim();
+        company = atMatch[2].trim();
+      } else if (!role && company && /^(.+?)\s+(?:at|@)\s+(.+)$/i.test(company)) {
+        const atMatch = company.match(/^(.+?)\s+(?:at|@)\s+(.+)$/i);
+        role = atMatch[1].trim();
+        company = atMatch[2].trim();
+      }
+
+      // 2. Prevent dates from being mistaken for company or role
+      if (isStandaloneDate(company)) {
+        if (!startDate && !year) {
+          const dt = extractDateTokens(company);
+          startDate = dt.start || dt.raw;
+          endDate = dt.end;
+          year = dt.raw;
+        }
+        company = '';
+      }
+      if (isStandaloneDate(role)) {
+        if (!startDate && !year) {
+          const dt = extractDateTokens(role);
+          startDate = dt.start || dt.raw;
+          endDate = dt.end;
+          year = dt.raw;
+        }
+        role = '';
+      }
+
+      // 3. Normalize duration fields
+      if (!startDate && year) {
+        const dt = extractDateTokens(year);
+        startDate = dt.start || dt.raw;
+        endDate = dt.end;
+      } else if (startDate && endDate && !year) {
+        year = `${startDate} - ${endDate}`;
+      } else if (startDate && !year) {
+        year = startDate;
+      }
+
+      return {
+        id: e.id || `exp-${Date.now()}-${idx + 1}`,
+        company,
+        role,
+        location: stripLabel(e.location, /^(?:location|city|country)\s*:\s*/i),
+        startDate,
+        endDate,
+        year,
+        description: typeof e.description === 'string' ? e.description.trim() : ''
+      };
+    }).filter(e => e.company || e.role);
   }
 
   let education = [];
   if (Array.isArray(parsed.education)) {
-    education = parsed.education.map(ed => ({
-      institution: stripLabel(ed.institution, /^(?:institution|school|university|college)\s*:\s*/i),
-      degree: stripLabel(ed.degree, /^(?:degree|major|program)\s*:\s*/i),
-      year: stripLabel(ed.year, /^(?:year|years|graduation)\s*:\s*/i),
-      score: stripLabel(ed.score, /^(?:score|gpa|grade)\s*:\s*/i)
-    })).filter(ed => ed.institution || ed.degree);
+    education = parsed.education.map((ed, idx) => {
+      let institution = stripLabel(ed.institution, /^(?:institution|school|university|college)\s*:\s*/i);
+      let degree = stripLabel(ed.degree, /^(?:degree|major|program)\s*:\s*/i);
+      let year = stripLabel(ed.year, /^(?:year|years|graduation|duration)\s*:\s*/i);
+
+      // Prevent dates from becoming institution or degree
+      if (isStandaloneDate(institution)) {
+        if (!year) year = institution;
+        institution = '';
+      }
+      if (isStandaloneDate(degree)) {
+        if (!year) year = degree;
+        degree = '';
+      }
+
+      // If "Degree, Institution" was packed into institution
+      if (!degree && institution && (institution.includes(',') || institution.includes('|') || institution.includes(' - '))) {
+        const sep = institution.includes('|') ? '|' : (institution.includes(',') ? ',' : ' - ');
+        const parts = institution.split(sep).map(p => p.trim()).filter(Boolean);
+        if (parts.length >= 2) {
+          const degIdx = parts.findIndex(p => degreeKeywordRegex.test(p));
+          if (degIdx !== -1) {
+            degree = parts[degIdx];
+            institution = parts.filter((_, i) => i !== degIdx).join(', ');
+          }
+        }
+      }
+
+      return {
+        id: ed.id || `edu-${Date.now()}-${idx + 1}`,
+        institution,
+        degree,
+        year,
+        score: stripLabel(ed.score, /^(?:score|gpa|grade|marks?)\s*:\s*/i)
+      };
+    }).filter(ed => ed.institution || ed.degree);
   }
 
   let projects = [];
   if (Array.isArray(parsed.projects)) {
-    projects = parsed.projects.map(pr => ({
+    projects = parsed.projects.map((pr, idx) => ({
+      id: pr.id || `proj-${Date.now()}-${idx + 1}`,
       name: stripLabel(pr.name, /^(?:project\s*name|project|title)\s*:\s*/i),
       description: typeof pr.description === 'string' ? pr.description.trim() : '',
       link: stripLabel(pr.link, /^(?:link|url|github)\s*:\s*/i)
@@ -1136,137 +1465,404 @@ export function parseResumeRuleBased(resumeText) {
   const experience = [];
   if (sections.experience.length > 0) {
     let currentExp = null;
-    for (const line of sections.experience) {
-      const dateRangeMatch = line.match(/(?:(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\s+)?\d{4}\s*(?:-|–|to)\s*(?:(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\s+\d{4}|present|\d{4})/i);
-      const isBullet = /^[-•*]\s*/.test(line);
 
-      if (!isBullet && (line.includes('|') || dateRangeMatch || /^(?:company|role|title):/i.test(line))) {
-        if (currentExp && (currentExp.company || currentExp.role)) {
-          experience.push(currentExp);
-        }
-        let comp = '';
-        let role = '';
-        let start = '';
-        let end = '';
-        let loc = '';
-
-        if (line.includes('|')) {
-          const parts = line.split('|').map(p => p.trim());
-          comp = parts[0] || '';
-          role = parts[1] || '';
-          if (parts[2]) {
-            if (dateRangeMatch) {
-              const dParts = parts[2].split(/[-–]|to/i).map(s => s.trim());
-              start = dParts[0] || '';
-              end = dParts[1] || '';
-            } else {
-              loc = parts[2];
-            }
+    const commitExp = () => {
+      if (currentExp && (currentExp.company || currentExp.role)) {
+        if (isStandaloneDate(currentExp.company)) {
+          if (!currentExp.startDate && !currentExp.year) {
+            const dt = extractDateTokens(currentExp.company);
+            currentExp.startDate = dt.start || dt.raw;
+            currentExp.endDate = dt.end;
+            currentExp.year = dt.raw;
           }
-        } else if (/^(?:company|organization)\s*:\s*/i.test(line)) {
-          comp = stripLabel(line, /^(?:company|organization)\s*:\s*/i);
-        } else if (/^(?:role|position|title)\s*:\s*/i.test(line)) {
-          role = stripLabel(line, /^(?:role|position|title)\s*:\s*/i);
-        } else {
-          comp = line;
+          currentExp.company = '';
         }
-
-        currentExp = {
-          company: stripLabel(comp, /^(?:company|employer)\s*:\s*/i),
-          role: stripLabel(role, /^(?:role|position|title)\s*:\s*/i),
-          location: loc,
-          startDate: start,
-          endDate: end,
-          description: ''
-        };
-      } else if (currentExp) {
-        const bulletText = line.replace(/^[-•*]\s*/, '').trim();
-        if (bulletText) {
-          currentExp.description = currentExp.description
-            ? `${currentExp.description}\n• ${bulletText}`
-            : `• ${bulletText}`;
+        if (isStandaloneDate(currentExp.role)) {
+          if (!currentExp.startDate && !currentExp.year) {
+            const dt = extractDateTokens(currentExp.role);
+            currentExp.startDate = dt.start || dt.raw;
+            currentExp.endDate = dt.end;
+            currentExp.year = dt.raw;
+          }
+          currentExp.role = '';
+        }
+        if (currentExp.company || currentExp.role) {
+          experience.push({
+            ...currentExp,
+            id: currentExp.id || `exp-${Date.now()}-${experience.length + 1}`
+          });
         }
       }
+      currentExp = null;
+    };
+
+    for (let i = 0; i < sections.experience.length; i++) {
+      const line = sections.experience[i];
+      const isBullet = /^[-•*]\s*/.test(line);
+
+      // 1. Standalone date line
+      if (isStandaloneDate(line)) {
+        const dt = extractDateTokens(line);
+        if (currentExp) {
+          currentExp.startDate = dt.start || dt.raw;
+          currentExp.endDate = dt.end;
+          currentExp.year = dt.raw;
+        }
+        continue;
+      }
+
+      // 2. Bullet point line
+      if (isBullet) {
+        if (currentExp) {
+          const bulletText = line.replace(/^[-•*]\s*/, '').trim();
+          if (bulletText) {
+            currentExp.description = currentExp.description
+              ? `${currentExp.description}\n• ${bulletText}`
+              : `• ${bulletText}`;
+          }
+        }
+        continue;
+      }
+
+      // 3. Explicit labels
+      if (/^(?:company|employer|organization)\s*:\s*/i.test(line)) {
+        if (!currentExp || currentExp.company) commitExp();
+        if (!currentExp) currentExp = { company: '', role: '', location: '', startDate: '', endDate: '', year: '', description: '' };
+        currentExp.company = stripLabel(line, /^(?:company|employer|organization)\s*:\s*/i);
+        continue;
+      }
+      if (/^(?:role|position|job\s*title|title)\s*:\s*/i.test(line)) {
+        if (!currentExp || currentExp.role) commitExp();
+        if (!currentExp) currentExp = { company: '', role: '', location: '', startDate: '', endDate: '', year: '', description: '' };
+        currentExp.role = stripLabel(line, /^(?:role|position|job\s*title|title)\s*:\s*/i);
+        continue;
+      }
+      if (/^(?:duration|dates?|period)\s*:\s*/i.test(line)) {
+        const dtStr = stripLabel(line, /^(?:duration|dates?|period)\s*:\s*/i);
+        const dt = extractDateTokens(dtStr);
+        if (currentExp) {
+          currentExp.startDate = dt.start || dt.raw;
+          currentExp.endDate = dt.end;
+          currentExp.year = dt.raw;
+        }
+        continue;
+      }
+
+      // 4. Pipe-separated: "Frontend Developer | Test Company | 2025-2026"
+      if (line.includes('|')) {
+        commitExp();
+        const parts = line.split('|').map(p => p.trim());
+        let r = '';
+        let c = '';
+        let d = '';
+        let loc = '';
+
+        for (const p of parts) {
+          if (isStandaloneDate(p)) {
+            d = p;
+          } else if (!r && /(?:developer|engineer|manager|lead|analyst|designer|consultant|specialist|architect|intern|director|officer|executive|administrator)/i.test(p)) {
+            r = p;
+          } else if (!c) {
+            c = p;
+          } else if (!r) {
+            r = p;
+          } else if (!loc) {
+            loc = p;
+          }
+        }
+
+        const dt = extractDateTokens(d);
+        currentExp = {
+          role: stripLabel(r, /^(?:role|position|title)\s*:\s*/i),
+          company: stripLabel(c, /^(?:company|employer)\s*:\s*/i),
+          location: loc,
+          startDate: dt.start || dt.raw,
+          endDate: dt.end,
+          year: dt.raw,
+          description: ''
+        };
+        continue;
+      }
+
+      // 5. "Role at / @ Company" pattern
+      const atMatch = line.match(/^(.+?)\s+(?:at|@)\s+(.+)$/i);
+      if (atMatch && !isStandaloneDate(atMatch[1]) && !isStandaloneDate(atMatch[2])) {
+        commitExp();
+        let r = atMatch[1].trim();
+        let c = atMatch[2].trim();
+        let d = '';
+
+        const parenDate = c.match(/\(([^)]+)\)$/);
+        if (parenDate && isStandaloneDate(parenDate[1])) {
+          d = parenDate[1];
+          c = c.replace(/\([^)]+\)$/, '').trim();
+        }
+
+        const dt = extractDateTokens(d);
+        currentExp = {
+          role: stripLabel(r, /^(?:role|position|title)\s*:\s*/i),
+          company: stripLabel(c, /^(?:company|employer)\s*:\s*/i),
+          location: '',
+          startDate: dt.start || dt.raw,
+          endDate: dt.end,
+          year: dt.raw,
+          description: ''
+        };
+        continue;
+      }
+
+      // 6. Dash-separated: "Frontend Developer - Test Company"
+      const dashParts = line.split(/\s*[-–—]\s*/);
+      if (dashParts.length === 2 && !isStandaloneDate(line) && dashParts[0].length < 60 && dashParts[1].length < 60) {
+        commitExp();
+        let r = dashParts[0].trim();
+        let c = dashParts[1].trim();
+        if (/(?:developer|engineer|manager|lead|analyst|designer|consultant|specialist|architect|intern)/i.test(c)) {
+          const tmp = r; r = c; c = tmp;
+        }
+        currentExp = {
+          role: stripLabel(r, /^(?:role|position|title)\s*:\s*/i),
+          company: stripLabel(c, /^(?:company|employer)\s*:\s*/i),
+          location: '',
+          startDate: '',
+          endDate: '',
+          year: '',
+          description: ''
+        };
+        continue;
+      }
+
+      // 7. Multi-line entry association
+      if (!currentExp) {
+        currentExp = {
+          role: line,
+          company: '',
+          location: '',
+          startDate: '',
+          endDate: '',
+          year: '',
+          description: ''
+        };
+      } else if (!currentExp.company && !currentExp.description) {
+        currentExp.company = line;
+      } else {
+        currentExp.description = currentExp.description
+          ? `${currentExp.description}\n• ${line}`
+          : `• ${line}`;
+      }
     }
-    if (currentExp && (currentExp.company || currentExp.role)) {
-      experience.push(currentExp);
-    }
+    commitExp();
   }
 
   // 7. Education Parsing
   const education = [];
   if (sections.education.length > 0) {
     let currentEdu = null;
-    for (const line of sections.education) {
-      if (/^(?:institution|school|university|college)\s*:\s*/i.test(line) || line.includes('|') || /(?:bachelor|master|phd|associate|b\.s\.|b\.a\.|m\.s\.|m\.a\.|diploma|degree)/i.test(line)) {
-        if (currentEdu && (currentEdu.institution || currentEdu.degree)) {
-          education.push(currentEdu);
+
+    const commitEdu = () => {
+      if (currentEdu && (currentEdu.institution || currentEdu.degree)) {
+        if (isStandaloneDate(currentEdu.institution)) {
+          if (!currentEdu.year) currentEdu.year = currentEdu.institution;
+          currentEdu.institution = '';
         }
-        let inst = '';
+        if (isStandaloneDate(currentEdu.degree)) {
+          if (!currentEdu.year) currentEdu.year = currentEdu.degree;
+          currentEdu.degree = '';
+        }
+        if (currentEdu.institution || currentEdu.degree) {
+          education.push({
+            ...currentEdu,
+            id: currentEdu.id || `edu-${Date.now()}-${education.length + 1}`
+          });
+        }
+      }
+      currentEdu = null;
+    };
+
+    for (let i = 0; i < sections.education.length; i++) {
+      const line = sections.education[i];
+
+      // 1. Standalone date line
+      if (isStandaloneDate(line)) {
+        if (currentEdu) {
+          const dt = extractDateTokens(line);
+          currentEdu.year = dt.raw || line.trim();
+        }
+        continue;
+      }
+
+      // 2. Score or Grade
+      if (/^(?:score|cgpa|gpa|grade|percentage|marks?)\s*:\s*/i.test(line) || /\b\d(?:\.\d{1,2})?\s*(?:cgpa|gpa)\b/i.test(line) || /\b\d{2}(?:\.\d{1,2})?%/i.test(line)) {
+        if (currentEdu) {
+          currentEdu.score = stripLabel(line, /^(?:score|cgpa|gpa|grade|percentage|marks?)\s*:\s*/i);
+        }
+        continue;
+      }
+
+      // 3. Explicit labels
+      if (/^(?:institution|school|university|college)\s*:\s*/i.test(line)) {
+        if (!currentEdu || currentEdu.institution) commitEdu();
+        if (!currentEdu) currentEdu = { institution: '', degree: '', year: '', score: '' };
+        currentEdu.institution = stripLabel(line, /^(?:institution|school|university|college)\s*:\s*/i);
+        continue;
+      }
+      if (/^(?:degree|major|program|course)\s*:\s*/i.test(line)) {
+        if (!currentEdu || currentEdu.degree) commitEdu();
+        if (!currentEdu) currentEdu = { institution: '', degree: '', year: '', score: '' };
+        currentEdu.degree = stripLabel(line, /^(?:degree|major|program|course)\s*:\s*/i);
+        continue;
+      }
+      if (/^(?:passing\s*year|year|graduation|duration)\s*:\s*/i.test(line)) {
+        if (currentEdu) {
+          currentEdu.year = stripLabel(line, /^(?:passing\s*year|year|graduation|duration)\s*:\s*/i);
+        }
+        continue;
+      }
+
+      // 4. Delimited line: "BCA, Test College" or "B.Tech | GTU | 2017-2021"
+      if (line.includes('|') || line.includes(',') || line.includes(' - ')) {
+        const separator = line.includes('|') ? '|' : (line.includes(',') ? ',' : ' - ');
+        const parts = line.split(separator).map(p => p.trim()).filter(Boolean);
+
         let deg = '';
+        let inst = '';
         let yr = '';
-        const yearMatch = line.match(/\b(19\d{2}|20\d{2})\s*(?:-|–|to)?\s*(19\d{2}|20\d{2})?\b/);
 
-        if (line.includes('|')) {
-          const parts = line.split('|').map(p => p.trim());
-          inst = parts[0] || '';
-          deg = parts[1] || '';
-          yr = parts[2] || (yearMatch ? yearMatch[0] : '');
-        } else if (/^(?:institution|school|university)\s*:\s*/i.test(line)) {
-          inst = stripLabel(line, /^(?:institution|school|university)\s*:\s*/i);
-        } else if (/^(?:degree|major|program)\s*:\s*/i.test(line)) {
-          deg = stripLabel(line, /^(?:degree|major|program)\s*:\s*/i);
-        } else {
-          inst = line;
+        for (const p of parts) {
+          if (isStandaloneDate(p)) {
+            yr = p;
+          } else if (degreeKeywordRegex.test(p) && !deg) {
+            deg = p;
+          } else if (instKeywordRegex.test(p) && !inst) {
+            inst = p;
+          } else if (!deg) {
+            deg = p;
+          } else if (!inst) {
+            inst = p;
+          }
         }
 
-        currentEdu = {
-          institution: stripLabel(inst, /^(?:institution|school|university)\s*:\s*/i),
-          degree: stripLabel(deg, /^(?:degree|major)\s*:\s*/i),
-          year: yr || (yearMatch ? yearMatch[0] : ''),
-          score: ''
-        };
-      } else if (currentEdu && !currentEdu.degree && line.length < 80) {
-        currentEdu.degree = stripLabel(line, /^(?:degree|major)\s*:\s*/i);
+        if (deg || inst) {
+          commitEdu();
+          currentEdu = {
+            degree: stripLabel(deg, /^(?:degree|major)\s*:\s*/i),
+            institution: stripLabel(inst, /^(?:institution|school|university|college)\s*:\s*/i),
+            year: yr,
+            score: ''
+          };
+          continue;
+        }
+      }
+
+      // 5. Degree keyword line
+      if (degreeKeywordRegex.test(line)) {
+        if (!currentEdu || currentEdu.degree) commitEdu();
+        if (!currentEdu) currentEdu = { institution: '', degree: '', year: '', score: '' };
+        currentEdu.degree = line;
+        continue;
+      }
+
+      // 6. Institution keyword line
+      if (instKeywordRegex.test(line)) {
+        if (!currentEdu || currentEdu.institution) commitEdu();
+        if (!currentEdu) currentEdu = { institution: '', degree: '', year: '', score: '' };
+        currentEdu.institution = line;
+        continue;
+      }
+
+      // 7. General fallback
+      if (!currentEdu) {
+        currentEdu = { institution: '', degree: line, year: '', score: '' };
+      } else if (!currentEdu.institution) {
+        currentEdu.institution = line;
+      } else if (!currentEdu.degree) {
+        currentEdu.degree = line;
       }
     }
-    if (currentEdu && (currentEdu.institution || currentEdu.degree)) {
-      education.push(currentEdu);
-    }
+    commitEdu();
   }
 
   // 8. Projects Parsing
   const projects = [];
   if (sections.projects.length > 0) {
     let currentProj = null;
+
+    const commitProj = () => {
+      if (currentProj && currentProj.name) {
+        projects.push({
+          ...currentProj,
+          id: currentProj.id || `proj-${Date.now()}-${projects.length + 1}`
+        });
+      }
+      currentProj = null;
+    };
+
     for (const line of sections.projects) {
       const isBullet = /^[-•*]\s*/.test(line);
-      if (!isBullet && (/^(?:project\s*name|project)\s*:\s*/i.test(line) || (line.length < 60 && !line.includes('http')))) {
-        if (currentProj && currentProj.name) {
-          projects.push(currentProj);
+
+      // 1. Explicit project label
+      if (/^(?:project\s*name|project\s*title|project)\s*:\s*/i.test(line)) {
+        commitProj();
+        const raw = stripLabel(line, /^(?:project\s*name|project\s*title|project)\s*:\s*/i);
+        const urlMatch = raw.match(/(?:https?:\/\/[^\s]+|github\.com\/[^\s]+)/i);
+        currentProj = {
+          name: urlMatch ? raw.replace(urlMatch[0], '').replace(/[|\-–—()]+/g, '').trim() : raw,
+          description: '',
+          link: urlMatch ? urlMatch[0] : ''
+        };
+        continue;
+      }
+
+      // 2. Pipe-delimited: "Project Name | Link/Tech"
+      if (line.includes('|')) {
+        commitProj();
+        const parts = line.split('|').map(p => p.trim());
+        const linkPart = parts.find(p => /(?:https?:\/\/|github\.com)/i.test(p)) || '';
+        const namePart = parts[0] !== linkPart ? parts[0] : (parts[1] || parts[0]);
+        currentProj = {
+          name: namePart || '',
+          description: '',
+          link: linkPart
+        };
+        continue;
+      }
+
+      // 3. Standalone URL line
+      const isPureUrl = /^(?:https?:\/\/|www\.|github\.com\/)/i.test(line.trim());
+      if (isPureUrl) {
+        if (currentProj) {
+          const match = line.match(/(?:https?:\/\/[^\s]+|github\.com\/[^\s]+)/i);
+          if (match) currentProj.link = match[0];
         }
+        continue;
+      }
+
+      if (isBullet) {
+        if (currentProj) {
+          const descLine = line.replace(/^[-•*]\s*/, '').trim();
+          if (descLine) {
+            currentProj.description = currentProj.description
+              ? `${currentProj.description}\n• ${descLine}`
+              : `• ${descLine}`;
+          }
+        }
+        continue;
+      }
+
+      // Title line (< 60 chars) or new project
+      if (!currentProj || !currentProj.name) {
         currentProj = {
           name: stripLabel(line, /^(?:project\s*name|project)\s*:\s*/i),
           description: '',
           link: ''
         };
-      } else if (currentProj) {
-        if (/https?:\/\//i.test(line)) {
-          const urlMatch = line.match(/https?:\/\/[^\s]+/);
-          if (urlMatch) currentProj.link = urlMatch[0];
-        } else {
-          const descLine = line.replace(/^[-•*]\s*/, '').trim();
-          if (descLine) {
-            currentProj.description = currentProj.description
-              ? `${currentProj.description} ${descLine}`
-              : descLine;
-          }
-        }
+      } else if (!currentProj.description) {
+        currentProj.description = line;
+      } else {
+        currentProj.description = `${currentProj.description} ${line}`;
       }
     }
-    if (currentProj && currentProj.name) {
-      projects.push(currentProj);
-    }
+    commitProj();
   }
 
   const result = {
