@@ -394,15 +394,27 @@ export default function App() {
     };
 
     setResume(prev => {
-      // Build safe merged personal_info preserving existing fields if parsed values are absent
-      const mergedPersonalInfo = { ...(prev.personal_info || {}) };
-      if (parsedData.personal_info && typeof parsedData.personal_info === 'object') {
-        Object.entries(parsedData.personal_info).forEach(([key, val]) => {
-          if (typeof val === 'string' && val.trim()) {
-            mergedPersonalInfo[key] = val.trim();
-          }
-        });
-      }
+      // Build safe personal_info for fresh import:
+      // Genuine extracted contact fields are set; missing fields fallback to existing/empty;
+      // CRITICAL: Profile links (linkedin, github, website) must come ONLY from the newly parsed document
+      // and NOT inherit stale demo links from the previous template/demo resume.
+      const incomingPersonal = (parsedData.personal_info && typeof parsedData.personal_info === 'object')
+        ? parsedData.personal_info
+        : {};
+
+      const cleanField = (val) => (typeof val === 'string' ? val.trim() : '');
+
+      const mergedPersonalInfo = {
+        fullName: cleanField(incomingPersonal.fullName) || cleanField(prev.personal_info?.fullName),
+        email: cleanField(incomingPersonal.email) || cleanField(prev.personal_info?.email),
+        phone: cleanField(incomingPersonal.phone) || cleanField(prev.personal_info?.phone),
+        location: cleanField(incomingPersonal.location) || cleanField(prev.personal_info?.location),
+        linkedin: cleanField(incomingPersonal.linkedin),
+        github: cleanField(incomingPersonal.github),
+        website: cleanField(incomingPersonal.website),
+        profile_photo: prev.personal_info?.profile_photo || '',
+        photo_shape: prev.personal_info?.photo_shape || 'circle'
+      };
 
       return {
         ...prev,

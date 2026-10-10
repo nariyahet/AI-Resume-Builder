@@ -12,7 +12,11 @@ try {
 }
 
 // Robust helper supporting pdf-parse v2+ (PDFParse class) and v1 (function)
-async function extractTextFromPdf(buffer) {
+export async function extractTextFromPdf(buffer) {
+  if (!buffer || buffer.length === 0) {
+    throw new Error('PDF file is empty (0 bytes).');
+  }
+
   if (!pdfParseModule) {
     throw new Error('PDF parsing library is not available.');
   }
@@ -53,8 +57,8 @@ export const uploadMiddleware = multer({
 
 export async function uploadAndParseResume(req, res) {
   try {
-    if (!req.file) {
-      return res.status(400).json({ success: false, message: 'No resume file uploaded.' });
+    if (!req.file || !req.file.buffer || req.file.buffer.length === 0) {
+      return res.status(400).json({ success: false, message: 'The uploaded file is empty (0 bytes).' });
     }
 
     const { mimetype, originalname, buffer } = req.file;
@@ -74,10 +78,12 @@ export async function uploadAndParseResume(req, res) {
             message: 'The uploaded PDF is password protected. Please remove the password and try again.'
           });
         }
-        if (pdfErr.name === 'InvalidPDFException' || errMsg.toLowerCase().includes('invalid pdf') || errMsg.toLowerCase().includes('structure')) {
+        if (pdfErr.name === 'InvalidPDFException' || errMsg.toLowerCase().includes('invalid pdf') || errMsg.toLowerCase().includes('structure') || errMsg.toLowerCase().includes('corrupt') || errMsg.toLowerCase().includes('empty')) {
           return res.status(400).json({
             success: false,
-            message: 'The uploaded file is not a valid or readable PDF document.'
+            message: errMsg.toLowerCase().includes('empty')
+              ? 'The uploaded PDF file is empty.'
+              : 'The uploaded file is not a valid or readable PDF document.'
           });
         }
         return res.status(400).json({

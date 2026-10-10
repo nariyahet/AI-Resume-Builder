@@ -29,15 +29,16 @@ export default function InterviewPrepModal({ isOpen, onClose, resume }) {
     }
   }, [questions]);
 
-  // Reset session history when opening for a different resume
-  const lastResumeIdRef = useRef(resume?.id);
+  // Reset session history when opening for a different resume or target role
+  const sessionKey = `${resume?.id || resume?.title || 'draft'}::${resume?.target_role || ''}`;
+  const lastSessionKeyRef = useRef(sessionKey);
   useEffect(() => {
-    if (resume?.id !== lastResumeIdRef.current) {
-      lastResumeIdRef.current = resume?.id;
+    if (sessionKey !== lastSessionKeyRef.current) {
+      lastSessionKeyRef.current = sessionKey;
       seenQuestionsRef.current.clear();
       setQuestions([]);
     }
-  }, [resume?.id]);
+  }, [sessionKey]);
 
   if (!isOpen) return null;
 

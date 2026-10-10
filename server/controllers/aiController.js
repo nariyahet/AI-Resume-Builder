@@ -1016,10 +1016,12 @@ Output ONLY raw JSON.
         filler = [...filler, ...extra];
       }
 
-      // If pool was completely exhausted across many rounds, rotate from original pool avoiding immediate duplicates
+      // If pool was completely exhausted across many rounds, rotate from original pool with dynamic offset avoiding immediate duplicates
       if (filler.length < needed) {
         const stillNeeded = needed - filler.length;
-        const emergency = fallbackPool
+        const offset = prevList.length % fallbackPool.length;
+        const rotatedPool = [...fallbackPool.slice(offset), ...fallbackPool.slice(0, offset)];
+        const emergency = rotatedPool
           .filter(q => !existing.some(e => areQuestionsSimilar(e.question, q.question)) && !filler.some(f => areQuestionsSimilar(f.question, q.question)))
           .slice(0, stillNeeded);
         filler = [...filler, ...emergency];
@@ -1083,7 +1085,8 @@ export function extractDateTokens(str) {
 }
 
 export const degreeKeywordRegex = /\b(?:bca|mca|b\.?tech|btech|m\.?tech|mtech|b\.?e\.?|be|m\.?e\.?|me|b\.?sc|bsc|m\.?sc|msc|b\.?com|bcom|m\.?com|mcom|bba|mba|b\.?s\.?|bs|b\.?a\.?|ba|m\.?s\.?|ms|m\.?a\.?|ma|bachelor(?:'s)?|master(?:'s)?|phd|doctorate|diploma|associate|degree|matriculation|secondary|high\s*school)\b/i;
-export const instKeywordRegex = /\b(?:college|university|institute|school|academy|vidyalaya|campus|polytechnic)\b/i;
+export const instKeywordRegex = /\b(?:college|university|institute|school|academy|vidyalaya|campus|polytechnic|faculty|department|iit|nit|iiit|bits|mit)\b/i;
+export const roleKeywordRegex = /\b(?:developer|engineer|manager|lead|analyst|designer|consultant|specialist|architect|intern|director|officer|executive|administrator|scientist|programmer|coordinator|assistant|associate|representative|technician|supervisor|founder|co-founder|cto|ceo|vp|head\s+of)\b/i;
 
 function sanitizeTargetRole(val) {
   let cleaned = stripLabel(val, /^(?:target\s*role|target\s*job\s*role|job\s*title|role|position|title)\s*:\s*/i);
@@ -1108,14 +1111,31 @@ export function sanitizeParsedResume(parsed) {
   if (!parsed || typeof parsed !== 'object') return parsed;
 
   const pInfo = parsed.personal_info || {};
+  const isInvalidLink = (val) => !val || typeof val !== 'string' || /^(?:n\/?a|none|not\s*provided|null|undefined|yourname|username)$/i.test(val.trim());
+
+  let cleanLinkedin = stripLabel(pInfo.linkedin, /^(?:linkedin|linkedin\s*url|linkedin\s*profile)\s*:\s*/i);
+  if (isInvalidLink(cleanLinkedin) || !/linkedin\.com/i.test(cleanLinkedin)) {
+    cleanLinkedin = '';
+  }
+
+  let cleanGithub = stripLabel(pInfo.github, /^(?:github|github\s*url|github\s*profile)\s*:\s*/i);
+  if (isInvalidLink(cleanGithub) || !/github\.com/i.test(cleanGithub)) {
+    cleanGithub = '';
+  }
+
+  let cleanWebsite = stripLabel(pInfo.website, /^(?:website|portfolio|web)\s*:\s*/i);
+  if (isInvalidLink(cleanWebsite) || /^(?:example\.com|website\.com|portfolio\.com)$/i.test(cleanWebsite.trim()) || /[\w.+-]+@[\w.-]+\.[a-zA-Z]{2,}/.test(cleanWebsite)) {
+    cleanWebsite = '';
+  }
+
   const cleanedPersonalInfo = {
     fullName: stripLabel(pInfo.fullName, /^(?:name|full\s*name|candidate\s*name)\s*:\s*/i),
     email: stripLabel(pInfo.email, /^(?:email|email\s*address|e-mail)\s*:\s*/i),
     phone: stripLabel(pInfo.phone, /^(?:phone|phone\s*number|tel|telephone|mobile|cell)\s*:\s*/i),
     location: stripLabel(pInfo.location, /^(?:location|address|city|country)\s*:\s*/i),
-    linkedin: stripLabel(pInfo.linkedin, /^(?:linkedin|linkedin\s*url|linkedin\s*profile)\s*:\s*/i),
-    github: stripLabel(pInfo.github, /^(?:github|github\s*url|github\s*profile)\s*:\s*/i),
-    website: stripLabel(pInfo.website, /^(?:website|portfolio|web)\s*:\s*/i)
+    linkedin: cleanLinkedin,
+    github: cleanGithub,
+    website: cleanWebsite
   };
 
   const emailRegex = /[\w.+-]+@[\w.-]+\.[a-zA-Z]{2,}/;
@@ -1293,13 +1313,21 @@ export function parseResumeRuleBased(resumeText) {
   const githubMatch = resumeText.match(githubRegex);
 
   let website = '';
-  const webMatches = resumeText.match(new RegExp(websiteRegex, 'gi')) || [];
-  for (const m of webMatches) {
-    if (!m.includes('linkedin.com') && !m.includes('github.com')) {
-      const isEmailDomain = new RegExp(`[\\w.-]+@${m.replace(/^https?:\\\/\\\//, '').replace(/^www\\./, '')}`, 'i').test(resumeText);
-      if (!isEmailDomain) {
-        website = m;
-        break;
+  const explicitWebLine = lines.find(l => /^(?:website|portfolio|web|blog)\s*:\s*/i.test(l));
+  if (explicitWebLine) {
+    website = stripLabel(explicitWebLine, /^(?:website|portfolio|web|blog)\s*:\s*/i);
+  } else {
+    // Only search the top header lines (first 10 non-empty lines) so body tech terms (e.g. vercel.app, node.js) are never misidentified
+    const headerLines = lines.slice(0, 10).join(' ');
+    const webMatches = headerLines.match(new RegExp(websiteRegex, 'gi')) || [];
+    const nonPersonalHosts = /\b(?:linkedin\.com|github\.com|gmail\.com|yahoo\.com|outlook\.com|hotmail\.com|google\.com|vercel\.app|netlify\.app|heroku\.com|aws\.amazon\.com|react\.dev|reactjs\.org|nodejs\.org|wikipedia\.org|stackoverflow\.com|medium\.com|npm\.im|npmjs\.com)\b/i;
+    for (const m of webMatches) {
+      if (!nonPersonalHosts.test(m)) {
+        const isEmailDomain = new RegExp(`[\\w.-]+@${m.replace(/^https?:\\\/\\\//, '').replace(/^www\\./, '')}`, 'i').test(resumeText);
+        if (!isEmailDomain) {
+          website = m;
+          break;
+        }
       }
     }
   }
@@ -1503,10 +1531,24 @@ export function parseResumeRuleBased(resumeText) {
       // 1. Standalone date line
       if (isStandaloneDate(line)) {
         const dt = extractDateTokens(line);
+        // If currentExp already has dates and description, this date line must belong to the next job entry
+        if (currentExp && (currentExp.startDate || currentExp.year) && currentExp.description) {
+          commitExp();
+        }
         if (currentExp) {
           currentExp.startDate = dt.start || dt.raw;
           currentExp.endDate = dt.end;
           currentExp.year = dt.raw;
+        } else {
+          currentExp = {
+            role: '',
+            company: '',
+            location: '',
+            startDate: dt.start || dt.raw,
+            endDate: dt.end,
+            year: dt.raw,
+            description: ''
+          };
         }
         continue;
       }
@@ -1632,7 +1674,41 @@ export function parseResumeRuleBased(resumeText) {
         continue;
       }
 
-      // 7. Multi-line entry association
+      // 7. Boundary detection for new job entry
+      if (currentExp && currentExp.description && !isBullet) {
+        const isRoleLine = roleKeywordRegex.test(line) && line.length < 75;
+        const nextLine = sections.experience[i + 1] || '';
+        const lineAfterNext = sections.experience[i + 2] || '';
+        const isNextLineRoleOrDate = (roleKeywordRegex.test(nextLine) && nextLine.length < 75) || isStandaloneDate(nextLine) || isStandaloneDate(lineAfterNext);
+
+        if (isRoleLine || (isNextLineRoleOrDate && line.length < 75 && !line.endsWith('.'))) {
+          commitExp();
+          if (isRoleLine) {
+            currentExp = {
+              role: stripLabel(line, /^(?:role|position|title)\s*:\s*/i),
+              company: '',
+              location: '',
+              startDate: '',
+              endDate: '',
+              year: '',
+              description: ''
+            };
+          } else {
+            currentExp = {
+              role: '',
+              company: stripLabel(line, /^(?:company|employer)\s*:\s*/i),
+              location: '',
+              startDate: '',
+              endDate: '',
+              year: '',
+              description: ''
+            };
+          }
+          continue;
+        }
+      }
+
+      // 8. Multi-line entry association
       if (!currentExp) {
         currentExp = {
           role: line,
@@ -1645,6 +1721,8 @@ export function parseResumeRuleBased(resumeText) {
         };
       } else if (!currentExp.company && !currentExp.description) {
         currentExp.company = line;
+      } else if (!currentExp.role && currentExp.company && !currentExp.description) {
+        currentExp.role = line;
       } else {
         currentExp.description = currentExp.description
           ? `${currentExp.description}\n• ${line}`
@@ -1735,10 +1813,10 @@ export function parseResumeRuleBased(resumeText) {
             deg = p;
           } else if (instKeywordRegex.test(p) && !inst) {
             inst = p;
+          } else if (!inst && !degreeKeywordRegex.test(p)) {
+            inst = p;
           } else if (!deg) {
             deg = p;
-          } else if (!inst) {
-            inst = p;
           }
         }
 
@@ -1752,6 +1830,11 @@ export function parseResumeRuleBased(resumeText) {
           };
           continue;
         }
+      }
+
+      // Check if currentEdu is already complete and a new entry is starting
+      if (currentEdu && ((currentEdu.institution && currentEdu.degree) || currentEdu.year)) {
+        commitEdu();
       }
 
       // 5. Degree keyword line
@@ -1772,11 +1855,17 @@ export function parseResumeRuleBased(resumeText) {
 
       // 7. General fallback
       if (!currentEdu) {
-        currentEdu = { institution: '', degree: line, year: '', score: '' };
-      } else if (!currentEdu.institution) {
+        if (degreeKeywordRegex.test(line)) {
+          currentEdu = { institution: '', degree: line, year: '', score: '' };
+        } else {
+          currentEdu = { institution: line, degree: '', year: '', score: '' };
+        }
+      } else if (!currentEdu.institution && !degreeKeywordRegex.test(line)) {
         currentEdu.institution = line;
       } else if (!currentEdu.degree) {
         currentEdu.degree = line;
+      } else if (!currentEdu.institution) {
+        currentEdu.institution = line;
       }
     }
     commitEdu();
@@ -1797,7 +1886,8 @@ export function parseResumeRuleBased(resumeText) {
       currentProj = null;
     };
 
-    for (const line of sections.projects) {
+    for (let pi = 0; pi < sections.projects.length; pi++) {
+      const line = sections.projects[pi];
       const isBullet = /^[-•*]\s*/.test(line);
 
       // 1. Explicit project label
@@ -1847,6 +1937,27 @@ export function parseResumeRuleBased(resumeText) {
           }
         }
         continue;
+      }
+
+      // 4. Boundary detection for new project entry
+      if (currentProj && currentProj.name && currentProj.description && !isBullet) {
+        const isActionSentence = /^(?:built|developed|implemented|designed|created|engineered|managed|led|maintained|architected|collaborated|configured|optimized|automated)\b/i.test(line);
+        const endsWithPunctuation = /[.;]$/.test(line.trim());
+        const isShortHeadline = line.length < 75 && !endsWithPunctuation && !isActionSentence;
+
+        const nextLine = (sections.projects[pi + 1] || '').trim();
+        const nextIsBullet = /^[-•*]\s*/.test(nextLine);
+        const nextIsTechOrUrl = /(?:https?:\/\/|github\.com)/i.test(nextLine) || (nextLine.includes(',') && nextLine.length < 80);
+
+        if (isShortHeadline && (nextIsBullet || nextIsTechOrUrl || currentProj.description.includes('•') || currentProj.description.length > 50)) {
+          commitProj();
+          currentProj = {
+            name: stripLabel(line, /^(?:project\s*name|project)\s*:\s*/i),
+            description: '',
+            link: ''
+          };
+          continue;
+        }
       }
 
       // Title line (< 60 chars) or new project
