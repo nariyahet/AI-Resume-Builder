@@ -30,7 +30,17 @@ export async function extractTextFromPdf(buffer) {
         ? result.text
         : (typeof result === 'string' ? result : '');
       // Strip page footer artifacts like "-- 1 of 1 --"
-      return rawText.replace(/--\s*\d+\s+of\s+\d+\s*--/gi, '').trim();
+      const cleaned = rawText.replace(/--\s*\d+\s+of\s+\d+\s*--/gi, '').trim();
+
+      // If document contains pages but zero extractable text stream, it is an image-only / scanned PDF
+      if (result && typeof result.total === 'number' && result.total > 0 && !cleaned) {
+        const scanErr = new Error('This PDF appears to be a scanned image or photo without selectable text. Direct image OCR is not supported. Please copy and paste your resume text into the text box below, or upload a text-based document.');
+        scanErr.name = 'ScannedPDFException';
+        scanErr.isScanned = true;
+        throw scanErr;
+      }
+
+      return cleaned;
     } finally {
       if (typeof parser.destroy === 'function') {
         try { await parser.destroy(); } catch (_) {}
@@ -48,12 +58,89 @@ export async function extractTextFromPdf(buffer) {
   throw new Error('Unsupported PDF parser export interface.');
 }
 
-// Multer memory storage (up to 10MB file)
+// Robust helper to extract readable text from DOCX
+export async function extractTextFromDocx(buffer) {
+  if (!buffer || buffer.length === 0) {
+    throw new Error('Word document file is empty (0 bytes).');
+  }
+  const docxResult = await mammoth.extractRawText({ buffer });
+  return (docxResult && typeof docxResult.value === 'string') ? docxResult.value.trim() : '';
+}
+
+// Helper to validate uploaded file extension and MIME compatibility
+export function validateFileMeta(originalname, mimetype) {
+  const ext = (originalname || '').toLowerCase();
+  const mime = (mimetype || '').toLowerCase();
+
+  // Explicit rejection for legacy Word .doc format with clear guidance
+  if (ext.endsWith('.doc')) {
+    const err = new Error('Legacy Word (.doc) format is not supported. Please save or export your document as Word (.docx) or PDF (.pdf) and try again.');
+    err.name = 'LegacyDocNotSupportedException';
+    return { ok: false, error: err };
+  }
+
+  const isPdfExt = ext.endsWith('.pdf');
+  const isDocxExt = ext.endsWith('.docx');
+  const isTxtExt = ext.endsWith('.txt');
+
+  if (!isPdfExt && !isDocxExt && !isTxtExt) {
+    const err = new Error('Unsupported file format. Please upload a PDF (.pdf), Word document (.docx), or plain text (.txt) file.');
+    err.name = 'UnsupportedFileException';
+    err.isUnsupportedFormat = true;
+    return { ok: false, error: err };
+  }
+
+  // Tight validation: Verify MIME type is compatible with the declared file extension
+  let mimeCompatible = false;
+  if (isPdfExt) {
+    mimeCompatible = mime.includes('pdf') || mime === 'application/octet-stream';
+  } else if (isDocxExt) {
+    mimeCompatible = mime.includes('word') || mime.includes('officedocument') || mime === 'application/zip' || mime === 'application/octet-stream';
+  } else if (isTxtExt) {
+    mimeCompatible = mime.startsWith('text/') || mime === 'application/octet-stream';
+  }
+
+  if (!mimeCompatible) {
+    const err = new Error(`File content type mismatch: The uploaded file has extension ".${ext.split('.').pop()}" but unexpected content type "${mime}".`);
+    err.name = 'MimeMismatchException';
+    return { ok: false, error: err };
+  }
+
+  return { ok: true };
+}
+
+// Multer memory storage (up to 10MB file) with strict extension filter & MIME compatibility
 const storage = multer.memoryStorage();
-export const uploadMiddleware = multer({
+const multerUploader = multer({
   storage,
-  limits: { fileSize: 10 * 1024 * 1024 } // 10MB
+  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB
+  fileFilter: (req, file, cb) => {
+    const validation = validateFileMeta(file.originalname, file.mimetype);
+    if (validation.ok) {
+      cb(null, true);
+    } else {
+      cb(validation.error, false);
+    }
+  }
 }).single('resumeFile');
+
+export const uploadMiddleware = (req, res, next) => {
+  multerUploader(req, res, (err) => {
+    if (err) {
+      if (err.code === 'LIMIT_FILE_SIZE') {
+        return res.status(400).json({
+          success: false,
+          message: 'The uploaded file is too large. Maximum allowed file size is 10MB.'
+        });
+      }
+      return res.status(400).json({
+        success: false,
+        message: err.message || 'Failed to upload file.'
+      });
+    }
+    next();
+  });
+};
 
 export async function uploadAndParseResume(req, res) {
   try {
@@ -62,11 +149,21 @@ export async function uploadAndParseResume(req, res) {
     }
 
     const { mimetype, originalname, buffer } = req.file;
+    const lowerName = (originalname || '').toLowerCase();
     let extractedText = '';
 
     console.log(`Processing uploaded file: ${originalname} (${mimetype})`);
 
-    if (mimetype === 'application/pdf' || originalname.toLowerCase().endsWith('.pdf')) {
+    if (lowerName.endsWith('.pdf')) {
+      // Buffer signature check for PDF: must contain %PDF
+      const headerPrefix = buffer.subarray(0, 1024).toString('binary');
+      if (!headerPrefix.includes('%PDF')) {
+        return res.status(400).json({
+          success: false,
+          message: 'The uploaded file does not contain a valid PDF document header.'
+        });
+      }
+
       try {
         extractedText = await extractTextFromPdf(buffer);
       } catch (pdfErr) {
@@ -76,6 +173,12 @@ export async function uploadAndParseResume(req, res) {
           return res.status(400).json({
             success: false,
             message: 'The uploaded PDF is password protected. Please remove the password and try again.'
+          });
+        }
+        if (pdfErr.name === 'ScannedPDFException' || pdfErr.isScanned) {
+          return res.status(400).json({
+            success: false,
+            message: 'This PDF appears to be a scanned image or photo without selectable text. Direct image OCR is not supported. Please copy and paste your resume text into the text box below, or upload a text-based document.'
           });
         }
         if (pdfErr.name === 'InvalidPDFException' || errMsg.toLowerCase().includes('invalid pdf') || errMsg.toLowerCase().includes('structure') || errMsg.toLowerCase().includes('corrupt') || errMsg.toLowerCase().includes('empty')) {
@@ -91,21 +194,59 @@ export async function uploadAndParseResume(req, res) {
           message: 'Failed to extract text from PDF: ' + errMsg
         });
       }
-    } else if (
-      mimetype === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' || 
-      originalname.toLowerCase().endsWith('.docx')
-    ) {
-      const docxResult = await mammoth.extractRawText({ buffer });
-      extractedText = docxResult.value || '';
+    } else if (lowerName.endsWith('.docx')) {
+      // Buffer signature check for DOCX (ZIP archive header PK\x03\x04)
+      if (buffer.length < 4 || buffer[0] !== 0x50 || buffer[1] !== 0x4B) {
+        return res.status(400).json({
+          success: false,
+          message: 'The uploaded file does not match a valid Word (.docx) document structure.'
+        });
+      }
+
+      try {
+        extractedText = await extractTextFromDocx(buffer);
+      } catch (docxErr) {
+        console.error('DOCX extraction error:', docxErr);
+        return res.status(400).json({
+          success: false,
+          message: 'The uploaded file is not a valid or readable Word (.docx) document.'
+        });
+      }
+    } else if (lowerName.endsWith('.txt')) {
+      // Buffer check for TXT: ensure not binary (e.g. executable or binary null-bytes)
+      const sample = buffer.subarray(0, Math.min(buffer.length, 1024));
+      let nullByteCount = 0;
+      for (let i = 0; i < sample.length; i++) {
+        if (sample[i] === 0x00) nullByteCount++;
+      }
+      if (nullByteCount > 5) {
+        return res.status(400).json({
+          success: false,
+          message: 'The uploaded file appears to be a binary file, not a valid plain text resume.'
+        });
+      }
+
+      try {
+        extractedText = buffer.toString('utf-8');
+      } catch (txtErr) {
+        return res.status(400).json({
+          success: false,
+          message: 'Failed to read plain text file.'
+        });
+      }
     } else {
-      // Plain text or markdown
-      extractedText = buffer.toString('utf-8');
+      return res.status(400).json({
+        success: false,
+        message: 'Unsupported file format. Please upload a PDF (.pdf), Word document (.docx), or plain text (.txt) file.'
+      });
     }
 
     if (!extractedText || !extractedText.trim()) {
       return res.status(400).json({
         success: false,
-        message: 'Could not extract readable text from the file. The document may be empty, image-only/scanned, or password protected.'
+        message: lowerName.endsWith('.pdf')
+          ? 'This PDF appears to be a scanned image or empty. Please copy and paste your resume text instead.'
+          : 'Could not extract readable text from the file. The document appears to be empty or unreadable.'
       });
     }
 

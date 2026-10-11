@@ -96,7 +96,15 @@ test('Issue 6: Corrupted non-PDF buffer is handled safely', async () => {
   );
 });
 
-test('Issue 6: Scanned or blank PDF without text stream returns empty string for graceful 400 handling', async () => {
-  const text = await extractTextFromPdf(emptyTextPdf);
-  assert.equal(text.trim(), '', 'Scanned PDF should yield empty string, triggering user-friendly guidance message');
+test('Issue 6: Scanned or blank PDF without text stream throws ScannedPDFException', async () => {
+  await assert.rejects(
+    async () => {
+      await extractTextFromPdf(emptyTextPdf);
+    },
+    (err) => {
+      assert.ok(err.isScanned, 'Should flag isScanned property');
+      assert.ok(err.message.includes('scanned image'), 'Should describe scanned PDF limitation');
+      return true;
+    }
+  );
 });

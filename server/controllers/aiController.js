@@ -1305,7 +1305,7 @@ export function parseResumeRuleBased(resumeText) {
   const phoneRegex = /(?:\+?\d{1,3}[-.\s]?)?\(?\d{2,4}\)?[-.\s]?\d{3,4}[-.\s]?\d{3,5}/;
   const linkedinRegex = /(?:https?:\/\/)?(?:www\.)?linkedin\.com\/in\/[\w.-]+/i;
   const githubRegex = /(?:https?:\/\/)?(?:www\.)?github\.com\/[\w.-]+/i;
-  const websiteRegex = /(?:https?:\/\/)?(?:www\.)?[a-zA-Z0-9][-a-zA-Z0-9]{0,62}\.(?:com|org|net|io|dev|me|app)(?:\/[^\s]*)?/i;
+  const websiteRegex = /(?:https?:\/\/)?(?:www\.)?[a-zA-Z0-9][-a-zA-Z0-9]{0,62}\.(?:com|org|net|io|dev|me|app|tech|ai|co|in|xyz|site|info|design|cloud|store|agency|space|online)(?:\/[^\s]*)?/i;
 
   const emailMatch = resumeText.match(emailRegex);
   const phoneMatch = resumeText.match(phoneRegex);
@@ -1419,6 +1419,15 @@ export function parseResumeRuleBased(resumeText) {
         continue;
       }
       extractedName = stripLabel(line, /^(?:name|full\s*name):\s*/i);
+      if (extractedName && (extractedName.includes(' - ') || extractedName.includes(' – ') || extractedName.includes(' | '))) {
+        const parts = extractedName.split(/\s+[-–—|]\s+/);
+        if (parts.length >= 2) {
+          extractedName = parts[0].trim();
+          if (!extractedRole) {
+            extractedRole = sanitizeTargetRole(parts[1].trim());
+          }
+        }
+      }
       break;
     }
   }
@@ -1458,7 +1467,8 @@ export function parseResumeRuleBased(resumeText) {
       if (line.includes('|')) {
         const parts = line.split('|').map(p => p.trim());
         for (const p of parts) {
-          if (!emailRegex.test(p) && !phoneRegex.test(p) && !linkedinRegex.test(p) && !githubRegex.test(p) && !p.startsWith('http') && p.length > 2 && p.length < 50) {
+          const isUrlOrDomain = websiteRegex.test(p) || /^[a-zA-Z0-9][-a-zA-Z0-9]*\.[a-zA-Z]{2,}/i.test(p) || p.startsWith('http') || p.startsWith('www.');
+          if (!emailRegex.test(p) && !phoneRegex.test(p) && !linkedinRegex.test(p) && !githubRegex.test(p) && !isUrlOrDomain && p.length > 2 && p.length < 50) {
             extractedLocation = stripLabel(p, /^(?:location|address):/i);
             break;
           }
@@ -1654,24 +1664,27 @@ export function parseResumeRuleBased(resumeText) {
       }
 
       // 6. Dash-separated: "Frontend Developer - Test Company"
-      const dashParts = line.split(/\s*[-–—]\s*/);
+      const dashParts = line.split(/(?:\s+[-–—]\s+|\s*[\u2013\u2014]\s*)/);
       if (dashParts.length === 2 && !isStandaloneDate(line) && dashParts[0].length < 60 && dashParts[1].length < 60) {
-        commitExp();
-        let r = dashParts[0].trim();
-        let c = dashParts[1].trim();
-        if (/(?:developer|engineer|manager|lead|analyst|designer|consultant|specialist|architect|intern)/i.test(c)) {
-          const tmp = r; r = c; c = tmp;
+        const isActionVerb = /^(?:designed|built|developed|created|managed|led|architected|implemented|engineered|maintained|scaled|automated)\b/i.test(dashParts[0]);
+        if (!isActionVerb) {
+          commitExp();
+          let r = dashParts[0].trim();
+          let c = dashParts[1].trim();
+          if (/(?:developer|engineer|manager|lead|analyst|designer|consultant|specialist|architect|intern)/i.test(c)) {
+            const tmp = r; r = c; c = tmp;
+          }
+          currentExp = {
+            role: stripLabel(r, /^(?:role|position|title)\s*:\s*/i),
+            company: stripLabel(c, /^(?:company|employer)\s*:\s*/i),
+            location: '',
+            startDate: '',
+            endDate: '',
+            year: '',
+            description: ''
+          };
+          continue;
         }
-        currentExp = {
-          role: stripLabel(r, /^(?:role|position|title)\s*:\s*/i),
-          company: stripLabel(c, /^(?:company|employer)\s*:\s*/i),
-          location: '',
-          startDate: '',
-          endDate: '',
-          year: '',
-          description: ''
-        };
-        continue;
       }
 
       // 7. Boundary detection for new job entry
@@ -1936,6 +1949,18 @@ export function parseResumeRuleBased(resumeText) {
               : `• ${descLine}`;
           }
         }
+        continue;
+      }
+
+      // 3.5. Inline colon-separated project: "Project Name: Description"
+      const colonMatch = !isBullet ? line.match(/^([^:]{2,50}):\s+(.+)$/) : null;
+      if (colonMatch && !/^(?:https?|github|www|ftp)/i.test(colonMatch[1]) && !/^(?:note|notes|tech|technology|technologies|tech\s+stack|tools|built\s+with|summary|description|features|key\s+features|result|impact|role)$/i.test(colonMatch[1].trim())) {
+        commitProj();
+        currentProj = {
+          name: stripLabel(colonMatch[1], /^(?:project\s*name|project\s*title|project)\s*:\s*/i),
+          description: colonMatch[2].trim(),
+          link: ''
+        };
         continue;
       }
 

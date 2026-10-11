@@ -394,10 +394,9 @@ export default function App() {
     };
 
     setResume(prev => {
-      // Build safe personal_info for fresh import:
-      // Genuine extracted contact fields are set; missing fields fallback to existing/empty;
-      // CRITICAL: Profile links (linkedin, github, website) must come ONLY from the newly parsed document
-      // and NOT inherit stale demo links from the previous template/demo resume.
+      // Build clean personal_info for fresh import:
+      // STRICT RULE: All fields come from the newly parsed document. Missing fields from the new source
+      // must remain blank and NOT inherit stale values from the previous resume or demo data.
       const incomingPersonal = (parsedData.personal_info && typeof parsedData.personal_info === 'object')
         ? parsedData.personal_info
         : {};
@@ -405,10 +404,10 @@ export default function App() {
       const cleanField = (val) => (typeof val === 'string' ? val.trim() : '');
 
       const mergedPersonalInfo = {
-        fullName: cleanField(incomingPersonal.fullName) || cleanField(prev.personal_info?.fullName),
-        email: cleanField(incomingPersonal.email) || cleanField(prev.personal_info?.email),
-        phone: cleanField(incomingPersonal.phone) || cleanField(prev.personal_info?.phone),
-        location: cleanField(incomingPersonal.location) || cleanField(prev.personal_info?.location),
+        fullName: cleanField(incomingPersonal.fullName),
+        email: cleanField(incomingPersonal.email),
+        phone: cleanField(incomingPersonal.phone),
+        location: cleanField(incomingPersonal.location),
         linkedin: cleanField(incomingPersonal.linkedin),
         github: cleanField(incomingPersonal.github),
         website: cleanField(incomingPersonal.website),
@@ -420,36 +419,24 @@ export default function App() {
         ...prev,
         title: (parsedData.title && parsedData.title !== 'Imported Resume' && parsedData.title !== 'Extracted Resume')
           ? parsedData.title
-          : (prev.title || 'My Resume'),
+          : (cleanField(parsedData.target_role) ? `${cleanField(parsedData.target_role)} Resume` : 'Imported Resume'),
         target_role: (parsedData.target_role && parsedData.target_role.trim() && parsedData.target_role !== 'Professional')
           ? parsedData.target_role.trim()
-          : (prev.target_role || ''),
+          : '',
         personal_info: mergedPersonalInfo,
-        summary: (parsedData.summary && parsedData.summary.trim())
-          ? parsedData.summary.trim()
-          : (prev.summary || ''),
-        skills: (Array.isArray(parsedData.skills) && parsedData.skills.length > 0)
-          ? parsedData.skills
-          : (prev.skills || []),
-        experience: (Array.isArray(parsedData.experience) && parsedData.experience.length > 0)
-          ? parsedData.experience
-          : (prev.experience || []),
-        education: (Array.isArray(parsedData.education) && parsedData.education.length > 0)
-          ? parsedData.education
-          : (prev.education || []),
-        projects: (Array.isArray(parsedData.projects) && parsedData.projects.length > 0)
-          ? parsedData.projects
-          : (prev.projects || []),
-        certifications: (Array.isArray(parsedData.certifications) && parsedData.certifications.length > 0)
-          ? parsedData.certifications
-          : (prev.certifications || []),
-        // Strictly preserve custom sections and styling choices
+        summary: cleanField(parsedData.summary),
+        skills: Array.isArray(parsedData.skills) ? parsedData.skills : [],
+        experience: Array.isArray(parsedData.experience) ? parsedData.experience : [],
+        education: Array.isArray(parsedData.education) ? parsedData.education : [],
+        projects: Array.isArray(parsedData.projects) ? parsedData.projects : [],
+        certifications: Array.isArray(parsedData.certifications) ? parsedData.certifications : [],
+        // Strictly preserve visual styling choices and version history
         custom_sections: prev.custom_sections || [],
         template_id: prev.template_id,
         theme_color: prev.theme_color,
         page_style: prev.page_style,
-        ats_score: prev.ats_score,
-        ats_feedback: prev.ats_feedback,
+        ats_score: null,
+        ats_feedback: null,
         version_history: [snapshot, ...(prev.version_history || [])]
       };
     });

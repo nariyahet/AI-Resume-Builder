@@ -21,6 +21,12 @@ export default function ResumeParserModal({ isOpen, onClose, onParsedSuccess }) 
   const handleFileChange = (e) => {
     const file = e.target.files?.[0];
     if (file) {
+      if (file.name.toLowerCase().endsWith('.doc')) {
+        setError('Legacy Word (.doc) format is not supported. Please save or export your document as Word (.docx) or PDF (.pdf) and try again.');
+        setSelectedFile(null);
+        e.target.value = '';
+        return;
+      }
       setSelectedFile(file);
       setError('');
     }
@@ -58,7 +64,7 @@ export default function ResumeParserModal({ isOpen, onClose, onParsedSuccess }) 
           setError('Failed to parse text.');
         }
       } else {
-        setError('Please select a PDF/DOCX file or paste resume text.');
+        setError('Please select a file (.pdf, .docx, .txt) or paste resume text.');
       }
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to parse resume document.');
@@ -77,7 +83,7 @@ export default function ResumeParserModal({ isOpen, onClose, onParsedSuccess }) 
         <div className="modal-header">
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
             <UploadCloud size={20} style={{ color: 'var(--primary)' }} />
-            <h3 className="modal-title">PDF & DOCX Resume Parser</h3>
+            <h3 className="modal-title">PDF, Word & Text Resume Parser</h3>
           </div>
           <button className="delete-btn" onClick={onClose} style={{ color: 'var(--text-muted)' }} aria-label="Close">
             <X size={20} />
@@ -85,7 +91,7 @@ export default function ResumeParserModal({ isOpen, onClose, onParsedSuccess }) 
         </div>
 
         <p style={{ fontSize: '0.825rem', color: 'var(--text-muted)' }}>
-          Upload your existing <strong>.pdf</strong> or <strong>.docx</strong> resume to extract and map fields into the editor. Only genuine extracted details are populated.
+          Upload your existing <strong>.pdf</strong>, <strong>.docx</strong>, or <strong>.txt</strong> resume to extract and map fields into the editor. Only genuine extracted details are populated.
         </p>
 
         {error && (
@@ -122,17 +128,17 @@ export default function ResumeParserModal({ isOpen, onClose, onParsedSuccess }) 
             <>
               <UploadCloud size={36} style={{ color: 'var(--primary)', marginBottom: '0.5rem' }} />
               <span style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--text-main)', textAlign: 'center' }}>
-                Click to Upload PDF or Word (.docx) File
+                Click to Upload PDF, Word (.docx), or Text (.txt) File
               </span>
               <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.2rem', textAlign: 'center' }}>
-                Supports binary PDF, Word (.docx), and plain text documents
+                Supports binary PDF, Word (.docx), and plain text (.txt) documents
               </span>
             </>
           )}
 
           <input
             type="file"
-            accept=".pdf,.docx,.doc,.txt"
+            accept=".pdf,.docx,.txt"
             style={{ display: 'none' }}
             onChange={handleFileChange}
           />
