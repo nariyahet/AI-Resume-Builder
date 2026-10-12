@@ -1131,10 +1131,19 @@ export function sanitizeParsedResume(parsed) {
     cleanWebsite = '';
   }
 
+  let cleanPhone = stripLabel(pInfo.phone, /^(?:phone|phone\s*number|tel|telephone|mobile|cell)\s*:\s*/i);
+  if (cleanPhone) {
+    if (/^\+1(?=[(\d])/.test(cleanPhone)) {
+      cleanPhone = cleanPhone.replace(/^\+1/, '+1 ');
+    } else if (/^\+(\d{2})(?=\d{10}\b)/.test(cleanPhone)) {
+      cleanPhone = cleanPhone.replace(/^(\+\d{2})/, (m) => m + ' ');
+    }
+  }
+
   const cleanedPersonalInfo = {
     fullName: stripLabel(pInfo.fullName, /^(?:name|full\s*name|candidate\s*name)\s*:\s*/i),
     email: stripLabel(pInfo.email, /^(?:email|email\s*address|e-mail)\s*:\s*/i),
-    phone: stripLabel(pInfo.phone, /^(?:phone|phone\s*number|tel|telephone|mobile|cell)\s*:\s*/i),
+    phone: cleanPhone,
     location: stripLabel(pInfo.location, /^(?:location|address|city|country)\s*:\s*/i),
     linkedin: cleanLinkedin,
     github: cleanGithub,
