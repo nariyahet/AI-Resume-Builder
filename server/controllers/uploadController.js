@@ -5,10 +5,54 @@ import { parseResumeText } from './aiController.js';
 
 const require = createRequire(import.meta.url);
 let pdfParseModule = null;
+let tesseractModule = null;
 try {
   pdfParseModule = require('pdf-parse');
 } catch (err) {
   console.warn('pdf-parse import warning:', err.message);
+}
+try {
+  tesseractModule = require('tesseract.js');
+} catch (err) {
+  console.warn('tesseract.js import warning:', err.message);
+}
+
+// Helper to extract text via OCR from scanned or image-based PDFs
+async function extractOcrFromPdfBuffer(buffer, parser) {
+  if (!tesseractModule) return '';
+
+  // 1. Direct extraction of embedded JPEG image streams
+  const start = buffer.indexOf(Buffer.from([0xFF, 0xD8, 0xFF]));
+  const end = buffer.indexOf(Buffer.from([0xFF, 0xD9]), start);
+  if (start !== -1 && end !== -1 && end > start) {
+    const jpegBuf = buffer.subarray(start, end + 2);
+    try {
+      const res = await tesseractModule.recognize(jpegBuf, 'eng');
+      if (res?.data?.text?.trim()) {
+        return res.data.text.trim();
+      }
+    } catch (_) {}
+  }
+
+  // 2. Fall back to rendering PDF pages to screenshots via PDFParse
+  if (parser && typeof parser.getScreenshot === 'function') {
+    try {
+      const screenshot = await parser.getScreenshot({ scale: 2 });
+      if (screenshot?.pages?.length > 0) {
+        let full = '';
+        for (const page of screenshot.pages) {
+          if (page.dataUrl) {
+            const b64 = page.dataUrl.replace(/^data:image\/[^;]+;base64,/, '');
+            const res = await tesseractModule.recognize(Buffer.from(b64, 'base64'), 'eng');
+            if (res?.data?.text) full += '\n' + res.data.text;
+          }
+        }
+        if (full.trim()) return full.trim();
+      }
+    } catch (_) {}
+  }
+
+  return '';
 }
 
 // Robust helper supporting pdf-parse v2+ (PDFParse class) and v1 (function)
@@ -34,6 +78,15 @@ export async function extractTextFromPdf(buffer) {
 
       // If document contains pages but zero extractable text stream, it is an image-only / scanned PDF
       if (result && typeof result.total === 'number' && result.total > 0 && !cleaned) {
+        try {
+          const ocrText = await extractOcrFromPdfBuffer(buffer, parser);
+          if (ocrText && ocrText.trim()) {
+            return ocrText.trim();
+          }
+        } catch (ocrErr) {
+          console.warn('OCR extraction attempt failed:', ocrErr.message);
+        }
+
         const scanErr = new Error('This PDF appears to be a scanned image or photo without selectable text. Direct image OCR is not supported. Please copy and paste your resume text into the text box below, or upload a text-based document.');
         scanErr.name = 'ScannedPDFException';
         scanErr.isScanned = true;
@@ -252,6 +305,7 @@ export async function uploadAndParseResume(req, res) {
 
     // Now forward the real extracted text to the AI parser
     req.body.resumeText = extractedText;
+    req.body.fileName = originalname;
     return parseResumeText(req, res);
   } catch (error) {
     console.error('File parse error:', error);

@@ -1054,8 +1054,11 @@ function stripLabel(str, labelRegex) {
   if (labelRegex) {
     cleaned = cleaned.replace(labelRegex, '').trim();
   }
-  // Strip leading/trailing bullets, colons, or dashes
-  cleaned = cleaned.replace(/^[:\-\u2022*|#\s]+/, '').replace(/[:\s]+$/, '').trim();
+  // Strip leading/trailing bullets, colons, or dashes (preserve + if followed by a digit like +1...)
+  cleaned = cleaned.replace(/^[:\-\u2022*|#«<>\s]+/, '');
+  cleaned = cleaned.replace(/^\+(?!\d)\s*/, '');
+  cleaned = cleaned.replace(/^[:\-\u2022*|#«<>\s]+/, '');
+  cleaned = cleaned.replace(/[:\s]+$/, '').trim();
   return cleaned;
 }
 
@@ -1297,7 +1300,8 @@ export function sanitizeParsedResume(parsed) {
   };
 }
 
-export function parseResumeRuleBased(resumeText) {
+export function parseResumeRuleBased(resumeText, options = {}) {
+  const fileName = typeof options === 'string' ? options : (options?.fileName || '');
   const lines = resumeText.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
   if (lines.length === 0) {
     return {
@@ -1426,8 +1430,12 @@ export function parseResumeRuleBased(resumeText) {
         phoneRegex.test(line) ||
         linkedinRegex.test(line) ||
         githubRegex.test(line) ||
+        roleKeywordRegex.test(line) ||
         /^(?:target\s*role|role|title|location|address):/i.test(line)
       ) {
+        if (!extractedRole && roleKeywordRegex.test(line) && line.length < 60) {
+          extractedRole = sanitizeTargetRole(line);
+        }
         continue;
       }
       extractedName = stripLabel(line, /^(?:name|full\s*name):\s*/i);
@@ -1441,6 +1449,28 @@ export function parseResumeRuleBased(resumeText) {
         }
       }
       break;
+    }
+  }
+
+  // If candidate name is still missing or matches a role keyword, derive from filename or email
+  if (!extractedName || roleKeywordRegex.test(extractedName)) {
+    if (extractedName && roleKeywordRegex.test(extractedName) && !extractedRole) {
+      extractedRole = extractedName;
+    }
+    extractedName = '';
+
+    if (fileName) {
+      const base = fileName.replace(/\.[^.]+$/, '').replace(/[-_]?(?:resume|cv)[-_]?/gi, '').replace(/[_-]/g, ' ').trim();
+      if (base && !/^(?:resume|cv|document|file)$/i.test(base)) {
+        extractedName = base.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ');
+      }
+    }
+    if (!extractedName && (extractedEmail || emailMatch)) {
+      const em = extractedEmail || emailMatch[0];
+      const user = em.split('@')[0].replace(/(?:\.test|\.dev|\.job|\d+)$/gi, '').replace(/[._-]/g, ' ').trim();
+      if (user && user.length > 2 && user.length < 40 && !/^(?:resume|cv|contact|info|user)$/i.test(user)) {
+        extractedName = user.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ');
+      }
     }
   }
 
@@ -1476,13 +1506,15 @@ export function parseResumeRuleBased(resumeText) {
 
   if (!extractedLocation) {
     for (const line of sections.header) {
-      if (line.includes('|')) {
-        const parts = line.split('|').map(p => p.trim());
+      if (line.includes('|') || line.includes('©') || line.includes('&') || line.includes('•')) {
+        const parts = line.split(/[\s]+[|&©•*·~][\s]*|[|•]+/).map(p => p.trim());
         for (const p of parts) {
           const isUrlOrDomain = websiteRegex.test(p) || /^[a-zA-Z0-9][-a-zA-Z0-9]*\.[a-zA-Z]{2,}/i.test(p) || p.startsWith('http') || p.startsWith('www.');
           if (!emailRegex.test(p) && !phoneRegex.test(p) && !linkedinRegex.test(p) && !githubRegex.test(p) && !isUrlOrDomain && p.length > 2 && p.length < 50) {
-            extractedLocation = stripLabel(p, /^(?:location|address):/i);
-            break;
+            if (!roleKeywordRegex.test(p) && !/^(?:summary|profile|about)/i.test(p)) {
+              extractedLocation = stripLabel(p, /^(?:location|address):/i);
+              break;
+            }
           }
         }
       }
@@ -1501,9 +1533,21 @@ export function parseResumeRuleBased(resumeText) {
   if (sections.skills.length > 0) {
     for (const line of sections.skills) {
       const cleanLine = line.replace(/^(?:languages|frontend|backend|frameworks|database|databases|tools|technologies|cloud|devops)\s*:\s*/i, '');
-      const tokens = cleanLine.split(/[,;•|\*]+/).map(s => s.trim()).filter(Boolean);
+      let lineToSplit = cleanLine;
+      const compoundSkills = [
+        'REST APIs', 'REST API', 'SQL Server', 'Machine Learning', 'Deep Learning',
+        'Google Cloud', 'Amazon Web Services', 'Spring Boot', 'React Native'
+      ];
+      for (const cs of compoundSkills) {
+        lineToSplit = lineToSplit.replace(new RegExp(cs.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&'), 'gi'), cs.replace(/\s+/g, '___'));
+      }
+      const tokens = lineToSplit.includes(',') || lineToSplit.includes(';') || lineToSplit.includes('•') || lineToSplit.includes('|')
+        ? lineToSplit.split(/[,;•|\*]+/).map(s => s.trim()).filter(Boolean)
+        : lineToSplit.split(/(?:[,;•|\*]+|\s+(?=[A-Z]))/).map(s => s.trim()).filter(Boolean);
       for (const tok of tokens) {
-        const cleanedTok = tok.replace(/^[-•*]\s*/, '').trim();
+        let cleanedTok = tok.replace(/___/g, ' ').replace(/^[-•*«+<>\s]+/, '').replace(/[:\s]+$/, '').trim();
+        if (cleanedTok.toLowerCase() === 'css') cleanedTok = 'CSS';
+        if (cleanedTok.toLowerCase() === 'html') cleanedTok = 'HTML';
         if (cleanedTok.length > 1 && cleanedTok.length < 50 && !skills.includes(cleanedTok)) {
           skills.push(cleanedTok);
         }
@@ -1548,7 +1592,7 @@ export function parseResumeRuleBased(resumeText) {
 
     for (let i = 0; i < sections.experience.length; i++) {
       const line = sections.experience[i];
-      const isBullet = /^[-•*]\s*/.test(line);
+      const isBullet = /^[-•*«+<>]\s*/.test(line);
 
       // 1. Standalone date line
       if (isStandaloneDate(line)) {
@@ -1578,7 +1622,7 @@ export function parseResumeRuleBased(resumeText) {
       // 2. Bullet point line
       if (isBullet) {
         if (currentExp) {
-          const bulletText = line.replace(/^[-•*]\s*/, '').trim();
+          const bulletText = line.replace(/^[-•*«+<>]\s*/, '').trim();
           if (bulletText) {
             currentExp.description = currentExp.description
               ? `${currentExp.description}\n• ${bulletText}`
@@ -1762,9 +1806,12 @@ export function parseResumeRuleBased(resumeText) {
       } else if (!currentExp.role && currentExp.company && !currentExp.description) {
         currentExp.role = line;
       } else {
-        currentExp.description = currentExp.description
-          ? `${currentExp.description}\n• ${line}`
-          : `• ${line}`;
+        const cleanLine = line.replace(/^[-•*«+<>]\s*/, '').trim();
+        if (cleanLine) {
+          currentExp.description = currentExp.description
+            ? `${currentExp.description}\n• ${cleanLine}`
+            : `• ${cleanLine}`;
+        }
       }
     }
     commitExp();
@@ -1836,10 +1883,23 @@ export function parseResumeRuleBased(resumeText) {
       }
 
       // 4. Delimited line: "BCA, Test College" or "B.Tech | GTU | 2017-2021"
-      if (line.includes('|') || line.includes(',') || line.includes(' - ') || line.includes(' — ') || line.includes(' – ') || /[\u2013\u2014]/.test(line)) {
-        const rawParts = line.includes('|')
-          ? line.split('|').map(p => p.trim()).filter(Boolean)
-          : (line.includes(',') ? line.split(',').map(p => p.trim()).filter(Boolean) : [line]);
+      let eduLine = line;
+      let eduDt = { start: '', end: '', raw: '' };
+      if (!isStandaloneDate(line)) {
+        const extractedDt = extractDateTokens(line);
+        if (extractedDt.raw) {
+          const rem = line.replace(extractedDt.raw, '').trim();
+          if (rem && (rem.includes('|') || rem.includes(',') || rem.includes(' - ') || rem.includes(' — ') || rem.includes(' – ') || /[\u2013\u2014]/.test(rem))) {
+            eduDt = extractedDt;
+            eduLine = rem;
+          }
+        }
+      }
+
+      if (eduLine.includes('|') || eduLine.includes(',') || eduLine.includes(' - ') || eduLine.includes(' — ') || eduLine.includes(' – ') || /[\u2013\u2014]/.test(eduLine)) {
+        const rawParts = eduLine.includes('|')
+          ? eduLine.split('|').map(p => p.trim()).filter(Boolean)
+          : (eduLine.includes(',') ? eduLine.split(',').map(p => p.trim()).filter(Boolean) : [eduLine]);
 
         const parts = [];
         for (const rp of rawParts) {
@@ -1855,7 +1915,7 @@ export function parseResumeRuleBased(resumeText) {
 
         let deg = '';
         let inst = '';
-        let yr = '';
+        let yr = eduDt.raw || '';
 
         for (const p of parts) {
           if (isStandaloneDate(p)) {
@@ -1939,7 +1999,7 @@ export function parseResumeRuleBased(resumeText) {
 
     for (let pi = 0; pi < sections.projects.length; pi++) {
       const line = sections.projects[pi];
-      const isBullet = /^[-•*]\s*/.test(line);
+      const isBullet = /^[-•*«+<>]\s*/.test(line);
 
       // 1. Explicit project label
       if (/^(?:project\s*name|project\s*title|project)\s*:\s*/i.test(line)) {
@@ -1980,7 +2040,7 @@ export function parseResumeRuleBased(resumeText) {
 
       if (isBullet) {
         if (currentProj) {
-          const descLine = line.replace(/^[-•*]\s*/, '').trim();
+          const descLine = line.replace(/^[-•*«+<>]\s*/, '').trim();
           if (descLine) {
             currentProj.description = currentProj.description
               ? `${currentProj.description}\n• ${descLine}`
@@ -2009,7 +2069,7 @@ export function parseResumeRuleBased(resumeText) {
         const isShortHeadline = line.length < 75 && !endsWithPunctuation && !isActionSentence;
 
         const nextLine = (sections.projects[pi + 1] || '').trim();
-        const nextIsBullet = /^[-•*]\s*/.test(nextLine);
+        const nextIsBullet = /^[-•*«+<>]\s*/.test(nextLine);
         const nextIsTechOrUrl = /(?:https?:\/\/|github\.com)/i.test(nextLine) || (nextLine.includes(',') && nextLine.length < 80);
 
         if (isShortHeadline && (nextIsBullet || nextIsTechOrUrl || currentProj.description.includes('•') || currentProj.description.length > 50)) {
@@ -2065,7 +2125,7 @@ export function parseResumeRuleBased(resumeText) {
 export async function parseResumeText(req, res) {
   try {
     const userId = req.user?.id;
-    const { resumeText } = req.body;
+    const { resumeText, fileName } = req.body;
     const clientKey = req.headers['x-gemini-api-key'];
 
     if (!resumeText || !resumeText.trim()) {
@@ -2157,7 +2217,7 @@ Return ONLY valid JSON matching this schema:
 
     if (!parsed) {
       // Robust rule-based extraction
-      parsed = parseResumeRuleBased(resumeText);
+      parsed = parseResumeRuleBased(resumeText, { fileName });
     }
 
     if (isAi && userId) {
