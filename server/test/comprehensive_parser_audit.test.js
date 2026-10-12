@@ -867,3 +867,75 @@ test('Audit 17: Multi-format parity — same resume in TXT, PDF, and Raw Text yi
   assert.equal(rawParsed.education[1].institution, 'City College of Technology');
   assert.equal(rawParsed.education[1].year, '2019 - 2022');
 });
+
+test('Audit 18: Two-column PDF with inline dash-separated projects separates entries cleanly', () => {
+  const sample = `JORDAN LEE
+Software Engineer
+jordan.lee@example.com | +1 212-555-0198 | New York, NY
+PROFESSIONAL SUMMARY
+Software engineer with experience in web development, APIs, and database systems.
+WORK EXPERIENCE
+Software Engineer — Northstar Labs
+Jan 2023 – Present
+• Built REST APIs using Node.js and Express.
+• Improved application performance by 25%.
+PROJECTS
+TaskFlow — Built a task management web application with team collaboration features.
+ShopLite — Created an e-commerce demo with search, cart, and checkout.
+EDUCATION
+B.S. Computer Science
+Metro University
+2016 – 2020`;
+
+  const parsed = parseResumeRuleBased(sample);
+  assert.equal(parsed.projects.length, 2, 'Should detect exactly 2 projects');
+  assert.equal(parsed.projects[0].name, 'TaskFlow');
+  assert.equal(parsed.projects[0].description, 'Built a task management web application with team collaboration features.');
+  assert.equal(parsed.projects[1].name, 'ShopLite');
+  assert.equal(parsed.projects[1].description, 'Created an e-commerce demo with search, cart, and checkout.');
+});
+
+test('Audit 19: Table-formatted DOCX column headers are skipped without creating fake entries', () => {
+  const sample = `TAYLOR MORGAN
+Full Stack Developer
+taylor.morgan@example.com | +1 415-555-0137 | Austin, TX
+PROFESSIONAL SUMMARY
+Full Stack Developer experienced in building web apps and backend services.
+WORK EXPERIENCE
+Role
+Company
+Dates
+Web Developer
+Cedar Apps
+Mar 2022 – Present
+• Built React components and REST endpoints.
+• Maintained SQL queries and automated tests.
+PROJECTS
+Project
+Description
+InvoiceHub
+Invoice and payment tracking dashboard.
+EDUCATION
+Degree
+Institution
+Years
+B.Sc. Information Technology
+Austin Technical College
+2018 – 2022`;
+
+  const parsed = parseResumeRuleBased(sample);
+  assert.equal(parsed.experience.length, 1, 'Should ignore Role/Company/Dates header and parse exactly 1 job');
+  assert.equal(parsed.experience[0].role, 'Web Developer');
+  assert.equal(parsed.experience[0].company, 'Cedar Apps');
+  assert.equal(parsed.experience[0].startDate, 'Mar 2022');
+  assert.equal(parsed.experience[0].endDate, 'Present');
+
+  assert.equal(parsed.projects.length, 1, 'Should ignore Project/Description header and parse exactly 1 project');
+  assert.equal(parsed.projects[0].name, 'InvoiceHub');
+  assert.equal(parsed.projects[0].description, 'Invoice and payment tracking dashboard.');
+
+  assert.equal(parsed.education.length, 1, 'Should ignore Degree/Institution/Years header and parse exactly 1 education entry');
+  assert.equal(parsed.education[0].degree, 'B.Sc. Information Technology');
+  assert.equal(parsed.education[0].institution, 'Austin Technical College');
+  assert.equal(parsed.education[0].year, '2018 – 2022');
+});

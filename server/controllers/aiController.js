@@ -1557,6 +1557,7 @@ export function parseResumeRuleBased(resumeText, options = {}) {
         let cleanedTok = tok.replace(/___/g, ' ').replace(/^[-•*«+<>\s]+/, '').replace(/[:\s]+$/, '').trim();
         if (cleanedTok.toLowerCase() === 'css') cleanedTok = 'CSS';
         if (cleanedTok.toLowerCase() === 'html') cleanedTok = 'HTML';
+        if (/^(?:skills?|categor(?:y|ies)|proficienc(?:y|ies)|levels?)$/i.test(cleanedTok)) continue;
         if (cleanedTok.length > 1 && cleanedTok.length < 50 && !skills.includes(cleanedTok)) {
           skills.push(cleanedTok);
         }
@@ -1602,6 +1603,17 @@ export function parseResumeRuleBased(resumeText, options = {}) {
     for (let i = 0; i < sections.experience.length; i++) {
       const line = sections.experience[i];
       const isBullet = /^[-•*«+<>]\s*/.test(line);
+
+      // 0. Skip standalone table headers: Role, Company, Dates, Description, etc.
+      if (!isBullet && /^(?:roles?|positions?|job\s*titles?|titles?|compan(?:y|ies)|employers?|organizations?|dates?|durations?|periods?|responsibilit(?:y|ies)|descriptions?|locations?)$/i.test(line)) {
+        continue;
+      }
+      if (!isBullet && line.includes('|')) {
+        const pipeParts = line.split('|').map(p => p.trim());
+        if (pipeParts.length > 1 && pipeParts.every(p => /^(?:roles?|positions?|job\s*titles?|titles?|compan(?:y|ies)|employers?|organizations?|dates?|durations?|periods?|responsibilit(?:y|ies)|descriptions?|locations?)$/i.test(p))) {
+          continue;
+        }
+      }
 
       // 1. Standalone date line
       if (isStandaloneDate(line)) {
@@ -1854,6 +1866,17 @@ export function parseResumeRuleBased(resumeText, options = {}) {
     for (let i = 0; i < sections.education.length; i++) {
       const line = sections.education[i];
 
+      // 0. Skip standalone table headers: Degree, Institution, Years, etc.
+      if (/^(?:degrees?|programs?|courses?|qualifications?|institutions?|universit(?:y|ies)|colleges?|schools?|years?|passing\s*years?|durations?|dates?|scores?|gpa|grades?|percentages?|marks?)$/i.test(line)) {
+        continue;
+      }
+      if (line.includes('|')) {
+        const pipeParts = line.split('|').map(p => p.trim());
+        if (pipeParts.length > 1 && pipeParts.every(p => /^(?:degrees?|programs?|courses?|qualifications?|institutions?|universit(?:y|ies)|colleges?|schools?|years?|passing\s*years?|durations?|dates?|scores?|gpa|grades?|percentages?|marks?)$/i.test(p))) {
+          continue;
+        }
+      }
+
       // 1. Standalone date line
       if (isStandaloneDate(line)) {
         if (currentEdu) {
@@ -2010,6 +2033,17 @@ export function parseResumeRuleBased(resumeText, options = {}) {
       const line = sections.projects[pi];
       const isBullet = /^[-•*«+<>]\s*/.test(line);
 
+      // 0. Skip standalone table headers: Project, Description, Details, Tech Stack, etc.
+      if (!isBullet && /^(?:projects?|project\s*names?|project\s*titles?|titles?|descriptions?|details|tech\s*stacks?|technolog(?:y|ies)|tools?|links?|urls?)$/i.test(line)) {
+        continue;
+      }
+      if (!isBullet && line.includes('|')) {
+        const pipeParts = line.split('|').map(p => p.trim());
+        if (pipeParts.length > 1 && pipeParts.every(p => /^(?:projects?|project\s*names?|project\s*titles?|titles?|descriptions?|details|tech\s*stacks?|technolog(?:y|ies)|tools?|links?|urls?)$/i.test(p))) {
+          continue;
+        }
+      }
+
       // 1. Explicit project label
       if (/^(?:project\s*name|project\s*title|project)\s*:\s*/i.test(line)) {
         commitProj();
@@ -2066,6 +2100,18 @@ export function parseResumeRuleBased(resumeText, options = {}) {
         currentProj = {
           name: stripLabel(colonMatch[1], /^(?:project\s*name|project\s*title|project)\s*:\s*/i),
           description: colonMatch[2].trim(),
+          link: ''
+        };
+        continue;
+      }
+
+      // 3.6. Inline dash/em-dash separated project: "Project Name — Description"
+      const dashMatch = !isBullet ? line.match(/^([^\s—–-][^—–-]{1,50})\s*(?:—|–|\s-\s)\s*(.+)$/) : null;
+      if (dashMatch && !/^(?:https?|github|www|ftp)/i.test(dashMatch[1]) && !/^(?:note|notes|tech|technology|technologies|tech\s+stack|tools|built\s+with|summary|description|features|key\s+features|result|impact|role)$/i.test(dashMatch[1].trim())) {
+        commitProj();
+        currentProj = {
+          name: stripLabel(dashMatch[1], /^(?:project\s*name|project\s*title|project)\s*:\s*/i),
+          description: dashMatch[2].trim(),
           link: ''
         };
         continue;
