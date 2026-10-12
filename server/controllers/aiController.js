@@ -1240,14 +1240,26 @@ export function sanitizeParsedResume(parsed) {
       }
 
       // If "Degree, Institution" was packed into institution
-      if (!degree && institution && (institution.includes(',') || institution.includes('|') || institution.includes(' - '))) {
-        const sep = institution.includes('|') ? '|' : (institution.includes(',') ? ',' : ' - ');
+      if (!degree && institution && (institution.includes(',') || institution.includes('|') || institution.includes(' - ') || institution.includes(' — ') || institution.includes(' – ') || /[\u2013\u2014]/.test(institution))) {
+        const sep = institution.includes('|') ? '|' : (institution.includes(',') ? ',' : /(?:\s+[-–—]\s+|\s*[\u2013\u2014]\s*)/);
         const parts = institution.split(sep).map(p => p.trim()).filter(Boolean);
         if (parts.length >= 2) {
           const degIdx = parts.findIndex(p => degreeKeywordRegex.test(p));
           if (degIdx !== -1) {
             degree = parts[degIdx];
             institution = parts.filter((_, i) => i !== degIdx).join(', ');
+          }
+        }
+      }
+      // If "Degree — Institution" was packed into degree
+      if (!institution && degree && (degree.includes(',') || degree.includes('|') || degree.includes(' - ') || degree.includes(' — ') || degree.includes(' – ') || /[\u2013\u2014]/.test(degree))) {
+        const sep = degree.includes('|') ? '|' : (degree.includes(',') ? ',' : /(?:\s+[-–—]\s+|\s*[\u2013\u2014]\s*)/);
+        const parts = degree.split(sep).map(p => p.trim()).filter(Boolean);
+        if (parts.length >= 2) {
+          const instIdx = parts.findIndex(p => instKeywordRegex.test(p));
+          if (instIdx !== -1) {
+            institution = parts[instIdx];
+            degree = parts.filter((_, i) => i !== instIdx).join(', ');
           }
         }
       }
@@ -1335,7 +1347,7 @@ export function parseResumeRuleBased(resumeText) {
   // 2. Section categorization
   const sectionHeaders = [
     { type: 'summary', regex: /^(?:professional\s+summary|executive\s+summary|summary|profile|about\s+me|career\s+objective|objective)(?::\s*(.*))?$/i },
-    { type: 'skills', regex: /^(?:technical\s+skills|core\s+competencies|key\s+skills|skills|technologies|tools\s+&?\s+technologies|skills\s+&?\s+tools)(?::\s*(.*))?$/i },
+    { type: 'skills', regex: /^(?:technical\s+skills|core\s+competencies|key\s+skills|skills|technologies|tools\s+&?\s+technologies|skills\s+&?\s+tools|technical\s+proficiencies|proficiencies)(?::\s*(.*))?$/i },
     { type: 'experience', regex: /^(?:work\s+experience|professional\s+experience|experience|employment\s+history|work\s+history|employment)(?::\s*(.*))?$/i },
     { type: 'education', regex: /^(?:education|academic\s+background|academic\s+qualifications|qualifications)(?::\s*(.*))?$/i },
     { type: 'projects', regex: /^(?:projects|personal\s+projects|key\s+projects|portfolio\s+projects)(?::\s*(.*))?$/i },
@@ -1663,24 +1675,37 @@ export function parseResumeRuleBased(resumeText) {
         continue;
       }
 
-      // 6. Dash-separated: "Frontend Developer - Test Company"
-      const dashParts = line.split(/(?:\s+[-–—]\s+|\s*[\u2013\u2014]\s*)/);
-      if (dashParts.length === 2 && !isStandaloneDate(line) && dashParts[0].length < 60 && dashParts[1].length < 60) {
+      // 6. Dash-separated: "Frontend Developer - Test Company" or "Role — Company Date - Date"
+      let roleCompanyLine = line;
+      let lineDt = { start: '', end: '', raw: '' };
+      if (!isStandaloneDate(line)) {
+        const extractedDt = extractDateTokens(line);
+        if (extractedDt.raw) {
+          const rem = line.replace(extractedDt.raw, '').trim();
+          if (rem && (rem.includes('-') || rem.includes('–') || rem.includes('—') || /[\u2013\u2014]/.test(rem))) {
+            lineDt = extractedDt;
+            roleCompanyLine = rem;
+          }
+        }
+      }
+
+      const dashParts = roleCompanyLine.split(/(?:\s+[-–—]\s+|\s*[\u2013\u2014]\s*)/);
+      if (dashParts.length === 2 && !isStandaloneDate(roleCompanyLine) && dashParts[0].length < 60 && dashParts[1].length < 60) {
         const isActionVerb = /^(?:designed|built|developed|created|managed|led|architected|implemented|engineered|maintained|scaled|automated)\b/i.test(dashParts[0]);
         if (!isActionVerb) {
           commitExp();
           let r = dashParts[0].trim();
           let c = dashParts[1].trim();
-          if (/(?:developer|engineer|manager|lead|analyst|designer|consultant|specialist|architect|intern)/i.test(c)) {
+          if (/(?:developer|engineer|manager|lead|analyst|designer|consultant|specialist|architect|intern)/i.test(c) && !/(?:developer|engineer|manager|lead|analyst|designer|consultant|specialist|architect|intern)/i.test(r)) {
             const tmp = r; r = c; c = tmp;
           }
           currentExp = {
             role: stripLabel(r, /^(?:role|position|title)\s*:\s*/i),
             company: stripLabel(c, /^(?:company|employer)\s*:\s*/i),
             location: '',
-            startDate: '',
-            endDate: '',
-            year: '',
+            startDate: lineDt.start || lineDt.raw,
+            endDate: lineDt.end,
+            year: lineDt.raw,
             description: ''
           };
           continue;
@@ -1811,9 +1836,22 @@ export function parseResumeRuleBased(resumeText) {
       }
 
       // 4. Delimited line: "BCA, Test College" or "B.Tech | GTU | 2017-2021"
-      if (line.includes('|') || line.includes(',') || line.includes(' - ')) {
-        const separator = line.includes('|') ? '|' : (line.includes(',') ? ',' : ' - ');
-        const parts = line.split(separator).map(p => p.trim()).filter(Boolean);
+      if (line.includes('|') || line.includes(',') || line.includes(' - ') || line.includes(' — ') || line.includes(' – ') || /[\u2013\u2014]/.test(line)) {
+        const rawParts = line.includes('|')
+          ? line.split('|').map(p => p.trim()).filter(Boolean)
+          : (line.includes(',') ? line.split(',').map(p => p.trim()).filter(Boolean) : [line]);
+
+        const parts = [];
+        for (const rp of rawParts) {
+          if (!isStandaloneDate(rp) && (rp.includes(' — ') || rp.includes(' – ') || rp.includes(' - ') || /[\u2013\u2014]/.test(rp))) {
+            const sub = rp.split(/(?:\s+[-–—]\s+|\s*[\u2013\u2014]\s*)/).map(s => s.trim()).filter(Boolean);
+            if (sub.length >= 2) {
+              parts.push(...sub);
+              continue;
+            }
+          }
+          parts.push(rp);
+        }
 
         let deg = '';
         let inst = '';

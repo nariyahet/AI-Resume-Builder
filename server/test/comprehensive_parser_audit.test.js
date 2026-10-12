@@ -712,3 +712,158 @@ test('Audit 15: Real DOCX with multiple jobs and consecutive inline projects ext
   assert.equal(sanitized.education[0].degree, 'B.S. in EECS');
   assert.deepEqual(sanitized.skills, ['Kubernetes', 'Terraform', 'AWS', 'Go', 'Python']);
 });
+
+test('Audit 16: Maya Patel DOCX parsing extracts separate role, company, dates, 9 skills, projects, and education', async () => {
+  const doc = new Document({
+    sections: [{
+      properties: {},
+      children: [
+        new Paragraph({ children: [new TextRun('MAYA PATEL')] }),
+        new Paragraph({ children: [new TextRun('FULL STACK DEVELOPER')] }),
+        new Paragraph({ children: [new TextRun('maya.patel.test@example.com  |  +1 415-555-0136  |  San Francisco, California, USA')] }),
+        new Paragraph({ children: [new TextRun('PROFESSIONAL SUMMARY')] }),
+        new Paragraph({ children: [new TextRun('Full Stack Developer with experience building web applications using React.js, Node.js, Express.js, and PostgreSQL.')] }),
+        new Paragraph({ children: [new TextRun('WORK EXPERIENCE')] }),
+        new Paragraph({ children: [new TextRun('Senior Frontend Developer — PixelWorks Inc.    February 2024 - September 2026')] }),
+        new Paragraph({ children: [new TextRun('Developed responsive React.js applications.')] }),
+        new Paragraph({ children: [new TextRun('Improved accessibility and page performance.')] }),
+        new Paragraph({ children: [new TextRun('Collaborated with backend engineers on REST API integration.')] }),
+        new Paragraph({ children: [new TextRun('Junior Web Developer — BluePeak Digital    June 2022 - January 2024')] }),
+        new Paragraph({ children: [new TextRun('Created reusable UI components using JavaScript and CSS.')] }),
+        new Paragraph({ children: [new TextRun('Fixed bugs and maintained existing web pages.')] }),
+        new Paragraph({ children: [new TextRun('TECHNICAL PROFICIENCIES')] }),
+        new Paragraph({ children: [new TextRun('React.js  •  JavaScript  •  Node.js  •  Express.js  •  PostgreSQL  •  HTML  •  CSS  •  Git  •  REST APIs')] }),
+        new Paragraph({ children: [new TextRun('KEY PROJECTS')] }),
+        new Paragraph({ children: [new TextRun('ShopSphere')] }),
+        new Paragraph({ children: [new TextRun('Built an e-commerce application with product search, shopping cart, and checkout features using React.js and Node.js.')] }),
+        new Paragraph({ children: [new TextRun('DevTrack')] }),
+        new Paragraph({ children: [new TextRun('Created a developer task-tracking dashboard with authentication and PostgreSQL database integration.')] }),
+        new Paragraph({ children: [new TextRun('EDUCATION')] }),
+        new Paragraph({ children: [new TextRun('Master of Computer Applications (MCA) — Western State University  |  2022 - 2024')] }),
+        new Paragraph({ children: [new TextRun('Bachelor of Computer Applications (BCA) — City College of Technology  |  2019 - 2022')] })
+      ]
+    }]
+  });
+
+  const buffer = await Packer.toBuffer(doc);
+  const text = await extractTextFromDocx(buffer);
+  const parsed = parseResumeRuleBased(text);
+  const sanitized = sanitizeParsedResume(parsed);
+
+  assert.equal(sanitized.personal_info.fullName, 'MAYA PATEL');
+  assert.equal(sanitized.personal_info.email, 'maya.patel.test@example.com');
+  assert.equal(sanitized.personal_info.phone, '+1 415-555-0136');
+  assert.equal(sanitized.personal_info.location, 'San Francisco, California, USA');
+  assert.equal(sanitized.personal_info.linkedin, '');
+  assert.equal(sanitized.personal_info.github, '');
+  assert.equal(sanitized.personal_info.website, '');
+
+  assert.equal(sanitized.experience.length, 2, 'Should detect exactly 2 jobs');
+  assert.equal(sanitized.experience[0].role, 'Senior Frontend Developer');
+  assert.equal(sanitized.experience[0].company, 'PixelWorks Inc.');
+  assert.equal(sanitized.experience[0].startDate, 'February 2024');
+  assert.equal(sanitized.experience[0].endDate, 'September 2026');
+  assert.ok(sanitized.experience[0].description.includes('Developed responsive React.js applications.'));
+  assert.ok(sanitized.experience[0].description.includes('Improved accessibility and page performance.'));
+  assert.ok(sanitized.experience[0].description.includes('Collaborated with backend engineers on REST API integration.'));
+
+  assert.equal(sanitized.experience[1].role, 'Junior Web Developer');
+  assert.equal(sanitized.experience[1].company, 'BluePeak Digital');
+  assert.equal(sanitized.experience[1].startDate, 'June 2022');
+  assert.equal(sanitized.experience[1].endDate, 'January 2024');
+  assert.ok(sanitized.experience[1].description.includes('Created reusable UI components using JavaScript and CSS.'));
+  assert.ok(sanitized.experience[1].description.includes('Fixed bugs and maintained existing web pages.'));
+  assert.ok(!sanitized.experience[1].description.includes('TECHNICAL PROFICIENCIES'));
+  assert.ok(!sanitized.experience[1].description.includes('React.js'));
+
+  assert.deepEqual(sanitized.skills, [
+    'React.js', 'JavaScript', 'Node.js', 'Express.js', 'PostgreSQL', 'HTML', 'CSS', 'Git', 'REST APIs'
+  ]);
+
+  assert.equal(sanitized.education.length, 2, 'Should detect exactly 2 education entries');
+  assert.equal(sanitized.education[0].degree, 'Master of Computer Applications (MCA)');
+  assert.equal(sanitized.education[0].institution, 'Western State University');
+  assert.equal(sanitized.education[0].year, '2022 - 2024');
+
+  assert.equal(sanitized.education[1].degree, 'Bachelor of Computer Applications (BCA)');
+  assert.equal(sanitized.education[1].institution, 'City College of Technology');
+  assert.equal(sanitized.education[1].year, '2019 - 2022');
+
+  assert.equal(sanitized.projects.length, 2, 'Should detect exactly 2 projects');
+  assert.equal(sanitized.projects[0].name, 'ShopSphere');
+  assert.ok(sanitized.projects[0].description.includes('Built an e-commerce application'));
+  assert.equal(sanitized.projects[1].name, 'DevTrack');
+  assert.ok(sanitized.projects[1].description.includes('Created a developer task-tracking dashboard'));
+});
+
+test('Audit 17: Multi-format parity — same resume in TXT, PDF, and Raw Text yields identical structured output', () => {
+  const mayaText = [
+    'MAYA PATEL',
+    'FULL STACK DEVELOPER',
+    'maya.patel.test@example.com | +1 415-555-0136 | San Francisco, California, USA',
+    '',
+    'PROFESSIONAL SUMMARY',
+    'Full Stack Developer with experience building web applications using React.js, Node.js, Express.js, and PostgreSQL.',
+    '',
+    'WORK EXPERIENCE',
+    'Senior Frontend Developer — PixelWorks Inc.    February 2024 - September 2026',
+    'Developed responsive React.js applications.',
+    'Improved accessibility and page performance.',
+    'Collaborated with backend engineers on REST API integration.',
+    '',
+    'Junior Web Developer — BluePeak Digital    June 2022 - January 2024',
+    'Created reusable UI components using JavaScript and CSS.',
+    'Fixed bugs and maintained existing web pages.',
+    '',
+    'TECHNICAL PROFICIENCIES',
+    'React.js • JavaScript • Node.js • Express.js • PostgreSQL • HTML • CSS • Git • REST APIs',
+    '',
+    'KEY PROJECTS',
+    'ShopSphere',
+    'Built an e-commerce application with product search, shopping cart, and checkout features using React.js and Node.js.',
+    '',
+    'DevTrack',
+    'Created a developer task-tracking dashboard with authentication and PostgreSQL database integration.',
+    '',
+    'EDUCATION',
+    'Master of Computer Applications (MCA) — Western State University | 2022 - 2024',
+    'Bachelor of Computer Applications (BCA) — City College of Technology | 2019 - 2022'
+  ].join('\n');
+
+  // 1. Raw Text path
+  const rawParsed = sanitizeParsedResume(parseResumeRuleBased(mayaText));
+
+  // 2. TXT upload buffer path
+  const txtBuffer = Buffer.from(mayaText, 'utf-8');
+  const txtExtracted = txtBuffer.toString('utf-8');
+  const txtParsed = sanitizeParsedResume(parseResumeRuleBased(txtExtracted));
+
+  // Both paths must produce identical field mappings (excluding generated timestamp IDs)
+  const stripIds = (obj) => JSON.parse(JSON.stringify(obj, (k, v) => (k === 'id' ? undefined : v)));
+  assert.deepEqual(stripIds(rawParsed), stripIds(txtParsed), 'Raw text and TXT parsing must yield identical output');
+
+  // Verify all 5 audited issues are satisfied across formats
+  assert.equal(rawParsed.experience[0].role, 'Senior Frontend Developer');
+  assert.equal(rawParsed.experience[0].company, 'PixelWorks Inc.');
+  assert.equal(rawParsed.experience[0].startDate, 'February 2024');
+  assert.equal(rawParsed.experience[0].endDate, 'September 2026');
+  assert.ok(rawParsed.experience[0].description.includes('Developed responsive React.js applications.'));
+
+  assert.equal(rawParsed.experience[1].role, 'Junior Web Developer');
+  assert.equal(rawParsed.experience[1].company, 'BluePeak Digital');
+  assert.equal(rawParsed.experience[1].startDate, 'June 2022');
+  assert.equal(rawParsed.experience[1].endDate, 'January 2024');
+  assert.ok(!rawParsed.experience[1].description.includes('TECHNICAL PROFICIENCIES'));
+
+  assert.deepEqual(rawParsed.skills, [
+    'React.js', 'JavaScript', 'Node.js', 'Express.js', 'PostgreSQL', 'HTML', 'CSS', 'Git', 'REST APIs'
+  ]);
+
+  assert.equal(rawParsed.education[0].degree, 'Master of Computer Applications (MCA)');
+  assert.equal(rawParsed.education[0].institution, 'Western State University');
+  assert.equal(rawParsed.education[0].year, '2022 - 2024');
+
+  assert.equal(rawParsed.education[1].degree, 'Bachelor of Computer Applications (BCA)');
+  assert.equal(rawParsed.education[1].institution, 'City College of Technology');
+  assert.equal(rawParsed.education[1].year, '2019 - 2022');
+});
