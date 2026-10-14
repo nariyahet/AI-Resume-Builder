@@ -1093,11 +1093,20 @@ export const roleKeywordRegex = /\b(?:developer|engineer|manager|lead|analyst|de
 
 function sanitizeTargetRole(val) {
   let cleaned = stripLabel(val, /^(?:target\s*role|target\s*job\s*role|job\s*title|role|position|title)\s*:\s*/i);
+  if (!cleaned || typeof cleaned !== 'string') return '';
+  cleaned = cleaned.trim();
+  if (cleaned.length < 3 || /^(?:un|the|and|for|page|with|from|role|title|status|result|check|checklist)$/i.test(cleaned)) {
+    return '';
+  }
   // Never allow emails or phone numbers to bleed into target_role
   if (/[\w.-]+@[\w.-]+\.\w+/.test(cleaned)) {
     return '';
   }
   if (/^[\s\d+().-]{7,}$/.test(cleaned) || /^(?:phone|tel|email|mobile):/i.test(val)) {
+    return '';
+  }
+  // Reject document titles, test packs, or export header artifacts
+  if (/\b(?:resume\s*studio|pdf\s*export|test\s*pack|export\s*test|test\s*checklist|consolidated|sample\s*resume)\b/i.test(cleaned)) {
     return '';
   }
   return cleaned;
@@ -1247,7 +1256,8 @@ export function sanitizeParsedResume(parsed) {
     const s = str.trim();
     if (/^[-•*«+<>]\s*/.test(s)) return true;
     if (/^(?:designed|built|developed|created|managed|led|architected|implemented|engineered|orchestrated|spearheaded|maintained|scaled|automated)\b/i.test(s)) return true;
-    if (/\b(?:test\s*pack|export\s*test|pdf\s*export)\b/i.test(s)) return true;
+    if (/\b(?:test\s*pack|export\s*test|pdf\s*export|test\s*checklist|checklist|blank\s*pages|repeat\s*content)\b/i.test(s)) return true;
+    if (/^(?:confirm|verify|check|ensure|inspect|open\s+the|repeat\s+the|all\s+\d+|test\s+\d+|result:?)\b/i.test(s)) return true;
     if (/^(?:.*?\bpage\s*\d+(?:\s*(?:of|\/)\s*\d+)?\b.*)$/i.test(s) && s.length <= 60) return true;
     return false;
   };
@@ -1259,8 +1269,8 @@ export function sanitizeParsedResume(parsed) {
       let degree = stripLabel(ed.degree, /^(?:degree|major|program)\s*:\s*/i);
       let year = stripLabel(ed.year, /^(?:year|years|graduation|duration)\s*:\s*/i);
 
-      if (isEduHeaderLabel(institution) || isActionOrPageLine(institution)) institution = '';
-      if (isEduHeaderLabel(degree) || isActionOrPageLine(degree)) degree = '';
+      if (isEduHeaderLabel(institution) || isActionOrPageLine(institution) || /^institutions?$/i.test(institution) || (institution.length > 50 && !instKeywordRegex.test(institution))) institution = '';
+      if (isEduHeaderLabel(degree) || isActionOrPageLine(degree) || /^degrees?$/i.test(degree)) degree = '';
 
       // Prevent dates from becoming institution or degree
       if (isStandaloneDate(institution)) {
@@ -1297,8 +1307,8 @@ export function sanitizeParsedResume(parsed) {
         }
       }
 
-      if (isEduHeaderLabel(institution) || isActionOrPageLine(institution)) institution = '';
-      if (isEduHeaderLabel(degree) || isActionOrPageLine(degree)) degree = '';
+      if (isEduHeaderLabel(institution) || isActionOrPageLine(institution) || /^institutions?$/i.test(institution) || (institution.length > 50 && !instKeywordRegex.test(institution))) institution = '';
+      if (isEduHeaderLabel(degree) || isActionOrPageLine(degree) || /^degrees?$/i.test(degree)) degree = '';
 
       return {
         id: ed.id || `edu-${Date.now()}-${idx + 1}`,
@@ -1308,7 +1318,11 @@ export function sanitizeParsedResume(parsed) {
         score: stripLabel(ed.score, /^(?:score|gpa|grade|marks?)\s*:\s*/i)
       };
     })
-    .filter(ed => ed.institution || ed.degree)
+    .filter(ed => {
+      const degValid = ed.degree && degreeKeywordRegex.test(ed.degree) && !/^degrees?$/i.test(ed.degree.trim()) && !isActionOrPageLine(ed.degree);
+      const instValid = ed.institution && instKeywordRegex.test(ed.institution) && !isActionOrPageLine(ed.institution);
+      return degValid || instValid;
+    })
     .filter((ed, idx, arr) => arr.findIndex(other =>
       (other.degree && ed.degree && other.degree.toLowerCase() === ed.degree.toLowerCase() && other.institution && ed.institution && other.institution.toLowerCase() === ed.institution.toLowerCase()) ||
       (!other.degree && !ed.degree && other.institution && ed.institution && other.institution.toLowerCase() === ed.institution.toLowerCase()) ||
@@ -1326,10 +1340,15 @@ export function sanitizeParsedResume(parsed) {
     })).filter(pr => pr.name);
   }
 
+  let finalTargetRole = targetRole;
+  if (!finalTargetRole && experience.length > 0 && experience[0]?.role) {
+    finalTargetRole = experience[0].role;
+  }
+
   return {
     ...parsed,
-    title: (parsed.title && parsed.title !== 'Imported Resume' && parsed.title !== 'Extracted Resume') ? parsed.title : (targetRole ? `${targetRole} Resume` : 'Imported Resume'),
-    target_role: targetRole,
+    title: (parsed.title && parsed.title !== 'Imported Resume' && parsed.title !== 'Extracted Resume') ? parsed.title : (finalTargetRole ? `${finalTargetRole} Resume` : 'Imported Resume'),
+    target_role: finalTargetRole,
     personal_info: cleanedPersonalInfo,
     summary,
     skills,
@@ -1393,8 +1412,8 @@ export function parseResumeRuleBased(resumeText, options = {}) {
     { type: 'skills', regex: /^(?:technical\s*(?:skills|proficiencies|competencies|expertise)|core\s*(?:competencies|skills|qualifications)|key\s*skills|technical\s*(?:&|and)\s*core\s*competencies|skills\s*(?:&|and|\/)\s*(?:tools|technologies|frameworks|abilities)|tools\s*(?:&|and|\/)\s*(?:technologies|skills)|technologies\s*(?:&|and|\/)\s*tools|skills|technologies|proficiencies|competencies|areas\s*of\s*expertise)(?:\s*[-–—:]?\s*(?:\(?(?:continued|cont\.?|cont'd)\)?))?(?::\s*(.*))?$/i },
     { type: 'experience', regex: /^(?:(?:work|professional|relevant|career|industry|practical|employment)\s*(?:experience|history|background)|experience|employment|work\s*history)(?:\s*[-–—:]?\s*(?:\(?(?:continued|cont\.?|cont'd)\)?))?(?::\s*(.*))?$/i },
     { type: 'education', regex: /^(?:education(?:\s*(?:&|and|\/)\s*(?:training|certifications|credentials|academic\s*background))?|academic\s*(?:background|qualifications|history|achievements)|educational\s*(?:background|qualifications)|qualifications|academics)(?:\s*[-–—:]?\s*(?:\(?(?:continued|cont\.?|cont'd)\)?))?(?::\s*(.*))?$/i },
-    { type: 'projects', regex: /^(?:(?:key|personal|portfolio|academic|selected|technical|featured|notable|major|capstone|independent|client|recent|software)?\s*projects?(?:\s*(?:&|and|\/)\s*(?:initiatives|work|contributions|highlights|achievements|open\s*source))?|project\s*work|project\s*highlights|project\s*portfolio)(?:\s*[-–—:]?\s*(?:\(?(?:continued|cont\.?|cont'd)\)?))?(?::\s*(.*))?$/i },
-    { type: 'certifications', regex: /^(?:certifications?(?:\s*(?:&|and|\/)\s*(?:licenses|courses|trainings|credentials))?|licenses(?:\s*(?:&|and|\/)\s*certifications?)?|professional\s*certifications?|certificates|credentials)(?:\s*[-–—:]?\s*(?:\(?(?:continued|cont\.?|cont'd)\)?))?(?::\s*(.*))?$/i }
+    { type: 'projects', regex: /^(?:(?:key|personal|portfolio|academic|selected|technical|featured|notable|major|capstone|independent|client|recent|software|extended)?\s*projects?(?:\s*(?:&|and|\/)\s*(?:initiatives|work|contributions|highlights|achievements|open\s*source|entries))?|project\s*work|project\s*highlights|project\s*portfolio|page[-_\s]*break\s*stress\s*section|stress\s*section|extended\s*project\s*entries)(?:\s*[-–—:]?\s*(?:\(?(?:continued|cont\.?|cont'd)\)?))?(?::\s*(.*))?$/i },
+    { type: 'certifications', regex: /^(?:certifications?(?:\s*(?:&|and|\/)\s*(?:licenses|courses|trainings|credentials|additional\s*information))?|licenses(?:\s*(?:&|and|\/)\s*certifications?)?|professional\s*certifications?|certificates|credentials|certifications\s*(?:&|and|\/)\s*additional\s*information|additional\s*information)(?:\s*[-–—:]?\s*(?:\(?(?:continued|cont\.?|cont'd)\)?))?(?::\s*(.*))?$/i }
   ];
 
   function getSectionMatch(line) {
@@ -1403,6 +1422,13 @@ export function parseResumeRuleBased(resumeText, options = {}) {
       const match = clean.match(sh.regex);
       if (match) {
         return { type: sh.type, inlineContent: (match[1] || '').trim() };
+      }
+      if (/^(?:degree|institution|skills?|experience|education|projects?|role|company|dates?)\s*[-–—|]\s*/i.test(clean)) {
+        const withoutPrefix = clean.replace(/^(?:degree|institution|skills?|experience|education|projects?|role|company|dates?)\s*[-–—|]\s*/i, '');
+        const pMatch = withoutPrefix.match(sh.regex);
+        if (pMatch) {
+          return { type: sh.type, inlineContent: (pMatch[1] || '').trim() };
+        }
       }
     }
     return null;
@@ -1485,8 +1511,18 @@ export function parseResumeRuleBased(resumeText, options = {}) {
     }
   }
 
+  function isValidCandidateName(str) {
+    if (!str || typeof str !== 'string') return false;
+    const s = str.trim();
+    if (s.length < 3 || s.length > 45) return false;
+    if (/\b(?:resume\s*studio|pdf\s*export|test\s*pack|export\s*test|test\s*checklist|consolidated|template|curriculum\s*vitae|resume|sample|draft|preview)\b/i.test(s)) return false;
+    if (/@|\bhttps?:\/\/|\bwww\.|\d{3,}/.test(s)) return false;
+    if (/^(?:un|the|and|for|page|with|from|role|title|status|result|check|checklist)$/i.test(s)) return false;
+    return /^[a-zA-ZÀ-ÿ\s.'-]+$/.test(s);
+  }
+
   if (!extractedName && sections.header.length > 0) {
-    for (let i = 0; i < Math.min(3, sections.header.length); i++) {
+    for (let i = 0; i < Math.min(4, sections.header.length); i++) {
       const line = sections.header[i];
       if (
         emailRegex.test(line) ||
@@ -1501,38 +1537,44 @@ export function parseResumeRuleBased(resumeText, options = {}) {
         }
         continue;
       }
-      extractedName = stripLabel(line, /^(?:name|full\s*name):\s*/i);
-      if (extractedName && (extractedName.includes(' - ') || extractedName.includes(' – ') || extractedName.includes(' | '))) {
-        const parts = extractedName.split(/\s+[-–—|]\s+/);
+      let cand = stripLabel(line, /^(?:name|full\s*name):\s*/i);
+      if (cand && (cand.includes(' - ') || cand.includes(' – ') || cand.includes(' — ') || cand.includes(' | '))) {
+        const parts = cand.split(/\s+[-–—|]\s+/);
         if (parts.length >= 2) {
-          extractedName = parts[0].trim();
+          cand = parts[0].trim();
           if (!extractedRole) {
             extractedRole = sanitizeTargetRole(parts[1].trim());
           }
         }
       }
-      break;
+      if (isValidCandidateName(cand)) {
+        extractedName = cand;
+        break;
+      }
     }
   }
 
-  // If candidate name is still missing or matches a role keyword, derive from filename or email
-  if (!extractedName || roleKeywordRegex.test(extractedName)) {
-    if (extractedName && roleKeywordRegex.test(extractedName) && !extractedRole) {
-      extractedRole = extractedName;
-    }
+  // If candidate name is still invalid, derive from email or clean filename
+  if (!isValidCandidateName(extractedName)) {
     extractedName = '';
 
-    if (fileName) {
-      const base = fileName.replace(/\.[^.]+$/, '').replace(/[-_]?(?:resume|cv)[-_]?/gi, '').replace(/[_-]/g, ' ').trim();
-      if (base && !/^(?:resume|cv|document|file)$/i.test(base)) {
-        extractedName = base.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ');
-      }
-    }
-    if (!extractedName && (extractedEmail || emailMatch)) {
+    // First try deriving from email (e.g. jordan.lee@example.com -> Jordan Lee)
+    if (extractedEmail || emailMatch) {
       const em = extractedEmail || emailMatch[0];
       const user = em.split('@')[0].replace(/(?:\.test|\.dev|\.job|\d+)$/gi, '').replace(/[._-]/g, ' ').trim();
-      if (user && user.length > 2 && user.length < 40 && !/^(?:resume|cv|contact|info|user)$/i.test(user)) {
-        extractedName = user.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ');
+      if (user && user.length > 2 && user.length < 40 && !/^(?:resume|cv|contact|info|user|admin|test)$/i.test(user)) {
+        const derived = user.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ');
+        if (isValidCandidateName(derived)) {
+          extractedName = derived;
+        }
+      }
+    }
+
+    // Secondary fallback: clean filename (only if not a test pack or system name)
+    if (!extractedName && fileName) {
+      const base = fileName.replace(/\.[^.]+$/, '').replace(/[-_]?(?:resume|cv)[-_]?/gi, '').replace(/[_-]/g, ' ').trim();
+      if (base && isValidCandidateName(base)) {
+        extractedName = base.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ');
       }
     }
   }
@@ -1928,6 +1970,14 @@ export function parseResumeRuleBased(resumeText, options = {}) {
       return false;
     };
 
+    const isTestOrInstructionLine = (str) => {
+      if (!str || typeof str !== 'string') return false;
+      const s = str.trim();
+      if (/^(?:confirm|verify|check|ensure|inspect|open\s+the|repeat\s+the|all\s+\d+|test\s+\d+|result:?)\b/i.test(s)) return true;
+      if (/\b(?:export\s+does\s+not|blank\s+pages|repeat\s+content|test\s*checklist|test\s*pack|normal\s*zoom|test\s+sample|test\s+\d+|checklist)\b/i.test(s)) return true;
+      return false;
+    };
+
     const commitEdu = () => {
       if (currentEdu) {
         let deg = currentEdu.degree ? currentEdu.degree.trim() : '';
@@ -1935,8 +1985,10 @@ export function parseResumeRuleBased(resumeText, options = {}) {
         let yr = currentEdu.year ? currentEdu.year.trim() : '';
 
         // Discard header labels or page artifacts that leaked into degree/institution
-        if (isEducationHeader(deg) || isPageOrDocArtifact(deg) || isProjectOrActionLine(deg)) deg = '';
-        if (isEducationHeader(inst) || isPageOrDocArtifact(inst) || isProjectOrActionLine(inst)) inst = '';
+        deg = stripLabel(deg, /^(?:degree|major|program)\s*[:—–-]\s*/i);
+        inst = stripLabel(inst, /^(?:institution|school|university|college)\s*[:—–-]\s*/i);
+        if (isEducationHeader(deg) || isPageOrDocArtifact(deg) || isProjectOrActionLine(deg) || isTestOrInstructionLine(deg) || /^degrees?$/i.test(deg)) deg = '';
+        if (isEducationHeader(inst) || isPageOrDocArtifact(inst) || isProjectOrActionLine(inst) || isTestOrInstructionLine(inst) || /^institutions?$/i.test(inst) || (inst.length > 50 && !instKeywordRegex.test(inst))) inst = '';
 
         if (isStandaloneDate(inst)) {
           if (!yr) yr = inst;
@@ -1945,6 +1997,12 @@ export function parseResumeRuleBased(resumeText, options = {}) {
         if (isStandaloneDate(deg)) {
           if (!yr) yr = deg;
           deg = '';
+        }
+
+        const hasValidEduKeyword = (deg && degreeKeywordRegex.test(deg) && !/^degrees?$/i.test(deg.trim())) || (inst && instKeywordRegex.test(inst));
+        if (!hasValidEduKeyword) {
+          currentEdu = null;
+          return;
         }
 
         if (inst || deg) {
@@ -1972,7 +2030,7 @@ export function parseResumeRuleBased(resumeText, options = {}) {
       const line = sections.education[i];
 
       // 0. Skip standalone or combined table headers: Degree, Institution, Years, Degree — Institution, etc.
-      if (isEducationHeader(line) || isPageOrDocArtifact(line)) {
+      if (isEducationHeader(line) || isPageOrDocArtifact(line) || isTestOrInstructionLine(line)) {
         continue;
       }
 
@@ -2071,7 +2129,8 @@ export function parseResumeRuleBased(resumeText, options = {}) {
           }
         }
 
-        if (deg || inst) {
+        const hasValidEduKeyword = (deg && degreeKeywordRegex.test(deg)) || (inst && instKeywordRegex.test(inst));
+        if (hasValidEduKeyword && (deg || inst)) {
           commitEdu();
           currentEdu = {
             degree: stripLabel(deg, /^(?:degree|major)\s*:\s*/i),
@@ -2104,20 +2163,18 @@ export function parseResumeRuleBased(resumeText, options = {}) {
         continue;
       }
 
-      // 7. General fallback (only for plausible education lines, never for project/action lines or table headers)
-      if (!isEducationHeader(line) && !isProjectOrActionLine(line) && !isPageOrDocArtifact(line) && line.length < 90) {
+      // 7. General fallback (only for lines with degree/institution keywords, never random project/instruction text)
+      if (!isEducationHeader(line) && !isProjectOrActionLine(line) && !isPageOrDocArtifact(line) && !isTestOrInstructionLine(line) && line.length < 90) {
         if (!currentEdu) {
           if (degreeKeywordRegex.test(line)) {
             currentEdu = { institution: '', degree: line, year: '', score: '' };
-          } else {
+          } else if (instKeywordRegex.test(line)) {
             currentEdu = { institution: line, degree: '', year: '', score: '' };
           }
-        } else if (!currentEdu.institution && !degreeKeywordRegex.test(line)) {
+        } else if (!currentEdu.institution && instKeywordRegex.test(line)) {
           currentEdu.institution = line;
-        } else if (!currentEdu.degree) {
+        } else if (!currentEdu.degree && degreeKeywordRegex.test(line)) {
           currentEdu.degree = line;
-        } else if (!currentEdu.institution) {
-          currentEdu.institution = line;
         }
       }
     }

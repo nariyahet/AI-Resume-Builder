@@ -34,17 +34,18 @@ async function extractOcrFromPdfBuffer(buffer, parser) {
   }
 
   if (jpegBuffers.length > 0) {
-    let combined = '';
-    for (const jpegBuf of jpegBuffers) {
-      try {
-        const res = await tesseractModule.recognize(jpegBuf, 'eng');
-        if (res?.data?.text?.trim()) {
-          combined += (combined ? '\n\n' : '') + res.data.text.trim();
-        }
-      } catch (err) {
-        console.warn('OCR error on embedded JPEG page stream:', err.message);
-      }
-    }
+    // Process up to 3 pages in parallel to keep OCR fast (~10s) and responsive
+    const pagesToOcr = jpegBuffers.slice(0, 3);
+    const pageResults = await Promise.all(
+      pagesToOcr.map(jpegBuf =>
+        tesseractModule.recognize(jpegBuf, 'eng').then(res => res?.data?.text?.trim() || '').catch(err => {
+          console.warn('OCR error on embedded JPEG page stream:', err.message);
+          return '';
+        })
+      )
+    );
+
+    const combined = pageResults.filter(Boolean).join('\n\n');
     if (combined.trim()) {
       return combined.trim();
     }
