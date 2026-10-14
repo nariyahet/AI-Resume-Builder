@@ -121,24 +121,36 @@ export async function exportResumeToPdf(resume, elementId = 'resume-print-area')
       el.style.breakBefore = 'avoid';
     });
 
-    // 5. Generic balanced pagination for 2+ page resumes:
-    // If document height exceeds 1 page (1122px), prevent packing 90% of content on Page 1
-    // and stranding a lonely single entry on Page 2 with excessive whitespace.
+    // 5. Generic balanced pagination for 2-page resumes:
+    // Distribute sections evenly across pages without stranding tiny fragments on Page 2
+    // or leaving excessive whitespace voids on Page 1.
     const pageHeight = 1122; // A4 standard pixel height at 794px width
-    if (clone.offsetHeight > pageHeight) {
-      const sections = Array.from(clone.querySelectorAll('.resume-section'));
-      for (const sec of sections) {
-        const secTop = sec.offsetTop;
-        const secH = sec.offsetHeight;
-        const spaceLeft = pageHeight - (secTop % pageHeight);
+    const totalHeight = clone.offsetHeight;
 
-        // If a section starts when less than 320px remain on the current page, and the section
-        // requires more space than is left, and the section can fit comfortably on the next page (secH < 800px):
-        if (secTop < pageHeight && spaceLeft < 320 && secH > spaceLeft && secH < 800) {
-          sec.style.pageBreakBefore = 'always';
-          sec.style.breakBefore = 'page';
-          break; // Balanced break applied at the natural section boundary
+    if (totalHeight > pageHeight && totalHeight <= pageHeight * 2.1) {
+      const targetMidpoint = totalHeight / 2;
+      const sections = Array.from(clone.querySelectorAll('.resume-section'));
+
+      let bestSection = null;
+      let minDiff = Infinity;
+
+      for (const sec of sections) {
+        const page1H = sec.offsetTop;
+        const page2H = totalHeight - page1H;
+
+        // Both pages must fit comfortably within A4 page height (with a safe margin)
+        if (page1H < pageHeight - 30 && page2H < pageHeight - 30) {
+          const diff = Math.abs(page1H - targetMidpoint);
+          if (diff < minDiff) {
+            minDiff = diff;
+            bestSection = sec;
+          }
         }
+      }
+
+      if (bestSection) {
+        bestSection.style.pageBreakBefore = 'always';
+        bestSection.style.breakBefore = 'page';
       }
     }
 
