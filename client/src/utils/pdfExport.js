@@ -62,8 +62,12 @@ export async function exportResumeToPdf(resume, elementId = 'resume-print-area')
       })
     );
 
-    // Apply strict page break rules to all resume items, headers, and sections
-    clone.querySelectorAll('.resume-item, .job-item, .edu-item, .resume-section, .resume-header').forEach(el => {
+    // Allow sections to flow across pages naturally, but keep individual items and titles intact
+    clone.querySelectorAll('.resume-section').forEach(el => {
+      el.style.pageBreakInside = 'auto';
+      el.style.breakInside = 'auto';
+    });
+    clone.querySelectorAll('.resume-item, .job-item, .edu-item, .resume-header').forEach(el => {
       el.style.pageBreakInside = 'avoid';
       el.style.breakInside = 'avoid';
     });
@@ -81,14 +85,6 @@ export async function exportResumeToPdf(resume, elementId = 'resume-print-area')
       lastEl.style.paddingBottom = '0';
     }
 
-    // Constrain height to exact page multiples to prevent 1-2px overflow creating an unnecessary blank page
-    const pageHeightPx = 1122.5; // A4 height at 96 DPI
-    const totalHeight = clone.scrollHeight;
-    if (totalHeight > 0) {
-      const pageCount = Math.max(1, Math.ceil((totalHeight - 20) / pageHeightPx));
-      clone.style.maxHeight = `${pageCount * pageHeightPx}px`;
-    }
-
     const opt = {
       margin: [0, 0, 0, 0],
       filename,
@@ -104,8 +100,8 @@ export async function exportResumeToPdf(resume, elementId = 'resume-print-area')
       },
       jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
       pagebreak: {
-        mode: ['avoid-all', 'css', 'legacy'],
-        avoid: ['.resume-item', '.resume-section-title', '.resume-header', '.resume-section', '.job-item', '.edu-item', 'h1', 'h2', 'h3']
+        mode: ['css', 'legacy'],
+        avoid: ['.resume-item', '.resume-section-title', '.resume-header', '.job-item', '.edu-item', 'h1', 'h2', 'h3']
       }
     };
 

@@ -1119,6 +1119,83 @@ function sanitizeSummary(val) {
   return cleaned;
 }
 
+export function cleanBulletText(desc) {
+  if (!desc || typeof desc !== 'string') return '';
+  const bulletSymbolRegex = /^[-•*«»›➢▪▫●✦<>✓✔+~\s\u2022\u2023\u25E6\u2043\u2219\u00BB\u00AB\u203A\u27A4\u25AA\u25AB\u25CF\u2013\u2014]+/;
+
+  return desc
+    .split(/\r?\n/)
+    .map(line => {
+      let l = line.trim();
+      if (!l) return '';
+      if (/^[-•*«»›➢▪▫●✦<>✓✔+~\u2022\u2023\u25E6\u2043\u2219\u00BB\u00AB\u203A\u27A4\u25AA\u25AB\u25CF\u2013\u2014]/.test(l)) {
+        l = l.replace(bulletSymbolRegex, '').trim();
+        return `• ${l}`;
+      }
+      return l;
+    })
+    .filter(Boolean)
+    .join('\n');
+}
+
+export function splitSkillsString(line) {
+  if (!line || typeof line !== 'string') return [];
+  let text = line.replace(/^(?:programming\s+languages?|languages?|web\s+technologies?|frontend|backend|frameworks?|libraries\s*(&|and)?\s*frameworks?|database(?:s)?|database(?:s)?\s*(&|and)?\s*storage|tools?\s*(&|and)?\s*technologies?|technologies?|tools?|cloud|cloud\s*(&|and)?\s*devops|devops|platforms?|methodologies?|core\s+competencies|technical\s+skills?|proficiencies)\s*:\s*/i, '');
+  text = text.replace(/[:.]+$/, '').replace(/\bCl\/CD\b/gi, 'CI/CD').trim();
+
+  const compounds = [
+    'REST APIs', 'REST API', 'RESTful APIs', 'RESTful API',
+    'Unit Testing', 'Integration Testing', 'End-to-End Testing', 'E2E Testing',
+    'Responsive Design', 'Performance Optimization',
+    'Data Modeling', 'SQL Optimization',
+    'Machine Learning', 'Deep Learning', 'Artificial Intelligence',
+    'Google Cloud', 'Amazon Web Services', 'Spring Boot', 'React Native',
+    'Next.js', 'Vue.js', 'Node.js', 'Express.js',
+    'CI/CD', 'Web Accessibility', 'System Design'
+  ];
+
+  for (const c of compounds) {
+    const rx = new RegExp(c.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&'), 'gi');
+    text = text.replace(rx, m => m.replace(/\s+/g, '___'));
+  }
+
+  const knownKeywords = [
+    'authentication', 'authorization', 'accessibility', 'documentation',
+    'debugging', 'optimization', 'security', 'caching', 'microservices',
+    'docker', 'kubernetes', 'graphql', 'webpack', 'vite', 'git', 'github',
+    'html5', 'css3', 'react', 'javascript', 'typescript', 'express', 'mysql',
+    'postgresql', 'mongodb', 'redux', 'tailwind', 'bootstrap', 'aws'
+  ];
+
+  const parts = text.includes(',') || text.includes(';') || text.includes('•') || text.includes('|')
+    ? text.split(/[,;•|*]+/).map(s => s.trim()).filter(Boolean)
+    : [text];
+
+  const results = [];
+  for (const part of parts) {
+    const kwPattern = knownKeywords.join('|');
+    const splitRegex = new RegExp(`(?<=\\S)\\s+(?=[A-Z]|(?:${kwPattern})\\b)`, 'i');
+    const subTokens = part.split(splitRegex);
+    for (const st of subTokens) {
+      let cleaned = st.replace(/___/g, ' ').replace(/^[-•*«»›➢▪▫●✦<>\s]+/, '').replace(/[:.,\s]+$/, '').trim();
+      if (!cleaned) continue;
+      if (/^[a-z]/.test(cleaned) && !/^(?:iOS|npm|vue|macOS)$/i.test(cleaned)) {
+        cleaned = cleaned.charAt(0).toUpperCase() + cleaned.slice(1);
+      }
+      if (cleaned.toLowerCase() === 'html') cleaned = 'HTML';
+      if (cleaned.toLowerCase() === 'css') cleaned = 'CSS';
+      if (cleaned.toLowerCase() === 'html5') cleaned = 'HTML5';
+      if (cleaned.toLowerCase() === 'css3') cleaned = 'CSS3';
+      if (cleaned.toLowerCase() === 'ci/cd') cleaned = 'CI/CD';
+      if (/^(?:skills?|categor(?:y|ies)|proficienc(?:y|ies)|levels?)$/i.test(cleaned)) continue;
+      if (cleaned.length > 1 && cleaned.length < 50 && !results.includes(cleaned)) {
+        results.push(cleaned);
+      }
+    }
+  }
+  return results;
+}
+
 export function sanitizeParsedResume(parsed) {
   if (!parsed || typeof parsed !== 'object') return parsed;
 
@@ -1170,13 +1247,24 @@ export function sanitizeParsedResume(parsed) {
 
   let skills = [];
   if (Array.isArray(parsed.skills)) {
-    skills = parsed.skills
+    const rawSkills = parsed.skills
       .map(s => {
         if (typeof s !== 'string') return '';
         let cleaned = stripLabel(s, /^(?:skill|technology|tool)\s*:\s*/i);
-        return cleaned.replace(/^[-•*]\s*/, '').trim();
+        return cleaned.replace(/^[-•*«»›➢▪▫●✦<>\s]+/, '').trim();
       })
       .filter(Boolean);
+
+    for (const rk of rawSkills) {
+      const splitArr = splitSkillsString(rk);
+      if (splitArr.length > 0) {
+        for (const sk of splitArr) {
+          if (!skills.includes(sk)) skills.push(sk);
+        }
+      } else if (!skills.includes(rk)) {
+        skills.push(rk);
+      }
+    }
   }
 
   let experience = [];
@@ -1238,7 +1326,7 @@ export function sanitizeParsedResume(parsed) {
         startDate,
         endDate,
         year,
-        description: typeof e.description === 'string' ? e.description.trim() : ''
+        description: cleanBulletText(e.description)
       };
     }).filter(e => e.company || e.role);
   }
@@ -1335,7 +1423,7 @@ export function sanitizeParsedResume(parsed) {
     projects = parsed.projects.map((pr, idx) => ({
       id: pr.id || `proj-${Date.now()}-${idx + 1}`,
       name: stripLabel(pr.name, /^(?:project\s*name|project|title)\s*:\s*/i),
-      description: typeof pr.description === 'string' ? pr.description.trim() : '',
+      description: cleanBulletText(pr.description),
       link: stripLabel(pr.link, /^(?:link|url|github)\s*:\s*/i)
     })).filter(pr => pr.name);
   }
@@ -1637,25 +1725,10 @@ export function parseResumeRuleBased(resumeText, options = {}) {
   const skills = [];
   if (sections.skills.length > 0) {
     for (const line of sections.skills) {
-      const cleanLine = line.replace(/^(?:programming\s+languages?|languages?|web\s+technologies?|frontend|backend|frameworks?|libraries\s*(&|and)?\s*frameworks?|database(?:s)?|database(?:s)?\s*(&|and)?\s*storage|tools?\s*(&|and)?\s*technologies?|technologies?|tools?|cloud|cloud\s*(&|and)?\s*devops|devops|platforms?|methodologies?|core\s+competencies|technical\s+skills?|proficiencies)\s*:\s*/i, '');
-      let lineToSplit = cleanLine;
-      const compoundSkills = [
-        'REST APIs', 'REST API', 'SQL Server', 'Machine Learning', 'Deep Learning',
-        'Google Cloud', 'Amazon Web Services', 'Spring Boot', 'React Native'
-      ];
-      for (const cs of compoundSkills) {
-        lineToSplit = lineToSplit.replace(new RegExp(cs.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&'), 'gi'), cs.replace(/\s+/g, '___'));
-      }
-      const tokens = lineToSplit.includes(',') || lineToSplit.includes(';') || lineToSplit.includes('•') || lineToSplit.includes('|')
-        ? lineToSplit.split(/[,;•|\*]+/).map(s => s.trim()).filter(Boolean)
-        : lineToSplit.split(/(?:[,;•|\*]+|\s+(?=[A-Z]))/).map(s => s.trim()).filter(Boolean);
-      for (const tok of tokens) {
-        let cleanedTok = tok.replace(/___/g, ' ').replace(/^[-•*«+<>\s]+/, '').replace(/[:\s]+$/, '').trim();
-        if (cleanedTok.toLowerCase() === 'css') cleanedTok = 'CSS';
-        if (cleanedTok.toLowerCase() === 'html') cleanedTok = 'HTML';
-        if (/^(?:skills?|categor(?:y|ies)|proficienc(?:y|ies)|levels?)$/i.test(cleanedTok)) continue;
-        if (cleanedTok.length > 1 && cleanedTok.length < 50 && !skills.includes(cleanedTok)) {
-          skills.push(cleanedTok);
+      const lineSkills = splitSkillsString(line);
+      for (const sk of lineSkills) {
+        if (!skills.includes(sk)) {
+          skills.push(sk);
         }
       }
     }
@@ -1698,7 +1771,7 @@ export function parseResumeRuleBased(resumeText, options = {}) {
 
     for (let i = 0; i < sections.experience.length; i++) {
       const line = sections.experience[i];
-      const isBullet = /^[-•*«+<>]\s*/.test(line);
+      const isBullet = /^[-•*«»›➢▪▫●✦<>✓✔+~\u2022\u2023\u25E6\u2043\u2219\u00BB\u00AB\u203A\u27A4\u25AA\u25AB\u25CF\u2013\u2014]\s*/.test(line);
 
       // 0. Skip standalone table headers: Role, Company, Dates, Description, etc.
       if (!isBullet && /^(?:roles?|positions?|job\s*titles?|titles?|compan(?:y|ies)|employers?|organizations?|dates?|durations?|periods?|responsibilit(?:y|ies)|descriptions?|locations?)$/i.test(line)) {
@@ -1739,7 +1812,7 @@ export function parseResumeRuleBased(resumeText, options = {}) {
       // 2. Bullet point line
       if (isBullet) {
         if (currentExp) {
-          const bulletText = line.replace(/^[-•*«+<>]\s*/, '').trim();
+          const bulletText = line.replace(/^[-•*«»›➢▪▫●✦<>✓✔+~\s\u2022\u2023\u25E6\u2043\u2219\u00BB\u00AB\u203A\u27A4\u25AA\u25AB\u25CF\u2013\u2014]+/, '').trim();
           if (bulletText) {
             currentExp.description = currentExp.description
               ? `${currentExp.description}\n• ${bulletText}`
@@ -1923,7 +1996,7 @@ export function parseResumeRuleBased(resumeText, options = {}) {
       } else if (!currentExp.role && currentExp.company && !currentExp.description) {
         currentExp.role = line;
       } else {
-        const cleanLine = line.replace(/^[-•*«+<>]\s*/, '').trim();
+        const cleanLine = line.replace(/^[-•*«»›➢▪▫●✦<>✓✔+~\s\u2022\u2023\u25E6\u2043\u2219\u00BB\u00AB\u203A\u27A4\u25AA\u25AB\u25CF\u2013\u2014]+/, '').trim();
         if (cleanLine) {
           const isContinuation = /^[a-z]/.test(cleanLine)
             || /^(?:and|or|with|to|for|in|by|from|using|which|that|including|as\s+well)\b/i.test(cleanLine)
@@ -2198,7 +2271,7 @@ export function parseResumeRuleBased(resumeText, options = {}) {
 
     for (let pi = 0; pi < sections.projects.length; pi++) {
       const line = sections.projects[pi];
-      const isBullet = /^[-•*«+<>]\s*/.test(line);
+      const isBullet = /^[-•*«»›➢▪▫●✦<>✓✔+~\u2022\u2023\u25E6\u2043\u2219\u00BB\u00AB\u203A\u27A4\u25AA\u25AB\u25CF\u2013\u2014]\s*/.test(line);
 
       // 0. Skip standalone table headers: Project, Description, Details, Tech Stack, etc.
       if (!isBullet && /^(?:projects?|project\s*names?|project\s*titles?|titles?|descriptions?|details|tech\s*stacks?|technolog(?:y|ies)|tools?|links?|urls?)$/i.test(line)) {
@@ -2250,7 +2323,7 @@ export function parseResumeRuleBased(resumeText, options = {}) {
 
       if (isBullet) {
         if (currentProj) {
-          const descLine = line.replace(/^[-•*«+<>]\s*/, '').trim();
+          const descLine = line.replace(/^[-•*«»›➢▪▫●✦<>✓✔+~\s\u2022\u2023\u25E6\u2043\u2219\u00BB\u00AB\u203A\u27A4\u25AA\u25AB\u25CF\u2013\u2014]+/, '').trim();
           if (descLine) {
             currentProj.description = currentProj.description
               ? `${currentProj.description}\n• ${descLine}`
