@@ -939,3 +939,66 @@ Austin Technical College
   assert.equal(parsed.education[0].institution, 'Austin Technical College');
   assert.equal(parsed.education[0].year, '2018 – 2022');
 });
+
+test('Audit 20: 2-page & 3+ page resume with page breaks, continued sections, long wrapped bullets, and long headings parses cleanly', () => {
+  const multiPageSample = `ALEX RIVERA
+Principal Cloud Architect
+alex.rivera@example.com | +1 650-555-0199 | Seattle, WA
+EXECUTIVE SUMMARY
+Seasoned Cloud Architect with 10+ years of experience leading global infrastructure teams.
+PROFESSIONAL EXPERIENCE
+Lead Cloud Architect — Horizon Cloud Systems
+Jan 2022 – Present
+• Designed and orchestrated enterprise multi-region Kubernetes clusters on AWS
+to decrease system recovery time by 60% and improve resilience.
+• Spearheaded automated Terraform deployment pipelines across 40+ engineering microservices.
+Page 1 of 2
+ALEX RIVERA | alex.rivera@example.com
+WORK EXPERIENCE (CONTINUED)
+Senior Infrastructure Engineer — DataPulse Networks
+Mar 2018 – Dec 2021
+• Managed PostgreSQL and Redis clusters handling 50M daily transactions.
+• Reduced cloud infrastructure spending by $180,000 annually through automated instance right-sizing.
+TECHNICAL & CORE COMPETENCIES
+Programming Languages: Python, Go, TypeScript
+Cloud & DevOps: AWS, Kubernetes, Docker, Terraform
+Databases: PostgreSQL, Redis, MongoDB
+KEY PROJECTS & INITIATIVES
+CloudMesh — Engineered a zero-trust service mesh using Envoy and Istio.
+AutoScaler — Built an automated cost-optimization daemon for AWS EKS workloads.
+Page 2 of 2
+EDUCATION
+Master of Science in Computer Science — Stanford University | 2016 – 2018
+Bachelor of Science in Software Engineering — University of Washington | 2012 – 2016`;
+
+  const parsed = parseResumeRuleBased(multiPageSample);
+
+  assert.equal(parsed.personal_info.fullName, 'ALEX RIVERA');
+  assert.equal(parsed.personal_info.email, 'alex.rivera@example.com');
+  assert.equal(parsed.personal_info.phone, '+1 650-555-0199');
+  assert.equal(parsed.personal_info.location, 'Seattle, WA');
+
+  assert.equal(parsed.experience.length, 2, 'Should cleanly parse both jobs across page breaks');
+  assert.equal(parsed.experience[0].role, 'Lead Cloud Architect');
+  assert.equal(parsed.experience[0].company, 'Horizon Cloud Systems');
+  assert.ok(parsed.experience[0].description.includes('AWS to decrease system recovery time by 60%'), 'Wrapped multi-line bullet should be joined seamlessly');
+  assert.ok(!parsed.experience[0].description.includes('Page 1 of 2'), 'Page number must not pollute description');
+
+  assert.equal(parsed.experience[1].role, 'Senior Infrastructure Engineer');
+  assert.equal(parsed.experience[1].company, 'DataPulse Networks');
+  assert.ok(!parsed.experience[1].description.includes('CONTINUED'), 'Continued header must not pollute description');
+
+  assert.ok(parsed.skills.includes('Python'), 'Skills from categorized headings should be extracted');
+  assert.ok(parsed.skills.includes('Kubernetes'), 'Cloud & DevOps skills should be extracted');
+  assert.ok(!parsed.skills.some(s => /programming|languages|databases|cloud/i.test(s)), 'Category prefixes must not become skills');
+
+  assert.equal(parsed.projects.length, 2, 'Should cleanly parse both projects');
+  assert.equal(parsed.projects[0].name, 'CloudMesh');
+  assert.equal(parsed.projects[1].name, 'AutoScaler');
+
+  assert.equal(parsed.education.length, 2, 'Should cleanly parse education across page breaks');
+  assert.equal(parsed.education[0].degree, 'Master of Science in Computer Science');
+  assert.equal(parsed.education[0].institution, 'Stanford University');
+  assert.equal(parsed.education[1].degree, 'Bachelor of Science in Software Engineering');
+  assert.equal(parsed.education[1].institution, 'University of Washington');
+});

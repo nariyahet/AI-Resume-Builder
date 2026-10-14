@@ -357,7 +357,7 @@ export default function ResumePreview({ resume, setResume, onOpenShare, readOnly
                 {/* Skills Sidebar */}
                 {skills && skills.length > 0 && (
                   <div style={{ marginBottom: '20px' }}>
-                    <h3 style={{ fontSize: '0.85rem', fontWeight: 700, color: theme_color, textTransform: 'uppercase', marginBottom: '8px', borderBottom: '1px solid #cbd5e1', paddingBottom: '3px' }}>
+                    <h3 className="resume-section-title" style={{ fontSize: '0.85rem', fontWeight: 700, color: theme_color, textTransform: 'uppercase', marginBottom: '8px', borderBottom: '1px solid #cbd5e1', paddingBottom: '3px', pageBreakAfter: 'avoid', breakAfter: 'avoid' }}>
                       Skills
                     </h3>
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
@@ -373,11 +373,11 @@ export default function ResumePreview({ resume, setResume, onOpenShare, readOnly
                 {/* Education Sidebar */}
                 {education && education.length > 0 && (
                   <div>
-                    <h3 style={{ fontSize: '0.85rem', fontWeight: 700, color: theme_color, textTransform: 'uppercase', marginBottom: '8px', borderBottom: '1px solid #cbd5e1', paddingBottom: '3px' }}>
+                    <h3 className="resume-section-title" style={{ fontSize: '0.85rem', fontWeight: 700, color: theme_color, textTransform: 'uppercase', marginBottom: '8px', borderBottom: '1px solid #cbd5e1', paddingBottom: '3px', pageBreakAfter: 'avoid', breakAfter: 'avoid' }}>
                       Education
                     </h3>
                     {education.map((edu, i) => (
-                      <div key={edu.id || i} style={{ marginBottom: '8px', fontSize: '0.75rem' }}>
+                      <div key={edu.id || i} className="resume-item" style={{ marginBottom: '8px', fontSize: '0.75rem', pageBreakInside: 'avoid', breakInside: 'avoid' }}>
                         <div style={{ fontWeight: 700, color: '#0f172a' }}>{edu.degree}</div>
                         <div style={{ color: '#475569' }}>{edu.institution}</div>
                         <div style={{ color: '#64748b', fontSize: '0.7rem' }}>{edu.year}</div>
@@ -392,7 +392,7 @@ export default function ResumePreview({ resume, setResume, onOpenShare, readOnly
                 {/* Summary */}
                 {summary && (
                   <div style={{ marginBottom: '16px' }}>
-                    <h2 style={{ fontSize: '0.9rem', fontWeight: 800, color: '#0f172a', textTransform: 'uppercase', letterSpacing: '0.04em', borderBottom: `1px solid ${theme_color}`, paddingBottom: '3px', marginBottom: '6px' }}>
+                    <h2 className="resume-section-title" style={{ fontSize: '0.9rem', fontWeight: 800, color: '#0f172a', textTransform: 'uppercase', letterSpacing: '0.04em', borderBottom: `1px solid ${theme_color}`, paddingBottom: '3px', marginBottom: '6px', pageBreakAfter: 'avoid', breakAfter: 'avoid' }}>
                       Professional Profile
                     </h2>
                     <p style={{ fontSize: '0.8rem', color: '#334155', lineHeight: 1.45, textAlign: 'justify' }}>
@@ -404,11 +404,11 @@ export default function ResumePreview({ resume, setResume, onOpenShare, readOnly
                 {/* Experience */}
                 {experience && experience.length > 0 && (
                   <div style={{ marginBottom: '16px' }}>
-                    <h2 style={{ fontSize: '0.9rem', fontWeight: 800, color: '#0f172a', textTransform: 'uppercase', letterSpacing: '0.04em', borderBottom: `1px solid ${theme_color}`, paddingBottom: '3px', marginBottom: '8px' }}>
+                    <h2 className="resume-section-title" style={{ fontSize: '0.9rem', fontWeight: 800, color: '#0f172a', textTransform: 'uppercase', letterSpacing: '0.04em', borderBottom: `1px solid ${theme_color}`, paddingBottom: '3px', marginBottom: '8px', pageBreakAfter: 'avoid', breakAfter: 'avoid' }}>
                       Experience
                     </h2>
                     {experience.map((exp, i) => (
-                      <div key={exp.id || i} style={{ marginBottom: '12px' }}>
+                      <div key={exp.id || i} className="resume-item" style={{ marginBottom: '12px', pageBreakInside: 'avoid', breakInside: 'avoid' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem' }}>
                           <span style={{ fontWeight: 700, color: '#0f172a' }}>{exp.role}</span>
                           <span style={{ fontSize: '0.75rem', color: '#64748b' }}>
@@ -429,11 +429,11 @@ export default function ResumePreview({ resume, setResume, onOpenShare, readOnly
                 {/* Projects */}
                 {projects && projects.length > 0 && (
                   <div>
-                    <h2 style={{ fontSize: '0.9rem', fontWeight: 800, color: '#0f172a', textTransform: 'uppercase', letterSpacing: '0.04em', borderBottom: `1px solid ${theme_color}`, paddingBottom: '3px', marginBottom: '8px' }}>
+                    <h2 className="resume-section-title" style={{ fontSize: '0.9rem', fontWeight: 800, color: '#0f172a', textTransform: 'uppercase', letterSpacing: '0.04em', borderBottom: `1px solid ${theme_color}`, paddingBottom: '3px', marginBottom: '8px', pageBreakAfter: 'avoid', breakAfter: 'avoid' }}>
                       Key Projects
                     </h2>
                     {projects.map((proj, i) => (
-                      <div key={proj.id || i} style={{ marginBottom: '8px' }}>
+                      <div key={proj.id || i} className="resume-item" style={{ marginBottom: '8px', pageBreakInside: 'avoid', breakInside: 'avoid' }}>
                         <div style={{ fontSize: '0.825rem', fontWeight: 700, color: theme_color }}>{proj.name}</div>
                         {proj.description && (
                           <div style={{ fontSize: '0.775rem', color: '#334155', marginTop: '2px', lineHeight: 1.4 }}>

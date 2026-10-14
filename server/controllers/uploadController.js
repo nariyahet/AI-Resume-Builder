@@ -17,24 +17,40 @@ try {
   console.warn('tesseract.js import warning:', err.message);
 }
 
-// Helper to extract text via OCR from scanned or image-based PDFs
+// Helper to extract text via OCR from scanned or image-based PDFs (handles single and multi-page PDFs)
 async function extractOcrFromPdfBuffer(buffer, parser) {
   if (!tesseractModule) return '';
 
-  // 1. Direct extraction of embedded JPEG image streams
-  const start = buffer.indexOf(Buffer.from([0xFF, 0xD8, 0xFF]));
-  const end = buffer.indexOf(Buffer.from([0xFF, 0xD9]), start);
-  if (start !== -1 && end !== -1 && end > start) {
-    const jpegBuf = buffer.subarray(start, end + 2);
-    try {
-      const res = await tesseractModule.recognize(jpegBuf, 'eng');
-      if (res?.data?.text?.trim()) {
-        return res.data.text.trim();
-      }
-    } catch (_) {}
+  // 1. Direct extraction of embedded JPEG image streams across all pages
+  const jpegBuffers = [];
+  let pos = 0;
+  while (pos < buffer.length) {
+    const start = buffer.indexOf(Buffer.from([0xFF, 0xD8, 0xFF]), pos);
+    if (start === -1) break;
+    const end = buffer.indexOf(Buffer.from([0xFF, 0xD9]), start + 3);
+    if (end === -1) break;
+    jpegBuffers.push(buffer.subarray(start, end + 2));
+    pos = end + 2;
   }
 
-  // 2. Fall back to rendering PDF pages to screenshots via PDFParse
+  if (jpegBuffers.length > 0) {
+    let combined = '';
+    for (const jpegBuf of jpegBuffers) {
+      try {
+        const res = await tesseractModule.recognize(jpegBuf, 'eng');
+        if (res?.data?.text?.trim()) {
+          combined += (combined ? '\n\n' : '') + res.data.text.trim();
+        }
+      } catch (err) {
+        console.warn('OCR error on embedded JPEG page stream:', err.message);
+      }
+    }
+    if (combined.trim()) {
+      return combined.trim();
+    }
+  }
+
+  // 2. Fall back to rendering PDF pages to screenshots via PDFParse (multi-page safe)
   if (parser && typeof parser.getScreenshot === 'function') {
     try {
       const screenshot = await parser.getScreenshot({ scale: 2 });
@@ -44,7 +60,7 @@ async function extractOcrFromPdfBuffer(buffer, parser) {
           if (page.dataUrl) {
             const b64 = page.dataUrl.replace(/^data:image\/[^;]+;base64,/, '');
             const res = await tesseractModule.recognize(Buffer.from(b64, 'base64'), 'eng');
-            if (res?.data?.text) full += '\n' + res.data.text;
+            if (res?.data?.text?.trim()) full += (full ? '\n\n' : '') + res.data.text.trim();
           }
         }
         if (full.trim()) return full.trim();
@@ -73,8 +89,12 @@ export async function extractTextFromPdf(buffer) {
       const rawText = (result && typeof result.text === 'string')
         ? result.text
         : (typeof result === 'string' ? result : '');
-      // Strip page footer artifacts like "-- 1 of 1 --"
-      const cleaned = rawText.replace(/--\s*\d+\s+of\s+\d+\s*--/gi, '').trim();
+      // Strip page footer artifacts like "-- 1 of 1 --", "Page 1 of 2", etc.
+      const cleaned = rawText
+        .replace(/--\s*\d+\s+of\s+\d+\s*--/gi, '')
+        .replace(/\bpage\s+\d+\s*(?:of|\/)\s*\d+\b/gi, '')
+        .replace(/^\s*page\s+\d+\s*$/gim, '')
+        .trim();
 
       // If document contains pages but zero extractable text stream, it is an image-only / scanned PDF
       if (result && typeof result.total === 'number' && result.total > 0 && !cleaned) {

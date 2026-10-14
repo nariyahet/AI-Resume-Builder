@@ -50,12 +50,34 @@ export async function exportResumeToPdf(resume, elementId = 'resume-print-area')
     const candidateName = resume?.personal_info?.fullName || resume?.title || 'Resume';
     const filename = `${candidateName.replace(/\s+/g, '_')}_Resume.pdf`;
 
+    // Ensure all images (profile photo, logos) are loaded before capturing
+    const images = Array.from(clone.querySelectorAll('img'));
+    await Promise.all(
+      images.map(img => {
+        if (img.complete) return Promise.resolve();
+        return new Promise(resolve => {
+          img.onload = resolve;
+          img.onerror = resolve;
+        });
+      })
+    );
+
+    // Apply strict page break rules to all resume items, headers, and sections
+    clone.querySelectorAll('.resume-item, .job-item, .edu-item, .resume-section, .resume-header').forEach(el => {
+      el.style.pageBreakInside = 'avoid';
+      el.style.breakInside = 'avoid';
+    });
+    clone.querySelectorAll('.resume-section-title, h1, h2, h3').forEach(el => {
+      el.style.pageBreakAfter = 'avoid';
+      el.style.breakAfter = 'avoid';
+    });
+
     const opt = {
       margin: [0, 0, 0, 0],
       filename,
       image: { type: 'jpeg', quality: 0.98 },
       html2canvas: {
-        scale: 2,
+        scale: 2.5,
         useCORS: true,
         letterRendering: true,
         scrollY: 0,
@@ -65,8 +87,8 @@ export async function exportResumeToPdf(resume, elementId = 'resume-print-area')
       },
       jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
       pagebreak: {
-        mode: ['css', 'legacy'],
-        avoid: ['.resume-item', '.resume-section-title', '.job-item', '.edu-item']
+        mode: ['avoid-all', 'css', 'legacy'],
+        avoid: ['.resume-item', '.resume-section-title', '.resume-header', '.resume-section', '.job-item', '.edu-item', 'h1', 'h2', 'h3']
       }
     };
 

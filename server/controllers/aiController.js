@@ -1357,14 +1357,14 @@ export function parseResumeRuleBased(resumeText, options = {}) {
     }
   }
 
-  // 2. Section categorization
+  // 2. Section categorization (supports all templates, long headings, and multi-page continuation marks)
   const sectionHeaders = [
-    { type: 'summary', regex: /^(?:professional\s+summary|executive\s+summary|summary|profile|about\s+me|career\s+objective|objective)(?::\s*(.*))?$/i },
-    { type: 'skills', regex: /^(?:technical\s+skills|core\s+competencies|key\s+skills|skills|technologies|tools\s+&?\s+technologies|skills\s+&?\s+tools|technical\s+proficiencies|proficiencies)(?::\s*(.*))?$/i },
-    { type: 'experience', regex: /^(?:work\s+experience|professional\s+experience|experience|employment\s+history|work\s+history|employment)(?::\s*(.*))?$/i },
-    { type: 'education', regex: /^(?:education|academic\s+background|academic\s+qualifications|qualifications)(?::\s*(.*))?$/i },
-    { type: 'projects', regex: /^(?:projects|personal\s+projects|key\s+projects|portfolio\s+projects)(?::\s*(.*))?$/i },
-    { type: 'certifications', regex: /^(?:certifications|licenses\s+&?\s+certifications|certificates)(?::\s*(.*))?$/i }
+    { type: 'summary', regex: /^(?:professional\s+summary|executive\s+summary|summary|profile|about\s+me|career\s+objective|objective|professional\s+profile|personal\s+statement|about)(?:\s*[-–—:]?\s*(?:\(?(?:continued|cont\.?|cont'd)\)?))?(?::\s*(.*))?$/i },
+    { type: 'skills', regex: /^(?:technical\s+skills|technical\s+proficiencies|technical\s+competencies|core\s+competencies|core\s+skills|key\s+skills|technical\s*&?\s*core\s+competencies|skills\s*&?\s*tools|tools\s*&?\s*skills|technologies\s*&?\s*tools|tools\s*&?\s*technologies|skills|technologies|proficiencies|competencies)(?:\s*[-–—:]?\s*(?:\(?(?:continued|cont\.?|cont'd)\)?))?(?::\s*(.*))?$/i },
+    { type: 'experience', regex: /^(?:work\s+experience|professional\s+experience|relevant\s+experience|career\s+history|employment\s+history|work\s+history|experience|employment)(?:\s*[-–—:]?\s*(?:\(?(?:continued|cont\.?|cont'd)\)?))?(?::\s*(.*))?$/i },
+    { type: 'education', regex: /^(?:education(?:\s+and\s+training)?|academic\s+background|academic\s+qualifications|educational\s+background|education|qualifications|academics)(?:\s*[-–—:]?\s*(?:\(?(?:continued|cont\.?|cont'd)\)?))?(?::\s*(.*))?$/i },
+    { type: 'projects', regex: /^(?:projects|personal\s+projects|key\s+projects|key\s+projects\s*&?\s*initiatives|portfolio\s+projects|academic\s+projects|selected\s+projects)(?:\s*[-–—:]?\s*(?:\(?(?:continued|cont\.?|cont'd)\)?))?(?::\s*(.*))?$/i },
+    { type: 'certifications', regex: /^(?:certifications|licenses\s+&?\s+certifications|certificates|certifications\s*&?\s*licenses|professional\s+certifications)(?:\s*[-–—:]?\s*(?:\(?(?:continued|cont\.?|cont'd)\)?))?(?::\s*(.*))?$/i }
   ];
 
   function getSectionMatch(line) {
@@ -1390,6 +1390,16 @@ export function parseResumeRuleBased(resumeText, options = {}) {
 
   let currentSection = 'header';
   for (const line of lines) {
+    // Skip page numbers and break dividers in multi-page PDFs (e.g. "Page 2 of 3", "-- 2 of 3 --", "---")
+    if (/^(?:page\s*\d+(?:\s*(?:of|\/)\s*\d+)?|--\s*\d+\s*(?:of|\/)\s*\d+\s*--|\[?\s*page\s*\d+\s*\]?)$/i.test(line) || /^[-=_*~]{3,}$/.test(line)) {
+      continue;
+    }
+
+    // Skip running contact headers repeated on pages 2+ in multi-page resumes
+    if (currentSection !== 'header' && (emailRegex.test(line) && (phoneRegex.test(line) || line.includes('|')))) {
+      continue;
+    }
+
     const detected = getSectionMatch(line);
     if (detected) {
       currentSection = detected.type;
@@ -1541,7 +1551,7 @@ export function parseResumeRuleBased(resumeText, options = {}) {
   const skills = [];
   if (sections.skills.length > 0) {
     for (const line of sections.skills) {
-      const cleanLine = line.replace(/^(?:languages|frontend|backend|frameworks|database|databases|tools|technologies|cloud|devops)\s*:\s*/i, '');
+      const cleanLine = line.replace(/^(?:programming\s+languages?|languages?|web\s+technologies?|frontend|backend|frameworks?|libraries\s*(&|and)?\s*frameworks?|database(?:s)?|database(?:s)?\s*(&|and)?\s*storage|tools?\s*(&|and)?\s*technologies?|technologies?|tools?|cloud|cloud\s*(&|and)?\s*devops|devops|platforms?|methodologies?|core\s+competencies|technical\s+skills?|proficiencies)\s*:\s*/i, '');
       let lineToSplit = cleanLine;
       const compoundSkills = [
         'REST APIs', 'REST API', 'SQL Server', 'Machine Learning', 'Deep Learning',
@@ -1829,9 +1839,19 @@ export function parseResumeRuleBased(resumeText, options = {}) {
       } else {
         const cleanLine = line.replace(/^[-•*«+<>]\s*/, '').trim();
         if (cleanLine) {
-          currentExp.description = currentExp.description
-            ? `${currentExp.description}\n• ${cleanLine}`
-            : `• ${cleanLine}`;
+          const isContinuation = /^[a-z]/.test(cleanLine)
+            || /^(?:and|or|with|to|for|in|by|from|using|which|that|including|as\s+well)\b/i.test(cleanLine)
+            || (currentExp.description && !/[.!?]$/.test(currentExp.description.trim()));
+
+          if (isContinuation && currentExp.description) {
+            currentExp.description = `${currentExp.description} ${cleanLine}`;
+          } else if (currentExp.description) {
+            currentExp.description = currentExp.description.includes('•')
+              ? `${currentExp.description}\n• ${cleanLine}`
+              : `${currentExp.description}\n${cleanLine}`;
+          } else {
+            currentExp.description = cleanLine;
+          }
         }
       }
     }
