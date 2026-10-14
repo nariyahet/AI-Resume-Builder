@@ -850,7 +850,7 @@ body {
   min-height: 297mm;
   background: #ffffff !important;
   color: #1e293b !important;
-  padding: 18mm 18mm;
+  padding: 14mm 16mm;
   box-shadow: 0 20px 45px -10px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(0, 0, 0, 0.08);
   border-radius: 4px;
   font-family: var(--font-resume);
@@ -858,6 +858,18 @@ body {
   box-sizing: border-box;
   transform-origin: top center;
   transition: transform 0.2s ease;
+}
+
+/* Page Break & Natural Section Flow for Multi-Page Resumes & PDF Export */
+.resume-section {
+  page-break-inside: auto !important;
+  break-inside: auto !important;
+}
+
+.resume-section-header-block {
+  page-break-inside: avoid !important;
+  break-inside: avoid !important;
+  display: block;
 }
 
 /* Scale preview on desktop screens */
@@ -1026,7 +1038,7 @@ body {
 
 /* MINIMALIST ELEGANT */
 .template-minimal {
-  padding: 16mm 16mm;
+  padding: 14mm 16mm;
 }
 .template-minimal .resume-header {
   margin-bottom: 1.15rem;
@@ -1066,8 +1078,8 @@ body {
 /* Shared Item Details */
 .resume-item {
   margin-bottom: 0.75rem;
-  page-break-inside: avoid;
-  break-inside: avoid;
+  page-break-inside: avoid !important;
+  break-inside: avoid !important;
 }
 
 .resume-item-top {

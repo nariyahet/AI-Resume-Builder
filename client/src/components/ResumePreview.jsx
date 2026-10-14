@@ -372,12 +372,19 @@ export default function ResumePreview({ resume, setResume, onOpenShare, readOnly
 
                 {/* Education Sidebar */}
                 {education && education.length > 0 && (
-                  <div>
-                    <h3 className="resume-section-title" style={{ fontSize: '0.85rem', fontWeight: 700, color: theme_color, textTransform: 'uppercase', marginBottom: '8px', borderBottom: '1px solid #cbd5e1', paddingBottom: '3px', pageBreakAfter: 'avoid', breakAfter: 'avoid' }}>
-                      Education
-                    </h3>
-                    {education.map((edu, i) => (
-                      <div key={edu.id || i} className="resume-item" style={{ marginBottom: '8px', fontSize: '0.75rem', pageBreakInside: 'avoid', breakInside: 'avoid' }}>
+                  <div className="resume-section">
+                    <div className="resume-section-header-block">
+                      <h3 className="resume-section-title" style={{ fontSize: '0.85rem', fontWeight: 700, color: theme_color, textTransform: 'uppercase', marginBottom: '8px', borderBottom: '1px solid #cbd5e1', paddingBottom: '3px' }}>
+                        Education
+                      </h3>
+                      <div key={education[0].id || 0} className="resume-item" style={{ marginBottom: '8px', fontSize: '0.75rem' }}>
+                        <div style={{ fontWeight: 700, color: '#0f172a' }}>{education[0].degree}</div>
+                        <div style={{ color: '#475569' }}>{education[0].institution}</div>
+                        <div style={{ color: '#64748b', fontSize: '0.7rem' }}>{education[0].year}</div>
+                      </div>
+                    </div>
+                    {education.slice(1).map((edu, i) => (
+                      <div key={edu.id || (i + 1)} className="resume-item" style={{ marginBottom: '8px', fontSize: '0.75rem' }}>
                         <div style={{ fontWeight: 700, color: '#0f172a' }}>{edu.degree}</div>
                         <div style={{ color: '#475569' }}>{edu.institution}</div>
                         <div style={{ color: '#64748b', fontSize: '0.7rem' }}>{edu.year}</div>
@@ -391,24 +398,42 @@ export default function ResumePreview({ resume, setResume, onOpenShare, readOnly
               <div>
                 {/* Summary */}
                 {summary && (
-                  <div style={{ marginBottom: '16px' }}>
-                    <h2 className="resume-section-title" style={{ fontSize: '0.9rem', fontWeight: 800, color: '#0f172a', textTransform: 'uppercase', letterSpacing: '0.04em', borderBottom: `1px solid ${theme_color}`, paddingBottom: '3px', marginBottom: '6px', pageBreakAfter: 'avoid', breakAfter: 'avoid' }}>
-                      Professional Profile
-                    </h2>
-                    <p style={{ fontSize: '0.8rem', color: '#334155', lineHeight: 1.45, textAlign: 'justify' }}>
-                      {summary}
-                    </p>
+                  <div className="resume-section" style={{ marginBottom: '16px' }}>
+                    <div className="resume-section-header-block">
+                      <h2 className="resume-section-title" style={{ fontSize: '0.9rem', fontWeight: 800, color: '#0f172a', textTransform: 'uppercase', letterSpacing: '0.04em', borderBottom: `1px solid ${theme_color}`, paddingBottom: '3px', marginBottom: '6px' }}>
+                        Professional Profile
+                      </h2>
+                      <p style={{ fontSize: '0.8rem', color: '#334155', lineHeight: 1.45, textAlign: 'justify' }}>
+                        {summary}
+                      </p>
+                    </div>
                   </div>
                 )}
 
                 {/* Experience */}
                 {experience && experience.length > 0 && (
-                  <div style={{ marginBottom: '16px' }}>
-                    <h2 className="resume-section-title" style={{ fontSize: '0.9rem', fontWeight: 800, color: '#0f172a', textTransform: 'uppercase', letterSpacing: '0.04em', borderBottom: `1px solid ${theme_color}`, paddingBottom: '3px', marginBottom: '8px', pageBreakAfter: 'avoid', breakAfter: 'avoid' }}>
-                      Experience
-                    </h2>
-                    {experience.map((exp, i) => (
-                      <div key={exp.id || i} className="resume-item" style={{ marginBottom: '12px', pageBreakInside: 'avoid', breakInside: 'avoid' }}>
+                  <div className="resume-section" style={{ marginBottom: '16px' }}>
+                    <div className="resume-section-header-block">
+                      <h2 className="resume-section-title" style={{ fontSize: '0.9rem', fontWeight: 800, color: '#0f172a', textTransform: 'uppercase', letterSpacing: '0.04em', borderBottom: `1px solid ${theme_color}`, paddingBottom: '3px', marginBottom: '8px' }}>
+                        Experience
+                      </h2>
+                      <div key={experience[0].id || 0} className="resume-item" style={{ marginBottom: '12px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem' }}>
+                          <span style={{ fontWeight: 700, color: '#0f172a' }}>{experience[0].role}</span>
+                          <span style={{ fontSize: '0.75rem', color: '#64748b' }}>
+                            {experience[0].startDate && experience[0].endDate ? `${experience[0].startDate} - ${experience[0].endDate}` : (experience[0].startDate || experience[0].endDate || '')}
+                          </span>
+                        </div>
+                        <div style={{ fontSize: '0.775rem', color: theme_color, fontWeight: 600 }}>{experience[0].company} {experience[0].location ? `• ${experience[0].location}` : ''}</div>
+                        {experience[0].description && (
+                          <div style={{ fontSize: '0.775rem', color: '#334155', marginTop: '4px', whiteSpace: 'pre-line', lineHeight: 1.4 }}>
+                            {experience[0].description}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                    {experience.slice(1).map((exp, i) => (
+                      <div key={exp.id || (i + 1)} className="resume-item" style={{ marginBottom: '12px' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem' }}>
                           <span style={{ fontWeight: 700, color: '#0f172a' }}>{exp.role}</span>
                           <span style={{ fontSize: '0.75rem', color: '#64748b' }}>
@@ -428,12 +453,22 @@ export default function ResumePreview({ resume, setResume, onOpenShare, readOnly
 
                 {/* Projects */}
                 {projects && projects.length > 0 && (
-                  <div>
-                    <h2 className="resume-section-title" style={{ fontSize: '0.9rem', fontWeight: 800, color: '#0f172a', textTransform: 'uppercase', letterSpacing: '0.04em', borderBottom: `1px solid ${theme_color}`, paddingBottom: '3px', marginBottom: '8px', pageBreakAfter: 'avoid', breakAfter: 'avoid' }}>
-                      Key Projects
-                    </h2>
-                    {projects.map((proj, i) => (
-                      <div key={proj.id || i} className="resume-item" style={{ marginBottom: '8px', pageBreakInside: 'avoid', breakInside: 'avoid' }}>
+                  <div className="resume-section">
+                    <div className="resume-section-header-block">
+                      <h2 className="resume-section-title" style={{ fontSize: '0.9rem', fontWeight: 800, color: '#0f172a', textTransform: 'uppercase', letterSpacing: '0.04em', borderBottom: `1px solid ${theme_color}`, paddingBottom: '3px', marginBottom: '8px' }}>
+                        Key Projects
+                      </h2>
+                      <div key={projects[0].id || 0} className="resume-item" style={{ marginBottom: '8px' }}>
+                        <div style={{ fontSize: '0.825rem', fontWeight: 700, color: theme_color }}>{projects[0].name}</div>
+                        {projects[0].description && (
+                          <div style={{ fontSize: '0.775rem', color: '#334155', marginTop: '2px', lineHeight: 1.4 }}>
+                            {projects[0].description}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                    {projects.slice(1).map((proj, i) => (
+                      <div key={proj.id || (i + 1)} className="resume-item" style={{ marginBottom: '8px' }}>
                         <div style={{ fontSize: '0.825rem', fontWeight: 700, color: theme_color }}>{proj.name}</div>
                         {proj.description && (
                           <div style={{ fontSize: '0.775rem', color: '#334155', marginTop: '2px', lineHeight: 1.4 }}>
@@ -508,23 +543,48 @@ export default function ResumePreview({ resume, setResume, onOpenShare, readOnly
               {/* PROFESSIONAL SUMMARY */}
               {summary && (
                 <section className="resume-section">
-                  <h2 className="resume-section-title">
-                    {template_id === 'harvard' ? 'EXECUTIVE SUMMARY' : 'Professional Summary'}
-                  </h2>
-                  <p style={{ fontSize: '0.825rem', color: '#334155', lineHeight: 1.5, textAlign: 'justify' }}>
-                    {summary}
-                  </p>
+                  <div className="resume-section-header-block">
+                    <h2 className="resume-section-title">
+                      {template_id === 'harvard' ? 'EXECUTIVE SUMMARY' : 'Professional Summary'}
+                    </h2>
+                    <p style={{ fontSize: '0.825rem', color: '#334155', lineHeight: 1.5, textAlign: 'justify' }}>
+                      {summary}
+                    </p>
+                  </div>
                 </section>
               )}
 
               {/* WORK EXPERIENCE */}
               {experience && experience.length > 0 && (
                 <section className="resume-section">
-                  <h2 className="resume-section-title">
-                    {template_id === 'harvard' ? 'PROFESSIONAL EXPERIENCE' : 'Work Experience'}
-                  </h2>
-                  {experience.map((exp, i) => (
-                    <div key={exp.id || i} className="resume-item">
+                  <div className="resume-section-header-block">
+                    <h2 className="resume-section-title">
+                      {template_id === 'harvard' ? 'PROFESSIONAL EXPERIENCE' : 'Work Experience'}
+                    </h2>
+                    <div key={experience[0].id || 0} className="resume-item">
+                      <div className="resume-item-top">
+                        <div>
+                          <span className="resume-item-title">{experience[0].role || 'Role'}</span>
+                          {experience[0].company && (
+                            <span className="resume-item-company"> — {experience[0].company}</span>
+                          )}
+                          {experience[0].location && (
+                            <span style={{ fontSize: '0.775rem', color: '#64748b' }}> ({experience[0].location})</span>
+                          )}
+                        </div>
+                        <span className="resume-item-date">
+                          {experience[0].startDate && experience[0].endDate ? `${experience[0].startDate} - ${experience[0].endDate}` : (experience[0].startDate || experience[0].endDate || '')}
+                        </span>
+                      </div>
+                      {experience[0].description && (
+                        <div className="resume-item-desc">
+                          {experience[0].description}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  {experience.slice(1).map((exp, i) => (
+                    <div key={exp.id || (i + 1)} className="resume-item">
                       <div className="resume-item-top">
                         <div>
                           <span className="resume-item-title">{exp.role || 'Role'}</span>
@@ -552,33 +612,54 @@ export default function ResumePreview({ resume, setResume, onOpenShare, readOnly
               {/* SKILLS */}
               {skills && skills.length > 0 && (
                 <section className="resume-section">
-                  <h2 className="resume-section-title">
-                    {template_id === 'harvard' ? 'TECHNICAL & CORE COMPETENCIES' : 'Technical Proficiencies'}
-                  </h2>
-                  {template_id === 'harvard' ? (
-                    <p style={{ fontSize: '0.8rem', color: '#334155', marginTop: '4px' }}>
-                      <strong>Core Skills:</strong> {skills.join(' • ')}
-                    </p>
-                  ) : (
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.35rem', marginTop: '0.35rem' }}>
-                      {skills.map((skill, i) => (
-                        <span key={i} className="resume-skill-badge">
-                          {skill}
-                        </span>
-                      ))}
-                    </div>
-                  )}
+                  <div className="resume-section-header-block">
+                    <h2 className="resume-section-title">
+                      {template_id === 'harvard' ? 'TECHNICAL & CORE COMPETENCIES' : 'Technical Proficiencies'}
+                    </h2>
+                    {template_id === 'harvard' ? (
+                      <p style={{ fontSize: '0.8rem', color: '#334155', marginTop: '4px' }}>
+                        <strong>Core Skills:</strong> {skills.join(' • ')}
+                      </p>
+                    ) : (
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.35rem', marginTop: '0.35rem' }}>
+                        {skills.map((skill, i) => (
+                          <span key={i} className="resume-skill-badge">
+                            {skill}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 </section>
               )}
 
               {/* PROJECTS */}
               {projects && projects.length > 0 && (
                 <section className="resume-section">
-                  <h2 className="resume-section-title">
-                    {template_id === 'harvard' ? 'KEY PROJECTS & INITIATIVES' : 'Key Projects'}
-                  </h2>
-                  {projects.map((proj, i) => (
-                    <div key={proj.id || i} className="resume-item">
+                  <div className="resume-section-header-block">
+                    <h2 className="resume-section-title">
+                      {template_id === 'harvard' ? 'KEY PROJECTS & INITIATIVES' : 'Key Projects'}
+                    </h2>
+                    <div key={projects[0].id || 0} className="resume-item">
+                      <div className="resume-item-top">
+                        <span className="resume-item-title" style={{ color: theme_color }}>
+                          {projects[0].name}
+                        </span>
+                        {projects[0].link && (
+                          <span style={{ fontSize: '0.75rem', color: '#64748b' }}>
+                            {projects[0].link}
+                          </span>
+                        )}
+                      </div>
+                      {projects[0].description && (
+                        <div className="resume-item-desc">
+                          {projects[0].description}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  {projects.slice(1).map((proj, i) => (
+                    <div key={proj.id || (i + 1)} className="resume-item">
                       <div className="resume-item-top">
                         <span className="resume-item-title" style={{ color: theme_color }}>
                           {proj.name}
@@ -602,11 +683,26 @@ export default function ResumePreview({ resume, setResume, onOpenShare, readOnly
               {/* EDUCATION */}
               {education && education.length > 0 && (
                 <section className="resume-section">
-                  <h2 className="resume-section-title">
-                    {template_id === 'harvard' ? 'EDUCATION' : 'Education'}
-                  </h2>
-                  {education.map((edu, i) => (
-                    <div key={edu.id || i} className="resume-item">
+                  <div className="resume-section-header-block">
+                    <h2 className="resume-section-title">
+                      {template_id === 'harvard' ? 'EDUCATION' : 'Education'}
+                    </h2>
+                    <div key={education[0].id || 0} className="resume-item">
+                      <div className="resume-item-top">
+                        <div>
+                          <span className="resume-item-title">{education[0].degree || 'Degree'}</span>
+                          {education[0].institution && (
+                            <span className="resume-item-company"> — {education[0].institution}</span>
+                          )}
+                        </div>
+                        <span className="resume-item-date">
+                          {education[0].year} {education[0].score ? `| ${education[0].score}` : ''}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                  {education.slice(1).map((edu, i) => (
+                    <div key={edu.id || (i + 1)} className="resume-item">
                       <div className="resume-item-top">
                         <div>
                           <span className="resume-item-title">{edu.degree || 'Degree'}</span>
@@ -626,11 +722,26 @@ export default function ResumePreview({ resume, setResume, onOpenShare, readOnly
               {/* CERTIFICATIONS */}
               {certifications && certifications.length > 0 && (
                 <section className="resume-section">
-                  <h2 className="resume-section-title">
-                    {template_id === 'harvard' ? 'CERTIFICATIONS' : 'Certifications'}
-                  </h2>
-                  {certifications.map((cert, i) => (
-                    <div key={cert.id || i} className="resume-item">
+                  <div className="resume-section-header-block">
+                    <h2 className="resume-section-title">
+                      {template_id === 'harvard' ? 'CERTIFICATIONS' : 'Certifications'}
+                    </h2>
+                    <div key={certifications[0].id || 0} className="resume-item">
+                      <div className="resume-item-top">
+                        <div>
+                          <span className="resume-item-title">{certifications[0].name}</span>
+                          {certifications[0].issuer && (
+                            <span className="resume-item-company"> — {certifications[0].issuer}</span>
+                          )}
+                        </div>
+                        {certifications[0].year && (
+                          <span className="resume-item-date">{certifications[0].year}</span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                  {certifications.slice(1).map((cert, i) => (
+                    <div key={cert.id || (i + 1)} className="resume-item">
                       <div className="resume-item-top">
                         <div>
                           <span className="resume-item-title">{cert.name}</span>
@@ -653,11 +764,13 @@ export default function ResumePreview({ resume, setResume, onOpenShare, readOnly
                   const heading = sec.title || sec.heading || 'Additional Section';
                   return (
                     <section key={sec.id || i} className="resume-section">
-                      <h2 className="resume-section-title">
-                        {template_id === 'harvard' ? heading.toUpperCase() : heading}
-                      </h2>
-                      <div className="resume-item-desc" style={{ whiteSpace: 'pre-line' }}>
-                        {sec.content}
+                      <div className="resume-section-header-block">
+                        <h2 className="resume-section-title">
+                          {template_id === 'harvard' ? heading.toUpperCase() : heading}
+                        </h2>
+                        <div className="resume-item-desc" style={{ whiteSpace: 'pre-line' }}>
+                          {sec.content}
+                        </div>
                       </div>
                     </section>
                   );

@@ -36,6 +36,7 @@ export async function exportResumeToPdf(resume, elementId = 'resume-print-area')
   clone.style.minHeight = 'auto';
   clone.style.height = 'auto';
   clone.style.margin = '0';
+  clone.style.padding = '14mm 16mm';
   clone.style.boxSizing = 'border-box';
   clone.style.background = '#ffffff';
   // Remove outer shadows and borders that cause html2canvas canvas overflow onto extra page
@@ -62,18 +63,37 @@ export async function exportResumeToPdf(resume, elementId = 'resume-print-area')
       })
     );
 
-    // Allow sections to flow across pages naturally, but keep individual items and titles intact
+    // Defensive guarantee: Group any section title and its first item together if not already grouped
+    clone.querySelectorAll('.resume-section, .template-split > div > div').forEach(section => {
+      const title = section.querySelector('.resume-section-title');
+      if (title && !title.closest('.resume-section-header-block')) {
+        const firstItem = title.nextElementSibling;
+        if (firstItem && (firstItem.classList.contains('resume-item') || firstItem.classList.contains('edu-item') || firstItem.classList.contains('job-item') || firstItem.tagName === 'P')) {
+          const wrapper = document.createElement('div');
+          wrapper.className = 'resume-section-header-block';
+          section.insertBefore(wrapper, title);
+          wrapper.appendChild(title);
+          wrapper.appendChild(firstItem);
+        }
+      }
+    });
+
+    // 1. Allow sections to flow across pages naturally between items
     clone.querySelectorAll('.resume-section').forEach(el => {
       el.style.pageBreakInside = 'auto';
       el.style.breakInside = 'auto';
     });
-    clone.querySelectorAll('.resume-item, .job-item, .edu-item, .resume-header').forEach(el => {
+
+    // 2. Lock section title together with its first entry (never orphan heading at bottom of page)
+    clone.querySelectorAll('.resume-section-header-block').forEach(el => {
       el.style.pageBreakInside = 'avoid';
       el.style.breakInside = 'avoid';
+      el.style.pageBreakAfter = 'auto';
+      el.style.breakAfter = 'auto';
     });
-    clone.querySelectorAll('.resume-section-title, h1, h2, h3').forEach(el => {
-      el.style.pageBreakAfter = 'avoid';
-      el.style.breakAfter = 'avoid';
+
+    // 3. Keep individual entries and header intact
+    clone.querySelectorAll('.resume-item, .job-item, .edu-item, .resume-header').forEach(el => {
       el.style.pageBreakInside = 'avoid';
       el.style.breakInside = 'avoid';
     });
@@ -101,7 +121,13 @@ export async function exportResumeToPdf(resume, elementId = 'resume-print-area')
       jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
       pagebreak: {
         mode: ['css', 'legacy'],
-        avoid: ['.resume-item', '.resume-section-title', '.resume-header', '.job-item', '.edu-item', 'h1', 'h2', 'h3']
+        avoid: [
+          '.resume-section-header-block',
+          '.resume-item',
+          '.resume-header',
+          '.job-item',
+          '.edu-item'
+        ]
       }
     };
 
