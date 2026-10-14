@@ -143,33 +143,73 @@ export default function ResumePreview({ resume, setResume, onOpenShare, readOnly
   };
 
   const getFlatSkillsList = (skillsInput, resumeInput) => {
+    // 1. Array of strings or objects
     if (Array.isArray(skillsInput) && skillsInput.length > 0) {
-      return skillsInput.filter(Boolean).map(s => (typeof s === 'string' ? s : (s?.name || String(s))));
+      return skillsInput.filter(Boolean).map(s => (typeof s === 'string' ? s.trim() : (s?.name || s?.skill || String(s)).trim())).filter(Boolean);
     }
-    const catSource = (skillsInput && typeof skillsInput === 'object' && !Array.isArray(skillsInput)) ? skillsInput : (resumeInput?.skills_categorized || resumeInput?.skills_by_category || resumeInput?.categorized_skills || resumeInput?.skill_categories);
+    // 2. Comma-separated or newline-separated string
+    if (typeof skillsInput === 'string' && skillsInput.trim()) {
+      return skillsInput.split(/[,|\n•\r]+/).map(s => s.trim()).filter(Boolean);
+    }
+    // 3. Object-based / categorized sources
+    const catSource = (skillsInput && typeof skillsInput === 'object' && !Array.isArray(skillsInput))
+      ? skillsInput
+      : (resumeInput?.skills_categorized || resumeInput?.skills_by_category || resumeInput?.categorized_skills || resumeInput?.skill_categories);
     if (catSource && typeof catSource === 'object') {
-      return Object.values(catSource).flat().filter(Boolean).map(s => (typeof s === 'string' ? s : (s?.name || String(s))));
+      const all = Object.values(catSource).flatMap(val => {
+        if (Array.isArray(val)) return val;
+        if (typeof val === 'string') return val.split(/[,|\n•\r]+/);
+        return [val];
+      }).filter(Boolean).map(s => (typeof s === 'string' ? s.trim() : (s?.name || s?.skill || String(s)).trim())).filter(Boolean);
+      if (all.length > 0) return all;
     }
-    if (Array.isArray(skillsInput)) {
-      return skillsInput.filter(Boolean).map(s => (typeof s === 'string' ? s : (s?.name || String(s))));
+    // 4. Fallback to resumeInput?.skills if skillsInput was empty
+    if (resumeInput?.skills && resumeInput.skills !== skillsInput) {
+      return getFlatSkillsList(resumeInput.skills, null);
     }
     return [];
   };
 
   const getSkillsByCategory = (skillsInput, resumeInput) => {
-    const catSource = resumeInput?.skills_categorized || resumeInput?.skills_by_category || resumeInput?.categorized_skills || resumeInput?.skill_categories || (typeof skillsInput === 'object' && !Array.isArray(skillsInput) ? skillsInput : null);
+    const flat = getFlatSkillsList(skillsInput, resumeInput);
+    if (flat.length === 0) return null;
+
+    // Check if explicitly categorized
+    const catSource = (skillsInput && typeof skillsInput === 'object' && !Array.isArray(skillsInput))
+      ? skillsInput
+      : (resumeInput?.skills_categorized || resumeInput?.skills_by_category || resumeInput?.categorized_skills || resumeInput?.skill_categories);
+
     if (catSource && typeof catSource === 'object') {
       const cleanEntries = Object.entries(catSource)
         .map(([cat, val]) => {
-          const items = (Array.isArray(val) ? val : [val]).filter(Boolean).map(s => (typeof s === 'string' ? s : (s?.name || String(s))));
+          let items = [];
+          if (Array.isArray(val)) {
+            items = val.filter(Boolean).map(s => (typeof s === 'string' ? s.trim() : (s?.name || s?.skill || String(s)).trim())).filter(Boolean);
+          } else if (typeof val === 'string') {
+            items = val.split(/[,|\n•\r]+/).map(s => s.trim()).filter(Boolean);
+          }
           return [cat, items];
         })
         .filter(([, items]) => items.length > 0);
-      if (cleanEntries.length > 0) return Object.fromEntries(cleanEntries);
+
+      if (cleanEntries.length > 0) {
+        // Guarantee that ALL original flat skills are preserved!
+        const includedSet = new Set(cleanEntries.flatMap(([, items]) => items.map(s => s.toLowerCase().trim())));
+        const missing = flat.filter(s => !includedSet.has(s.toLowerCase().trim()));
+        if (missing.length > 0) {
+          const tools = cleanEntries.find(([c]) => /tool|other/i.test(c));
+          if (tools) {
+            tools[1].push(...missing);
+          } else {
+            cleanEntries.push(['Tools & Others', missing]);
+          }
+        }
+        return Object.fromEntries(cleanEntries);
+      }
     }
 
-    const flat = getFlatSkillsList(skillsInput, resumeInput);
-    if (flat.length >= 4) {
+    // Auto-categorize flat skills into standard categories
+    if (flat.length >= 3) {
       const categories = {
         'Languages': [],
         'Frontend': [],
@@ -178,13 +218,14 @@ export default function ResumePreview({ resume, setResume, onOpenShare, readOnly
         'Tools & Others': []
       };
 
-      const langRegex = /^(javascript|typescript|js|ts|python|java|c\+\+|c#|go|golang|rust|ruby|php|swift|kotlin|html|html5|css|css3|sql|bash|shell|r|scala|dart)$/i;
-      const frontRegex = /^(react|react\.js|next\.js|nextjs|vue|vue\.js|angular|svelte|vite|redux|tailwind|tailwind\s*css|bootstrap|material\s*ui|responsive\s*design|webpack|jquery)$/i;
-      const backRegex = /^(node\.js|nodejs|node|express|express\.js|nestjs|django|flask|fastapi|spring|spring\s*boot|ruby\s*on\s*rails|asp\.net|graphql|rest\s*apis?|rest|microservices|authentication|authorization|websockets|grpc)$/i;
+      const langRegex = /^(javascript|typescript|js|ts|python|java|c\+\+|c#|c|go|golang|rust|ruby|php|swift|kotlin|html|html5|css|css3|sass|scss|sql|bash|shell|powershell|r|scala|dart|lua|perl)$/i;
+      const frontRegex = /^(react|react\.js|reactjs|next\.js|nextjs|vue|vue\.js|angular|svelte|vite|redux|tailwind|tailwind\s*css|bootstrap|material\s*ui|responsive\s*design|webpack|jquery|ui\/ux|html5\/css3)$/i;
+      const backRegex = /^(node\.js|nodejs|node|express|express\.js|nestjs|django|flask|fastapi|spring|spring\s*boot|ruby\s*on\s*rails|asp\.net|\.net|graphql|rest\s*apis?|rest|restful\s*apis?|microservices|authentication|authorization|websockets|grpc)$/i;
       const dbRegex = /^(mysql|postgresql|postgres|mongodb|redis|sqlite|oracle|cassandra|dynamodb|firebase|firestore|database\s*design|sql\s*optimization|prisma|mongoose|data\s*modeling)$/i;
 
       flat.forEach(item => {
-        const trimmed = item.trim();
+        const trimmed = typeof item === 'string' ? item.trim() : String(item).trim();
+        if (!trimmed) return;
         if (langRegex.test(trimmed)) {
           categories['Languages'].push(trimmed);
         } else if (frontRegex.test(trimmed)) {
@@ -201,6 +242,8 @@ export default function ResumePreview({ resume, setResume, onOpenShare, readOnly
       const filtered = Object.entries(categories).filter(([, items]) => items.length > 0);
       if (filtered.length >= 2) {
         return Object.fromEntries(filtered);
+      } else if (filtered.length === 1 && filtered[0][1].length >= 3) {
+        return { 'Core Competencies': filtered[0][1] };
       }
     }
 
@@ -889,9 +932,9 @@ export default function ResumePreview({ resume, setResume, onOpenShare, readOnly
                         const catData = getSkillsByCategory(skills, resume);
                         if (catData) {
                           return (
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.45rem', marginTop: '0.4rem' }}>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.55rem', marginTop: '0.45rem' }}>
                               {Object.entries(catData).map(([catName, catSkills]) => (
-                                <div key={catName} style={{ display: 'grid', gridTemplateColumns: '120px 1fr', alignItems: 'center', gap: '0.5rem' }}>
+                                <div key={catName} style={{ display: 'grid', gridTemplateColumns: '125px 1fr', alignItems: 'center', gap: '0.5rem' }}>
                                   <span style={{ fontSize: '0.8rem', fontWeight: 700, color: '#0f172a' }}>{catName}</span>
                                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.35rem' }}>
                                     {catSkills.map((s, si) => (
@@ -956,7 +999,7 @@ export default function ResumePreview({ resume, setResume, onOpenShare, readOnly
                             </div>
                           )}
                           {p0.techStack && (
-                            <div style={{ fontSize: '0.75rem', color: '#475569', marginTop: '2px' }}>
+                            <div style={{ fontSize: '0.75rem', color: '#475569', marginTop: '4px' }}>
                               <strong style={{ color: '#0f172a' }}>Tech Stack:</strong> {p0.techStack}
                             </div>
                           )}
@@ -994,7 +1037,7 @@ export default function ResumePreview({ resume, setResume, onOpenShare, readOnly
                           </div>
                         )}
                         {p.techStack && (
-                          <div style={{ fontSize: '0.75rem', color: '#475569', marginTop: '2px' }}>
+                          <div style={{ fontSize: '0.75rem', color: '#475569', marginTop: '4px' }}>
                             <strong style={{ color: '#0f172a' }}>Tech Stack:</strong> {p.techStack}
                           </div>
                         )}
@@ -1024,7 +1067,7 @@ export default function ResumePreview({ resume, setResume, onOpenShare, readOnly
                         </span>
                       </div>
                       {formatCoursework(education[0]) && (
-                        <div style={{ fontSize: '0.75rem', color: '#475569', marginTop: '2px' }}>
+                        <div style={{ fontSize: '0.75rem', color: '#475569', marginTop: '4px' }}>
                           {formatCoursework(education[0])}
                         </div>
                       )}
@@ -1044,7 +1087,7 @@ export default function ResumePreview({ resume, setResume, onOpenShare, readOnly
                         </span>
                       </div>
                       {formatCoursework(edu) && (
-                        <div style={{ fontSize: '0.75rem', color: '#475569', marginTop: '2px' }}>
+                        <div style={{ fontSize: '0.75rem', color: '#475569', marginTop: '4px' }}>
                           {formatCoursework(edu)}
                         </div>
                       )}

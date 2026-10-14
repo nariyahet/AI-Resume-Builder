@@ -196,14 +196,22 @@ export async function exportResumeToDocx(resume) {
   }
 
   // 6. TECHNICAL SKILLS
-  if (skills && skills.length > 0) {
-    addSectionHeading('Technical Proficiencies');
+  const flatSkills = Array.isArray(skills)
+    ? skills.filter(Boolean).map(s => typeof s === 'string' ? s.trim() : (s?.name || s?.skill || String(s)).trim())
+    : (typeof skills === 'string'
+        ? skills.split(/[,|\n•\r]+/).map(s => s.trim()).filter(Boolean)
+        : (typeof skills === 'object' && skills !== null
+            ? Object.values(skills).flat().filter(Boolean).map(s => typeof s === 'string' ? s.trim() : (s?.name || s?.skill || String(s)).trim())
+            : []));
+
+  if (flatSkills.length > 0) {
+    addSectionHeading('Technical Skills');
     docParagraphs.push(
       new Paragraph({
         spacing: { after: 180 },
         children: [
           new TextRun({
-            text: skills.join('  •  '),
+            text: flatSkills.join('  •  '),
             size: 20,
             font: 'Arial',
             color: '374151'

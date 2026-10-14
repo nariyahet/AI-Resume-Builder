@@ -914,17 +914,17 @@ body {
 }
 
 .template-modern .resume-section {
-  margin-bottom: 0.85rem;
+  margin-bottom: 1.15rem;
 }
 
 .template-modern .resume-section-title {
   font-family: var(--font-heading);
-  font-size: 0.9rem;
+  font-size: 0.925rem;
   font-weight: 700;
   color: var(--theme-color, #4f46e5);
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  margin-bottom: 0.35rem;
+  margin-bottom: 0.45rem;
   display: flex;
   align-items: center;
   gap: 0.5rem;
@@ -1081,10 +1081,14 @@ body {
 .edu-item,
 .project-item,
 .cert-item {
-  margin-bottom: 0.55rem;
+  margin-bottom: 0.75rem;
   page-break-inside: avoid !important;
   break-inside: avoid !important;
   break-inside: avoid-page !important;
+}
+
+.project-item {
+  margin-bottom: 0.95rem;
 }
 
 .resume-item-top {
@@ -1114,10 +1118,10 @@ body {
 }
 
 .resume-item-desc {
-  font-size: 0.785rem;
+  font-size: 0.8rem;
   color: #334155;
-  margin-top: 0.2rem;
-  line-height: 1.38;
+  margin-top: 0.22rem;
+  line-height: 1.48;
   white-space: pre-line;
   page-break-before: avoid !important;
   break-before: avoid !important;
@@ -1133,9 +1137,9 @@ body {
   display: inline-block;
   background: #f1f5f9;
   color: #1e293b;
-  font-size: 0.725rem;
+  font-size: 0.735rem;
   font-weight: 500;
-  padding: 0.2rem 0.55rem;
+  padding: 0.22rem 0.58rem;
   border-radius: 6px;
   margin: 0.15rem;
   border: 1px solid #e2e8f0;
