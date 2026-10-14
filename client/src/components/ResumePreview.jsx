@@ -143,6 +143,16 @@ export default function ResumePreview({ resume, setResume, onOpenShare, readOnly
     document.body.removeChild(link);
   };
 
+  const formatProjectDesc = (desc) => {
+    if (!desc || typeof desc !== 'string') return '';
+    if (desc.includes(' — ') || desc.includes(' – ') || desc.includes(' - ')) return desc;
+    const match = desc.match(/^([A-Z][\w\s]{4,40}?)\s+((?:Built|Created|Developed|Designed|Implemented|Engineered|Architected|Managed|Led|Maintained|Automated|Orchestrated)\b.+)$/s);
+    if (match) {
+      return `${match[1]} — ${match[2]}`;
+    }
+    return desc;
+  };
+
   const getSpacingStyle = () => {
     if (spacingDensity === 'compact') {
       return { lineHeight: 1.35, fontSizeMultiplier: '0.94' };
@@ -324,7 +334,7 @@ export default function ResumePreview({ resume, setResume, onOpenShare, readOnly
           <div
             ref={printAreaRef}
             id="resume-print-area"
-            className={`resume-sheet template-${template_id} style-${page_style || 'modern'}`}
+            className={`resume-sheet template-${template_id} style-${page_style || 'modern'} density-${spacingDensity}`}
             style={{
               '--theme-color': theme_color,
               fontFamily: `${fontFamily}, sans-serif`,
@@ -504,20 +514,20 @@ export default function ResumePreview({ resume, setResume, onOpenShare, readOnly
                         Key Projects
                       </h2>
                       <div key={projects[0].id || 0} className="resume-item project-item" style={{ marginBottom: '8px' }}>
-                        <div style={{ fontSize: '0.825rem', fontWeight: 700, color: theme_color }}>{projects[0].name}</div>
+                        <div className="resume-item-top" style={{ fontSize: '0.825rem', fontWeight: 700, color: theme_color, pageBreakAfter: 'avoid', breakAfter: 'avoid' }}>{projects[0].name}</div>
                         {projects[0].description && (
-                          <div style={{ fontSize: '0.775rem', color: '#334155', marginTop: '2px', lineHeight: 1.4 }}>
-                            {projects[0].description}
+                          <div className="resume-item-desc" style={{ fontSize: '0.775rem', color: '#334155', marginTop: '2px', lineHeight: 1.4, pageBreakBefore: 'avoid', breakBefore: 'avoid' }}>
+                            {formatProjectDesc(projects[0].description)}
                           </div>
                         )}
                       </div>
                     </div>
                     {projects.slice(1).map((proj, i) => (
                       <div key={proj.id || (i + 1)} className="resume-item project-item" style={{ marginBottom: '8px' }}>
-                        <div style={{ fontSize: '0.825rem', fontWeight: 700, color: theme_color }}>{proj.name}</div>
+                        <div className="resume-item-top" style={{ fontSize: '0.825rem', fontWeight: 700, color: theme_color, pageBreakAfter: 'avoid', breakAfter: 'avoid' }}>{proj.name}</div>
                         {proj.description && (
-                          <div style={{ fontSize: '0.775rem', color: '#334155', marginTop: '2px', lineHeight: 1.4 }}>
-                            {proj.description}
+                          <div className="resume-item-desc" style={{ fontSize: '0.775rem', color: '#334155', marginTop: '2px', lineHeight: 1.4, pageBreakBefore: 'avoid', breakBefore: 'avoid' }}>
+                            {formatProjectDesc(proj.description)}
                           </div>
                         )}
                       </div>
@@ -686,7 +696,7 @@ export default function ResumePreview({ resume, setResume, onOpenShare, readOnly
                       {template_id === 'harvard' ? 'KEY PROJECTS & INITIATIVES' : 'Key Projects'}
                     </h2>
                     <div key={projects[0].id || 0} className="resume-item project-item">
-                      <div className="resume-item-top">
+                      <div className="resume-item-top" style={{ pageBreakAfter: 'avoid', breakAfter: 'avoid' }}>
                         <span className="resume-item-title" style={{ color: theme_color }}>
                           {projects[0].name}
                         </span>
@@ -697,15 +707,15 @@ export default function ResumePreview({ resume, setResume, onOpenShare, readOnly
                         )}
                       </div>
                       {projects[0].description && (
-                        <div className="resume-item-desc">
-                          {projects[0].description}
+                        <div className="resume-item-desc" style={{ pageBreakBefore: 'avoid', breakBefore: 'avoid' }}>
+                          {formatProjectDesc(projects[0].description)}
                         </div>
                       )}
                     </div>
                   </div>
                   {projects.slice(1).map((proj, i) => (
                     <div key={proj.id || (i + 1)} className="resume-item project-item">
-                      <div className="resume-item-top">
+                      <div className="resume-item-top" style={{ pageBreakAfter: 'avoid', breakAfter: 'avoid' }}>
                         <span className="resume-item-title" style={{ color: theme_color }}>
                           {proj.name}
                         </span>
@@ -716,8 +726,8 @@ export default function ResumePreview({ resume, setResume, onOpenShare, readOnly
                         )}
                       </div>
                       {proj.description && (
-                        <div className="resume-item-desc">
-                          {proj.description}
+                        <div className="resume-item-desc" style={{ pageBreakBefore: 'avoid', breakBefore: 'avoid' }}>
+                          {formatProjectDesc(proj.description)}
                         </div>
                       )}
                     </div>

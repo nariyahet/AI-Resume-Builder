@@ -2388,7 +2388,14 @@ export function parseResumeRuleBased(resumeText, options = {}) {
       } else if (!currentProj.description) {
         currentProj.description = line;
       } else {
-        currentProj.description = `${currentProj.description} ${line}`;
+        const prev = currentProj.description.trim();
+        const cleanLine = line.trim();
+        const isActionVerb = /^(?:built|created|developed|designed|implemented|engineered|architected|managed|led|maintained|automated|orchestrated|spearheaded)\b/i.test(cleanLine);
+        if (!/[.!?:]$/.test(prev) && isActionVerb && !prev.includes('—') && !prev.includes(' - ')) {
+          currentProj.description = `${prev} — ${cleanLine}`;
+        } else {
+          currentProj.description = `${prev} ${cleanLine}`;
+        }
       }
     }
     commitProj();

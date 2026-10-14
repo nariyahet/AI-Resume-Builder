@@ -1084,6 +1084,7 @@ body {
   margin-bottom: 0.55rem;
   page-break-inside: avoid !important;
   break-inside: avoid !important;
+  break-inside: avoid-page !important;
 }
 
 .resume-item-top {
@@ -1091,6 +1092,9 @@ body {
   justify-content: space-between;
   align-items: baseline;
   font-size: 0.85rem;
+  page-break-after: avoid !important;
+  break-after: avoid !important;
+  break-after: avoid-page !important;
 }
 
 .resume-item-title {
@@ -1115,6 +1119,14 @@ body {
   margin-top: 0.2rem;
   line-height: 1.38;
   white-space: pre-line;
+  page-break-before: avoid !important;
+  break-before: avoid !important;
+  break-before: avoid-page !important;
+}
+
+.project-tagline {
+  font-weight: 600;
+  color: #1e293b;
 }
 
 .resume-skill-badge {
@@ -1127,6 +1139,78 @@ body {
   border-radius: 4px;
   margin: 0.15rem;
   border: 1px solid #e2e8f0;
+}
+
+/* ============================================================== */
+/* DENSITY SPACING MODES (1-Page Compact / Balanced Spacing)      */
+/* ============================================================== */
+.resume-sheet.density-compact {
+  padding: 8mm 13mm !important;
+}
+
+.resume-sheet.density-compact .resume-header {
+  margin-bottom: 0.45rem !important;
+  padding-bottom: 0.32rem !important;
+}
+
+.resume-sheet.density-compact .resume-name {
+  font-size: 1.65rem !important;
+}
+
+.resume-sheet.density-compact .resume-role {
+  font-size: 0.9rem !important;
+  margin-top: 0.08rem !important;
+}
+
+.resume-sheet.density-compact .resume-contacts {
+  margin-top: 0.22rem !important;
+  gap: 0.5rem !important;
+  font-size: 0.735rem !important;
+}
+
+.resume-sheet.density-compact .resume-section {
+  margin-bottom: 0.42rem !important;
+}
+
+.resume-sheet.density-compact .resume-section-title {
+  margin-bottom: 0.18rem !important;
+}
+
+.resume-sheet.density-compact .resume-item,
+.resume-sheet.density-compact .job-item,
+.resume-sheet.density-compact .edu-item,
+.resume-sheet.density-compact .project-item,
+.resume-sheet.density-compact .cert-item {
+  margin-bottom: 0.28rem !important;
+}
+
+.resume-sheet.density-compact .resume-item-desc {
+  font-size: 0.755rem !important;
+  line-height: 1.28 !important;
+  margin-top: 0.1rem !important;
+}
+
+.resume-sheet.density-compact .resume-skill-badge {
+  font-size: 0.68rem !important;
+  padding: 0.1rem 0.38rem !important;
+  margin: 0.05rem !important;
+}
+
+.resume-sheet.density-relaxed {
+  padding: 14mm 16mm !important;
+}
+
+.resume-sheet.density-relaxed .resume-section {
+  margin-bottom: 1.1rem !important;
+}
+
+.resume-sheet.density-relaxed .resume-item {
+  margin-bottom: 0.75rem !important;
+}
+
+.resume-sheet.density-relaxed .resume-item-desc {
+  line-height: 1.55 !important;
+  font-size: 0.825rem !important;
 }
 
 /* ============================================================== */

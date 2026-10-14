@@ -36,7 +36,9 @@ export async function exportResumeToPdf(resume, elementId = 'resume-print-area')
   clone.style.minHeight = 'auto';
   clone.style.height = 'auto';
   clone.style.margin = '0';
-  clone.style.padding = '12mm 15mm';
+  const isCompact = clone.classList.contains('density-compact') || sourceEl.classList.contains('density-compact');
+  const isRelaxed = clone.classList.contains('density-relaxed') || sourceEl.classList.contains('density-relaxed');
+  clone.style.padding = isCompact ? '10mm 14mm' : (isRelaxed ? '14mm 16mm' : '12mm 15mm');
   clone.style.boxSizing = 'border-box';
   clone.style.background = '#ffffff';
   // Remove outer shadows and borders that cause html2canvas canvas overflow onto extra page
@@ -46,6 +48,12 @@ export async function exportResumeToPdf(resume, elementId = 'resume-print-area')
 
   sandbox.appendChild(clone);
   document.body.appendChild(sandbox);
+
+  // If content is just barely spilling over onto a second page (within ~100px), auto-compact into 1 page
+  if (!isRelaxed && !isCompact && clone.offsetHeight > 1123 && clone.offsetHeight <= 1240) {
+    clone.classList.add('density-compact');
+    clone.style.padding = '10mm 14mm';
+  }
 
   try {
     const candidateName = resume?.personal_info?.fullName || resume?.title || 'Resume';
@@ -107,6 +115,17 @@ export async function exportResumeToPdf(resume, elementId = 'resume-print-area')
       }
     });
 
+    // 4. Never separate item title from its description inside any project or job entry
+    clone.querySelectorAll('.resume-item-top, .resume-item-title').forEach(el => {
+      el.style.pageBreakAfter = 'avoid';
+      el.style.breakAfter = 'avoid';
+    });
+
+    clone.querySelectorAll('.resume-item-desc').forEach(el => {
+      el.style.pageBreakBefore = 'avoid';
+      el.style.breakBefore = 'avoid';
+    });
+
     // Remove bottom margin and padding on the last child to prevent trailing blank page creation
     const lastEl = clone.querySelector('.resume-sheet > *:last-child, .resume-section:last-of-type');
     if (lastEl) {
@@ -137,6 +156,7 @@ export async function exportResumeToPdf(resume, elementId = 'resume-print-area')
           '.edu-item',
           '.project-item',
           '.cert-item',
+          '.resume-item-top',
           '.resume-header'
         ]
       }
