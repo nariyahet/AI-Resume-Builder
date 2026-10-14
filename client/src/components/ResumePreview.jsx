@@ -95,6 +95,73 @@ export default function ResumePreview({ resume, setResume, onOpenShare, readOnly
     page_style = 'modern'
   } = resume;
 
+  const formatProjectDesc = (desc) => {
+    if (!desc || typeof desc !== 'string') return '';
+    if (desc.includes(' — ') || desc.includes(' – ') || desc.includes(' - ')) return desc;
+    const match = desc.match(/^([A-Z][\w\s]{4,40}?)\s+((?:Built|Created|Developed|Designed|Implemented|Engineered|Architected|Managed|Led|Maintained|Automated|Orchestrated)\b.+)$/s);
+    if (match) {
+      return `${match[1]} — ${match[2]}`;
+    }
+    return desc;
+  };
+
+  const getFlatSkillsList = (skillsInput, resumeInput) => {
+    if (Array.isArray(skillsInput) && skillsInput.length > 0) {
+      return skillsInput.filter(Boolean).map(s => (typeof s === 'string' ? s : (s?.name || String(s))));
+    }
+    const catSource = (skillsInput && typeof skillsInput === 'object' && !Array.isArray(skillsInput)) ? skillsInput : (resumeInput?.skills_categorized || resumeInput?.skills_by_category || resumeInput?.categorized_skills || resumeInput?.skill_categories);
+    if (catSource && typeof catSource === 'object') {
+      return Object.values(catSource).flat().filter(Boolean).map(s => (typeof s === 'string' ? s : (s?.name || String(s))));
+    }
+    if (Array.isArray(skillsInput)) {
+      return skillsInput.filter(Boolean).map(s => (typeof s === 'string' ? s : (s?.name || String(s))));
+    }
+    return [];
+  };
+
+  const getSkillsByCategory = (skillsInput, resumeInput) => {
+    const catSource = resumeInput?.skills_categorized || resumeInput?.skills_by_category || resumeInput?.categorized_skills || resumeInput?.skill_categories || (typeof skillsInput === 'object' && !Array.isArray(skillsInput) ? skillsInput : null);
+    if (!catSource || typeof catSource !== 'object') return null;
+    const cleanEntries = Object.entries(catSource)
+      .map(([cat, val]) => {
+        const items = (Array.isArray(val) ? val : [val]).filter(Boolean).map(s => (typeof s === 'string' ? s : (s?.name || String(s))));
+        return [cat, items];
+      })
+      .filter(([, items]) => items.length > 0);
+    return cleanEntries.length > 0 ? Object.fromEntries(cleanEntries) : null;
+  };
+
+  const formatTechStack = (proj) => {
+    const raw = proj?.tech_stack || proj?.techStack;
+    if (!raw) return null;
+    if (Array.isArray(raw)) {
+      const filtered = raw.filter(Boolean).map(String);
+      return filtered.length > 0 ? filtered.join(', ') : null;
+    }
+    if (typeof raw === 'string') {
+      const trimmed = raw.trim();
+      return trimmed.length > 0 ? trimmed : null;
+    }
+    return null;
+  };
+
+  const formatCoursework = (edu) => {
+    const raw = edu?.coursework || edu?.relevant_coursework || edu?.courses;
+    if (!raw) return null;
+    let text = '';
+    if (Array.isArray(raw)) {
+      const filtered = raw.filter(Boolean).map(String);
+      if (filtered.length === 0) return null;
+      text = filtered.join(', ');
+    } else if (typeof raw === 'string') {
+      text = raw.trim();
+      if (!text) return null;
+    } else {
+      return null;
+    }
+    return text.toLowerCase().startsWith('relevant coursework:') ? text : `Relevant Coursework: ${text}`;
+  };
+
   // Export as Plain Text / Docx helper
   const handleExportTxt = () => {
     let content = `${personal_info.fullName || 'RESUME'}\n`;
@@ -114,14 +181,19 @@ export default function ResumePreview({ resume, setResume, onOpenShare, readOnly
       });
     }
 
-    if (skills && skills.length > 0) {
-      content += `SKILLS\n${skills.join(', ')}\n\n`;
+    const textSkills = getFlatSkillsList(skills, resume);
+    if (textSkills.length > 0) {
+      content += `SKILLS\n${textSkills.join(', ')}\n\n`;
     }
 
     if (education && education.length > 0) {
       content += `EDUCATION\n`;
       education.forEach(edu => {
-        content += `${edu.degree || ''} - ${edu.institution || ''} (${edu.year || ''})\n`;
+        const coursework = formatCoursework(edu);
+        content += `${edu.degree || ''} - ${edu.institution || ''} (${edu.year || ''})${edu.score ? ` | ${edu.score}` : ''}\n`;
+        if (coursework) {
+          content += `  ${coursework}\n`;
+        }
       });
       content += '\n';
     }
@@ -129,7 +201,8 @@ export default function ResumePreview({ resume, setResume, onOpenShare, readOnly
     if (projects && projects.length > 0) {
       content += `PROJECTS\n`;
       projects.forEach(p => {
-        content += `${p.name || ''}: ${p.description || ''}\n`;
+        const stack = formatTechStack(p);
+        content += `${p.name || ''}${p.role ? ` — ${p.role}` : ''}: ${p.description || ''}${stack ? ` (Tech Stack: ${stack})` : ''}\n`;
       });
     }
 
@@ -141,16 +214,6 @@ export default function ResumePreview({ resume, setResume, onOpenShare, readOnly
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-  };
-
-  const formatProjectDesc = (desc) => {
-    if (!desc || typeof desc !== 'string') return '';
-    if (desc.includes(' — ') || desc.includes(' – ') || desc.includes(' - ')) return desc;
-    const match = desc.match(/^([A-Z][\w\s]{4,40}?)\s+((?:Built|Created|Developed|Designed|Implemented|Engineered|Architected|Managed|Led|Maintained|Automated|Orchestrated)\b.+)$/s);
-    if (match) {
-      return `${match[1]} — ${match[2]}`;
-    }
-    return desc;
   };
 
   const getSpacingStyle = () => {
@@ -410,20 +473,24 @@ export default function ResumePreview({ resume, setResume, onOpenShare, readOnly
                 </div>
 
                 {/* Skills Sidebar */}
-                {skills && skills.length > 0 && (
-                  <div style={{ marginBottom: '20px' }}>
-                    <h3 className="resume-section-title" style={{ fontSize: '0.85rem', fontWeight: 700, color: theme_color, textTransform: 'uppercase', marginBottom: '8px', borderBottom: '1px solid #cbd5e1', paddingBottom: '3px', pageBreakAfter: 'avoid', breakAfter: 'avoid' }}>
-                      Skills
-                    </h3>
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
-                      {skills.map((s, i) => (
-                        <span key={i} className="resume-skill-badge" style={{ fontSize: '0.7rem', padding: '2px 5px' }}>
-                          {s}
-                        </span>
-                      ))}
+                {(() => {
+                  const splitSkills = getFlatSkillsList(skills, resume);
+                  if (splitSkills.length === 0) return null;
+                  return (
+                    <div style={{ marginBottom: '20px' }}>
+                      <h3 className="resume-section-title" style={{ fontSize: '0.85rem', fontWeight: 700, color: theme_color, textTransform: 'uppercase', marginBottom: '8px', borderBottom: '1px solid #cbd5e1', paddingBottom: '3px', pageBreakAfter: 'avoid', breakAfter: 'avoid' }}>
+                        Skills
+                      </h3>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+                        {splitSkills.map((s, i) => (
+                          <span key={i} className="resume-skill-badge" style={{ fontSize: '0.7rem', padding: '2px 5px' }}>
+                            {s}
+                          </span>
+                        ))}
+                      </div>
                     </div>
-                  </div>
-                )}
+                  );
+                })()}
 
                 {/* Education Sidebar */}
                 {education && education.length > 0 && (
@@ -435,14 +502,24 @@ export default function ResumePreview({ resume, setResume, onOpenShare, readOnly
                       <div key={education[0].id || 0} className="resume-item edu-item" style={{ marginBottom: '8px', fontSize: '0.75rem' }}>
                         <div style={{ fontWeight: 700, color: '#0f172a' }}>{education[0].degree}</div>
                         <div style={{ color: '#475569' }}>{education[0].institution}</div>
-                        <div style={{ color: '#64748b', fontSize: '0.7rem' }}>{education[0].year}</div>
+                        <div style={{ color: '#64748b', fontSize: '0.7rem' }}>{education[0].year} {education[0].score ? `| ${education[0].score}` : ''}</div>
+                        {formatCoursework(education[0]) && (
+                          <div style={{ fontSize: '0.7rem', color: '#475569', marginTop: '2px' }}>
+                            {formatCoursework(education[0])}
+                          </div>
+                        )}
                       </div>
                     </div>
                     {education.slice(1).map((edu, i) => (
                       <div key={edu.id || (i + 1)} className="resume-item edu-item" style={{ marginBottom: '8px', fontSize: '0.75rem' }}>
                         <div style={{ fontWeight: 700, color: '#0f172a' }}>{edu.degree}</div>
                         <div style={{ color: '#475569' }}>{edu.institution}</div>
-                        <div style={{ color: '#64748b', fontSize: '0.7rem' }}>{edu.year}</div>
+                        <div style={{ color: '#64748b', fontSize: '0.7rem' }}>{edu.year} {edu.score ? `| ${edu.score}` : ''}</div>
+                        {formatCoursework(edu) && (
+                          <div style={{ fontSize: '0.7rem', color: '#475569', marginTop: '2px' }}>
+                            {formatCoursework(edu)}
+                          </div>
+                        )}
                       </div>
                     ))}
                   </div>
@@ -514,20 +591,52 @@ export default function ResumePreview({ resume, setResume, onOpenShare, readOnly
                         Key Projects
                       </h2>
                       <div key={projects[0].id || 0} className="resume-item project-item" style={{ marginBottom: '8px' }}>
-                        <div className="resume-item-top" style={{ fontSize: '0.825rem', fontWeight: 700, color: theme_color, pageBreakAfter: 'avoid', breakAfter: 'avoid' }}>{projects[0].name}</div>
+                        <div className="resume-item-top" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', fontSize: '0.825rem', fontWeight: 700, color: theme_color, pageBreakAfter: 'avoid', breakAfter: 'avoid' }}>
+                          <div>
+                            <span>{projects[0].name}</span>
+                            {projects[0].role && <span style={{ color: '#475569', fontWeight: 600, fontSize: '0.775rem' }}> — {projects[0].role}</span>}
+                            {projects[0].link && <span style={{ fontSize: '0.7rem', color: '#64748b', marginLeft: '6px' }}>{projects[0].link}</span>}
+                          </div>
+                          {(projects[0].date || projects[0].startDate || projects[0].year) && (
+                            <span className="resume-item-date" style={{ fontSize: '0.7rem', color: '#64748b', whiteSpace: 'nowrap' }}>
+                              {projects[0].date || (projects[0].startDate && projects[0].endDate ? `${projects[0].startDate} - ${projects[0].endDate}` : (projects[0].startDate || projects[0].endDate || projects[0].year || ''))}
+                            </span>
+                          )}
+                        </div>
                         {projects[0].description && (
                           <div className="resume-item-desc" style={{ fontSize: '0.775rem', color: '#334155', marginTop: '2px', lineHeight: 1.4, pageBreakBefore: 'avoid', breakBefore: 'avoid' }}>
                             {formatProjectDesc(projects[0].description)}
+                          </div>
+                        )}
+                        {formatTechStack(projects[0]) && (
+                          <div style={{ fontSize: '0.725rem', color: '#475569', marginTop: '2px' }}>
+                            <strong>Tech Stack:</strong> {formatTechStack(projects[0])}
                           </div>
                         )}
                       </div>
                     </div>
                     {projects.slice(1).map((proj, i) => (
                       <div key={proj.id || (i + 1)} className="resume-item project-item" style={{ marginBottom: '8px' }}>
-                        <div className="resume-item-top" style={{ fontSize: '0.825rem', fontWeight: 700, color: theme_color, pageBreakAfter: 'avoid', breakAfter: 'avoid' }}>{proj.name}</div>
+                        <div className="resume-item-top" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', fontSize: '0.825rem', fontWeight: 700, color: theme_color, pageBreakAfter: 'avoid', breakAfter: 'avoid' }}>
+                          <div>
+                            <span>{proj.name}</span>
+                            {proj.role && <span style={{ color: '#475569', fontWeight: 600, fontSize: '0.775rem' }}> — {proj.role}</span>}
+                            {proj.link && <span style={{ fontSize: '0.7rem', color: '#64748b', marginLeft: '6px' }}>{proj.link}</span>}
+                          </div>
+                          {(proj.date || proj.startDate || proj.year) && (
+                            <span className="resume-item-date" style={{ fontSize: '0.7rem', color: '#64748b', whiteSpace: 'nowrap' }}>
+                              {proj.date || (proj.startDate && proj.endDate ? `${proj.startDate} - ${proj.endDate}` : (proj.startDate || proj.endDate || proj.year || ''))}
+                            </span>
+                          )}
+                        </div>
                         {proj.description && (
                           <div className="resume-item-desc" style={{ fontSize: '0.775rem', color: '#334155', marginTop: '2px', lineHeight: 1.4, pageBreakBefore: 'avoid', breakBefore: 'avoid' }}>
                             {formatProjectDesc(proj.description)}
+                          </div>
+                        )}
+                        {formatTechStack(proj) && (
+                          <div style={{ fontSize: '0.725rem', color: '#475569', marginTop: '2px' }}>
+                            <strong>Tech Stack:</strong> {formatTechStack(proj)}
                           </div>
                         )}
                       </div>
@@ -665,24 +774,63 @@ export default function ResumePreview({ resume, setResume, onOpenShare, readOnly
               )}
 
               {/* SKILLS */}
-              {skills && skills.length > 0 && (
+              {getFlatSkillsList(skills, resume).length > 0 && (
                 <section className="resume-section">
                   <div className="resume-section-header-block">
                     <h2 className="resume-section-title">
                       {template_id === 'harvard' ? 'TECHNICAL & CORE COMPETENCIES' : 'Technical Proficiencies'}
                     </h2>
                     {template_id === 'harvard' ? (
-                      <p style={{ fontSize: '0.8rem', color: '#334155', marginTop: '4px' }}>
-                        <strong>Core Skills:</strong> {skills.join(' • ')}
-                      </p>
+                      (() => {
+                        const catMap = getSkillsByCategory(skills, resume);
+                        if (catMap) {
+                          return (
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', marginTop: '4px' }}>
+                              {Object.entries(catMap).map(([category, items]) => (
+                                <p key={category} style={{ fontSize: '0.8rem', color: '#334155', margin: 0 }}>
+                                  <strong>{category}:</strong> {items.join(' • ')}
+                                </p>
+                              ))}
+                            </div>
+                          );
+                        }
+                        const flat = getFlatSkillsList(skills, resume);
+                        return (
+                          <p style={{ fontSize: '0.8rem', color: '#334155', marginTop: '4px' }}>
+                            <strong>Core Skills:</strong> {flat.join(' • ')}
+                          </p>
+                        );
+                      })()
                     ) : (
-                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.35rem', marginTop: '0.35rem' }}>
-                        {skills.map((skill, i) => (
-                          <span key={i} className="resume-skill-badge">
-                            {skill}
-                          </span>
-                        ))}
-                      </div>
+                      (() => {
+                        const catData = getSkillsByCategory(skills, resume);
+                        if (catData) {
+                          return (
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.45rem', marginTop: '0.4rem' }}>
+                              {Object.entries(catData).map(([catName, catSkills]) => (
+                                <div key={catName} style={{ display: 'grid', gridTemplateColumns: '120px 1fr', alignItems: 'center', gap: '0.5rem' }}>
+                                  <span style={{ fontSize: '0.8rem', fontWeight: 700, color: '#0f172a' }}>{catName}</span>
+                                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.35rem' }}>
+                                    {catSkills.map((s, si) => (
+                                      <span key={si} className="resume-skill-badge">{s}</span>
+                                    ))}
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          );
+                        }
+                        const flat = getFlatSkillsList(skills, resume);
+                        return (
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.35rem', marginTop: '0.35rem' }}>
+                            {flat.map((skill, i) => (
+                              <span key={i} className="resume-skill-badge">
+                                {skill}
+                              </span>
+                            ))}
+                          </div>
+                        );
+                      })()
                     )}
                   </div>
                 </section>
@@ -696,13 +844,23 @@ export default function ResumePreview({ resume, setResume, onOpenShare, readOnly
                       {template_id === 'harvard' ? 'KEY PROJECTS & INITIATIVES' : 'Key Projects'}
                     </h2>
                     <div key={projects[0].id || 0} className="resume-item project-item">
-                      <div className="resume-item-top" style={{ pageBreakAfter: 'avoid', breakAfter: 'avoid' }}>
-                        <span className="resume-item-title" style={{ color: theme_color }}>
-                          {projects[0].name}
-                        </span>
-                        {projects[0].link && (
-                          <span style={{ fontSize: '0.75rem', color: '#64748b' }}>
-                            {projects[0].link}
+                      <div className="resume-item-top" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', pageBreakAfter: 'avoid', breakAfter: 'avoid' }}>
+                        <div>
+                          <span className="resume-item-title" style={{ color: theme_color, fontWeight: 700 }}>
+                            {projects[0].name}
+                          </span>
+                          {projects[0].role && (
+                            <span style={{ color: '#475569', fontWeight: 600 }}> — {projects[0].role}</span>
+                          )}
+                          {projects[0].link && (
+                            <span style={{ fontSize: '0.75rem', color: '#64748b', marginLeft: '6px' }}>
+                              {projects[0].link}
+                            </span>
+                          )}
+                        </div>
+                        {(projects[0].date || projects[0].startDate || projects[0].year) && (
+                          <span className="resume-item-date" style={{ fontSize: '0.75rem', color: '#64748b', whiteSpace: 'nowrap' }}>
+                            {projects[0].date || (projects[0].startDate && projects[0].endDate ? `${projects[0].startDate} - ${projects[0].endDate}` : (projects[0].startDate || projects[0].endDate || projects[0].year || ''))}
                           </span>
                         )}
                       </div>
@@ -711,23 +869,43 @@ export default function ResumePreview({ resume, setResume, onOpenShare, readOnly
                           {formatProjectDesc(projects[0].description)}
                         </div>
                       )}
+                      {formatTechStack(projects[0]) && (
+                        <div style={{ fontSize: '0.75rem', color: '#475569', marginTop: '2px' }}>
+                          <strong>Tech Stack:</strong> {formatTechStack(projects[0])}
+                        </div>
+                      )}
                     </div>
                   </div>
                   {projects.slice(1).map((proj, i) => (
                     <div key={proj.id || (i + 1)} className="resume-item project-item">
-                      <div className="resume-item-top" style={{ pageBreakAfter: 'avoid', breakAfter: 'avoid' }}>
-                        <span className="resume-item-title" style={{ color: theme_color }}>
-                          {proj.name}
-                        </span>
-                        {proj.link && (
-                          <span style={{ fontSize: '0.75rem', color: '#64748b' }}>
-                            {proj.link}
+                      <div className="resume-item-top" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', pageBreakAfter: 'avoid', breakAfter: 'avoid' }}>
+                        <div>
+                          <span className="resume-item-title" style={{ color: theme_color, fontWeight: 700 }}>
+                            {proj.name}
+                          </span>
+                          {proj.role && (
+                            <span style={{ color: '#475569', fontWeight: 600 }}> — {proj.role}</span>
+                          )}
+                          {proj.link && (
+                            <span style={{ fontSize: '0.75rem', color: '#64748b', marginLeft: '6px' }}>
+                              {proj.link}
+                            </span>
+                          )}
+                        </div>
+                        {(proj.date || proj.startDate || proj.year) && (
+                          <span className="resume-item-date" style={{ fontSize: '0.75rem', color: '#64748b', whiteSpace: 'nowrap' }}>
+                            {proj.date || (proj.startDate && proj.endDate ? `${proj.startDate} - ${proj.endDate}` : (proj.startDate || proj.endDate || proj.year || ''))}
                           </span>
                         )}
                       </div>
                       {proj.description && (
                         <div className="resume-item-desc" style={{ pageBreakBefore: 'avoid', breakBefore: 'avoid' }}>
                           {formatProjectDesc(proj.description)}
+                        </div>
+                      )}
+                      {formatTechStack(proj) && (
+                        <div style={{ fontSize: '0.75rem', color: '#475569', marginTop: '2px' }}>
+                          <strong>Tech Stack:</strong> {formatTechStack(proj)}
                         </div>
                       )}
                     </div>
@@ -754,6 +932,11 @@ export default function ResumePreview({ resume, setResume, onOpenShare, readOnly
                           {education[0].year} {education[0].score ? `| ${education[0].score}` : ''}
                         </span>
                       </div>
+                      {formatCoursework(education[0]) && (
+                        <div style={{ fontSize: '0.75rem', color: '#475569', marginTop: '2px' }}>
+                          {formatCoursework(education[0])}
+                        </div>
+                      )}
                     </div>
                   </div>
                   {education.slice(1).map((edu, i) => (
@@ -769,6 +952,11 @@ export default function ResumePreview({ resume, setResume, onOpenShare, readOnly
                           {edu.year} {edu.score ? `| ${edu.score}` : ''}
                         </span>
                       </div>
+                      {formatCoursework(edu) && (
+                        <div style={{ fontSize: '0.75rem', color: '#475569', marginTop: '2px' }}>
+                          {formatCoursework(edu)}
+                        </div>
+                      )}
                     </div>
                   ))}
                 </section>
