@@ -377,14 +377,14 @@ export default function ResumePreview({ resume, setResume, onOpenShare, readOnly
                       <h3 className="resume-section-title" style={{ fontSize: '0.85rem', fontWeight: 700, color: theme_color, textTransform: 'uppercase', marginBottom: '8px', borderBottom: '1px solid #cbd5e1', paddingBottom: '3px' }}>
                         Education
                       </h3>
-                      <div key={education[0].id || 0} className="resume-item" style={{ marginBottom: '8px', fontSize: '0.75rem' }}>
+                      <div key={education[0].id || 0} className="resume-item edu-item" style={{ marginBottom: '8px', fontSize: '0.75rem' }}>
                         <div style={{ fontWeight: 700, color: '#0f172a' }}>{education[0].degree}</div>
                         <div style={{ color: '#475569' }}>{education[0].institution}</div>
                         <div style={{ color: '#64748b', fontSize: '0.7rem' }}>{education[0].year}</div>
                       </div>
                     </div>
                     {education.slice(1).map((edu, i) => (
-                      <div key={edu.id || (i + 1)} className="resume-item" style={{ marginBottom: '8px', fontSize: '0.75rem' }}>
+                      <div key={edu.id || (i + 1)} className="resume-item edu-item" style={{ marginBottom: '8px', fontSize: '0.75rem' }}>
                         <div style={{ fontWeight: 700, color: '#0f172a' }}>{edu.degree}</div>
                         <div style={{ color: '#475569' }}>{edu.institution}</div>
                         <div style={{ color: '#64748b', fontSize: '0.7rem' }}>{edu.year}</div>
@@ -417,7 +417,7 @@ export default function ResumePreview({ resume, setResume, onOpenShare, readOnly
                       <h2 className="resume-section-title" style={{ fontSize: '0.9rem', fontWeight: 800, color: '#0f172a', textTransform: 'uppercase', letterSpacing: '0.04em', borderBottom: `1px solid ${theme_color}`, paddingBottom: '3px', marginBottom: '8px' }}>
                         Experience
                       </h2>
-                      <div key={experience[0].id || 0} className="resume-item" style={{ marginBottom: '12px' }}>
+                      <div key={experience[0].id || 0} className="resume-item job-item" style={{ marginBottom: '12px' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem' }}>
                           <span style={{ fontWeight: 700, color: '#0f172a' }}>{experience[0].role}</span>
                           <span style={{ fontSize: '0.75rem', color: '#64748b' }}>
@@ -433,7 +433,7 @@ export default function ResumePreview({ resume, setResume, onOpenShare, readOnly
                       </div>
                     </div>
                     {experience.slice(1).map((exp, i) => (
-                      <div key={exp.id || (i + 1)} className="resume-item" style={{ marginBottom: '12px' }}>
+                      <div key={exp.id || (i + 1)} className="resume-item job-item" style={{ marginBottom: '12px' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem' }}>
                           <span style={{ fontWeight: 700, color: '#0f172a' }}>{exp.role}</span>
                           <span style={{ fontSize: '0.75rem', color: '#64748b' }}>
@@ -458,7 +458,7 @@ export default function ResumePreview({ resume, setResume, onOpenShare, readOnly
                       <h2 className="resume-section-title" style={{ fontSize: '0.9rem', fontWeight: 800, color: '#0f172a', textTransform: 'uppercase', letterSpacing: '0.04em', borderBottom: `1px solid ${theme_color}`, paddingBottom: '3px', marginBottom: '8px' }}>
                         Key Projects
                       </h2>
-                      <div key={projects[0].id || 0} className="resume-item" style={{ marginBottom: '8px' }}>
+                      <div key={projects[0].id || 0} className="resume-item project-item" style={{ marginBottom: '8px' }}>
                         <div style={{ fontSize: '0.825rem', fontWeight: 700, color: theme_color }}>{projects[0].name}</div>
                         {projects[0].description && (
                           <div style={{ fontSize: '0.775rem', color: '#334155', marginTop: '2px', lineHeight: 1.4 }}>
@@ -468,7 +468,7 @@ export default function ResumePreview({ resume, setResume, onOpenShare, readOnly
                       </div>
                     </div>
                     {projects.slice(1).map((proj, i) => (
-                      <div key={proj.id || (i + 1)} className="resume-item" style={{ marginBottom: '8px' }}>
+                      <div key={proj.id || (i + 1)} className="resume-item project-item" style={{ marginBottom: '8px' }}>
                         <div style={{ fontSize: '0.825rem', fontWeight: 700, color: theme_color }}>{proj.name}</div>
                         {proj.description && (
                           <div style={{ fontSize: '0.775rem', color: '#334155', marginTop: '2px', lineHeight: 1.4 }}>
@@ -561,7 +561,7 @@ export default function ResumePreview({ resume, setResume, onOpenShare, readOnly
                     <h2 className="resume-section-title">
                       {template_id === 'harvard' ? 'PROFESSIONAL EXPERIENCE' : 'Work Experience'}
                     </h2>
-                    <div key={experience[0].id || 0} className="resume-item">
+                    <div key={experience[0].id || 0} className="resume-item job-item">
                       <div className="resume-item-top">
                         <div>
                           <span className="resume-item-title">{experience[0].role || 'Role'}</span>
@@ -584,7 +584,7 @@ export default function ResumePreview({ resume, setResume, onOpenShare, readOnly
                     </div>
                   </div>
                   {experience.slice(1).map((exp, i) => (
-                    <div key={exp.id || (i + 1)} className="resume-item">
+                    <div key={exp.id || (i + 1)} className="resume-item job-item">
                       <div className="resume-item-top">
                         <div>
                           <span className="resume-item-title">{exp.role || 'Role'}</span>
@@ -640,7 +640,7 @@ export default function ResumePreview({ resume, setResume, onOpenShare, readOnly
                     <h2 className="resume-section-title">
                       {template_id === 'harvard' ? 'KEY PROJECTS & INITIATIVES' : 'Key Projects'}
                     </h2>
-                    <div key={projects[0].id || 0} className="resume-item">
+                    <div key={projects[0].id || 0} className="resume-item project-item">
                       <div className="resume-item-top">
                         <span className="resume-item-title" style={{ color: theme_color }}>
                           {projects[0].name}
@@ -659,7 +659,7 @@ export default function ResumePreview({ resume, setResume, onOpenShare, readOnly
                     </div>
                   </div>
                   {projects.slice(1).map((proj, i) => (
-                    <div key={proj.id || (i + 1)} className="resume-item">
+                    <div key={proj.id || (i + 1)} className="resume-item project-item">
                       <div className="resume-item-top">
                         <span className="resume-item-title" style={{ color: theme_color }}>
                           {proj.name}
@@ -687,7 +687,7 @@ export default function ResumePreview({ resume, setResume, onOpenShare, readOnly
                     <h2 className="resume-section-title">
                       {template_id === 'harvard' ? 'EDUCATION' : 'Education'}
                     </h2>
-                    <div key={education[0].id || 0} className="resume-item">
+                    <div key={education[0].id || 0} className="resume-item edu-item">
                       <div className="resume-item-top">
                         <div>
                           <span className="resume-item-title">{education[0].degree || 'Degree'}</span>
@@ -702,7 +702,7 @@ export default function ResumePreview({ resume, setResume, onOpenShare, readOnly
                     </div>
                   </div>
                   {education.slice(1).map((edu, i) => (
-                    <div key={edu.id || (i + 1)} className="resume-item">
+                    <div key={edu.id || (i + 1)} className="resume-item edu-item">
                       <div className="resume-item-top">
                         <div>
                           <span className="resume-item-title">{edu.degree || 'Degree'}</span>
@@ -726,7 +726,7 @@ export default function ResumePreview({ resume, setResume, onOpenShare, readOnly
                     <h2 className="resume-section-title">
                       {template_id === 'harvard' ? 'CERTIFICATIONS' : 'Certifications'}
                     </h2>
-                    <div key={certifications[0].id || 0} className="resume-item">
+                    <div key={certifications[0].id || 0} className="resume-item cert-item">
                       <div className="resume-item-top">
                         <div>
                           <span className="resume-item-title">{certifications[0].name}</span>
@@ -741,7 +741,7 @@ export default function ResumePreview({ resume, setResume, onOpenShare, readOnly
                     </div>
                   </div>
                   {certifications.slice(1).map((cert, i) => (
-                    <div key={cert.id || (i + 1)} className="resume-item">
+                    <div key={cert.id || (i + 1)} className="resume-item cert-item">
                       <div className="resume-item-top">
                         <div>
                           <span className="resume-item-title">{cert.name}</span>

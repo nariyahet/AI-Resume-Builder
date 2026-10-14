@@ -68,7 +68,7 @@ export async function exportResumeToPdf(resume, elementId = 'resume-print-area')
       const title = section.querySelector('.resume-section-title');
       if (title && !title.closest('.resume-section-header-block')) {
         const firstItem = title.nextElementSibling;
-        if (firstItem && (firstItem.classList.contains('resume-item') || firstItem.classList.contains('edu-item') || firstItem.classList.contains('job-item') || firstItem.tagName === 'P')) {
+        if (firstItem && (firstItem.classList.contains('resume-item') || firstItem.classList.contains('edu-item') || firstItem.classList.contains('job-item') || firstItem.classList.contains('project-item') || firstItem.classList.contains('cert-item') || firstItem.tagName === 'P')) {
           const wrapper = document.createElement('div');
           wrapper.className = 'resume-section-header-block';
           section.insertBefore(wrapper, title);
@@ -78,7 +78,7 @@ export async function exportResumeToPdf(resume, elementId = 'resume-print-area')
       }
     });
 
-    // 1. Allow sections to flow across pages naturally between items
+    // 1. Allow sections to flow across pages naturally between items (NEVER avoid breaks on .resume-section)
     clone.querySelectorAll('.resume-section').forEach(el => {
       el.style.pageBreakInside = 'auto';
       el.style.breakInside = 'auto';
@@ -92,8 +92,8 @@ export async function exportResumeToPdf(resume, elementId = 'resume-print-area')
       el.style.breakAfter = 'auto';
     });
 
-    // 3. Keep individual entries and header intact
-    clone.querySelectorAll('.resume-item, .job-item, .edu-item, .resume-header').forEach(el => {
+    // 3. Keep individual entries and header intact (experience, education, projects, certifications)
+    clone.querySelectorAll('.resume-item, .job-item, .edu-item, .project-item, .cert-item, .resume-header').forEach(el => {
       el.style.pageBreakInside = 'avoid';
       el.style.breakInside = 'avoid';
     });
@@ -124,9 +124,11 @@ export async function exportResumeToPdf(resume, elementId = 'resume-print-area')
         avoid: [
           '.resume-section-header-block',
           '.resume-item',
-          '.resume-header',
           '.job-item',
-          '.edu-item'
+          '.edu-item',
+          '.project-item',
+          '.cert-item',
+          '.resume-header'
         ]
       }
     };

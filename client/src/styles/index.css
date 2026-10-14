@@ -1075,8 +1075,12 @@ body {
   text-transform: uppercase;
 }
 
-/* Shared Item Details */
-.resume-item {
+/* Shared Item Details - prevent individual entries from breaking across pages */
+.resume-item,
+.job-item,
+.edu-item,
+.project-item,
+.cert-item {
   margin-bottom: 0.75rem;
   page-break-inside: avoid !important;
   break-inside: avoid !important;
