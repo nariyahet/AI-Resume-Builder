@@ -40,6 +40,8 @@ export default function ResumePreview({ resume, setResume, onOpenShare, readOnly
   const [scale, setScale] = useState(() => getAutoFitScale());
   const [fontFamily, setFontFamily] = useState(() => resume?.fontFamily || resume?.font_family || 'Inter');
   const [spacingDensity, setSpacingDensity] = useState('normal'); // 'compact', 'normal', 'relaxed'
+  const printAreaRef = React.useRef(null);
+  const [sheetHeight, setSheetHeight] = useState(1123);
 
   // Auto-adapt scale on screen resize
   React.useEffect(() => {
@@ -49,6 +51,20 @@ export default function ResumePreview({ resume, setResume, onOpenShare, readOnly
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
+
+  // Dynamically measure printable resume height for multi-page accuracy
+  React.useEffect(() => {
+    if (!printAreaRef.current) return;
+    const updateHeight = () => {
+      if (printAreaRef.current) {
+        setSheetHeight(Math.max(1123, printAreaRef.current.offsetHeight));
+      }
+    };
+    updateHeight();
+    const observer = new ResizeObserver(updateHeight);
+    observer.observe(printAreaRef.current);
+    return () => observer.disconnect();
+  }, [resume, fontFamily, spacingDensity]);
 
   const templates = [
     { id: 'modern', name: 'Modern Tech' },
@@ -299,12 +315,14 @@ export default function ResumePreview({ resume, setResume, onOpenShare, readOnly
           className="resume-scale-wrapper"
           style={{
             width: `${Math.round(794 * scale)}px`,
+            height: `${Math.round(sheetHeight * scale)}px`,
             minHeight: `${Math.round(1123 * scale)}px`,
             position: 'relative',
             margin: '0 auto'
           }}
         >
           <div
+            ref={printAreaRef}
             id="resume-print-area"
             className={`resume-sheet template-${template_id} style-${page_style || 'modern'}`}
             style={{
@@ -318,6 +336,33 @@ export default function ResumePreview({ resume, setResume, onOpenShare, readOnly
               lineHeight: getSpacingStyle().lineHeight
             }}
           >
+          {/* Visual Page Break Guides for 2+ Page Resumes in Preview */}
+          {Array.from({ length: Math.floor((sheetHeight - 40) / 1123) }).map((_, idx) => (
+            <div
+              key={idx}
+              className="preview-page-break-indicator"
+              style={{
+                position: 'absolute',
+                top: `${(idx + 1) * 1123}px`,
+                left: 0,
+                right: 0,
+                borderTop: '1.5px dashed #cbd5e1',
+                pointerEvents: 'none',
+                zIndex: 5,
+                display: 'flex',
+                justifyContent: 'flex-end',
+                paddingRight: '12px',
+                color: '#94a3b8',
+                fontSize: '0.65rem',
+                fontFamily: 'sans-serif',
+                userSelect: 'none'
+              }}
+            >
+              <span style={{ background: '#f8fafc', padding: '1px 6px', borderRadius: '3px', border: '1px solid #cbd5e1', transform: 'translateY(-50%)' }}>
+                Page {idx + 2} Break
+              </span>
+            </div>
+          ))}
           {/* ========================================================= */}
           {/* TWO-COLUMN SPLIT TEMPLATE                                 */}
           {/* ========================================================= */}

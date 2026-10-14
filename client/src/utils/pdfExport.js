@@ -36,7 +36,7 @@ export async function exportResumeToPdf(resume, elementId = 'resume-print-area')
   clone.style.minHeight = 'auto';
   clone.style.height = 'auto';
   clone.style.margin = '0';
-  clone.style.padding = '14mm 16mm';
+  clone.style.padding = '12mm 15mm';
   clone.style.boxSizing = 'border-box';
   clone.style.background = '#ffffff';
   // Remove outer shadows and borders that cause html2canvas canvas overflow onto extra page
@@ -50,6 +50,9 @@ export async function exportResumeToPdf(resume, elementId = 'resume-print-area')
   try {
     const candidateName = resume?.personal_info?.fullName || resume?.title || 'Resume';
     const filename = `${candidateName.replace(/\s+/g, '_')}_Resume.pdf`;
+
+    // Strip preview guide lines before capturing PDF
+    clone.querySelectorAll('.preview-page-break-indicator').forEach(el => el.remove());
 
     // Ensure all images (profile photo, logos) are loaded before capturing
     const images = Array.from(clone.querySelectorAll('img'));
@@ -94,8 +97,14 @@ export async function exportResumeToPdf(resume, elementId = 'resume-print-area')
 
     // 3. Keep individual entries and header intact (experience, education, projects, certifications)
     clone.querySelectorAll('.resume-item, .job-item, .edu-item, .project-item, .cert-item, .resume-header').forEach(el => {
-      el.style.pageBreakInside = 'avoid';
-      el.style.breakInside = 'avoid';
+      // If an individual monster entry exceeds 850px, allow controlled page splitting so content isn't stranded
+      if (el.offsetHeight > 850) {
+        el.style.pageBreakInside = 'auto';
+        el.style.breakInside = 'auto';
+      } else {
+        el.style.pageBreakInside = 'avoid';
+        el.style.breakInside = 'avoid';
+      }
     });
 
     // Remove bottom margin and padding on the last child to prevent trailing blank page creation
