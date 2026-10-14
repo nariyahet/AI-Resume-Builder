@@ -39,7 +39,7 @@ export async function exportResumeToPdf(resume, elementId = 'resume-print-area')
   clone.style.margin = '0';
   const isCompact = clone.classList.contains('density-compact') || sourceEl.classList.contains('density-compact');
   const isRelaxed = clone.classList.contains('density-relaxed') || sourceEl.classList.contains('density-relaxed');
-  clone.style.padding = isCompact ? '8mm 13mm 6mm 13mm' : (isRelaxed ? '14mm 16mm' : '12mm 15mm');
+  clone.style.padding = isCompact ? '8mm 13mm 6mm 13mm' : (isRelaxed ? '14mm 16mm 15mm 16mm' : '12mm 15mm 14mm 15mm');
   clone.style.boxSizing = 'border-box';
   clone.style.background = '#ffffff';
   // Remove outer shadows and borders that cause html2canvas canvas overflow onto extra page
@@ -121,13 +121,14 @@ export async function exportResumeToPdf(resume, elementId = 'resume-print-area')
       el.style.breakBefore = 'avoid';
     });
 
-    // 5. Generic balanced pagination for 2-page resumes:
-    // Distribute sections evenly across pages without stranding tiny fragments on Page 2
-    // or leaving excessive whitespace voids on Page 1.
+    // 5. Generic balanced pagination for 2-page & 3-page resumes:
+    // Distribute sections evenly across pages without stranding tiny fragments
+    // or leaving excessive whitespace voids.
     const pageHeight = 1122; // A4 standard pixel height at 794px width
     const totalHeight = clone.offsetHeight;
 
     if (totalHeight > pageHeight && totalHeight <= pageHeight * 2.1) {
+      // 2-page resume: find the natural section closest to the midpoint
       const targetMidpoint = totalHeight / 2;
       const sections = Array.from(clone.querySelectorAll('.resume-section'));
 
@@ -151,6 +152,28 @@ export async function exportResumeToPdf(resume, elementId = 'resume-print-area')
       if (bestSection) {
         bestSection.style.pageBreakBefore = 'always';
         bestSection.style.breakBefore = 'page';
+      }
+    } else if (totalHeight > pageHeight * 2.1 && totalHeight <= pageHeight * 3.2) {
+      // 3-page resume: Page 1 (Header, Summary, Experience), Page 2 (Skills, Projects), Page 3 (Education, etc.)
+      const sections = Array.from(clone.querySelectorAll('.resume-section'));
+      let page1Break = null;
+      let page2Break = null;
+
+      for (const sec of sections) {
+        if (!page1Break && sec.offsetTop >= 550 && sec.offsetTop < pageHeight - 30) {
+          page1Break = sec;
+        } else if (page1Break && !page2Break && (sec.offsetTop - page1Break.offsetTop) >= 550 && (sec.offsetTop - page1Break.offsetTop) < pageHeight - 30) {
+          page2Break = sec;
+        }
+      }
+
+      if (page1Break) {
+        page1Break.style.pageBreakBefore = 'always';
+        page1Break.style.breakBefore = 'page';
+      }
+      if (page2Break) {
+        page2Break.style.pageBreakBefore = 'always';
+        page2Break.style.breakBefore = 'page';
       }
     }
 
@@ -190,7 +213,36 @@ export async function exportResumeToPdf(resume, elementId = 'resume-print-area')
       }
     };
 
-    await html2pdf().set(opt).from(clone).save();
+    const worker = html2pdf().set(opt).from(clone);
+    const pdf = await worker.toPdf().get('pdf');
+
+    // Add running footer on multi-page resumes (matching user design)
+    const totalPages = pdf.internal.getNumberOfPages();
+    if (totalPages > 1) {
+      const targetRole = resume?.target_role || resume?.role || '';
+      const leftText = `${candidateName}${targetRole ? ` | ${targetRole}` : ''}`;
+
+      for (let i = 1; i <= totalPages; i++) {
+        pdf.setPage(i);
+        pdf.setFontSize(8.5);
+        pdf.setFont('helvetica', 'normal');
+        pdf.setTextColor(120, 120, 120);
+
+        const pageWidth = pdf.internal.pageSize.getWidth();
+        const pHeight = pdf.internal.pageSize.getHeight();
+        const bottomY = pHeight - 8; // 8mm from bottom edge
+
+        // Subtle divider line
+        pdf.setDrawColor(226, 232, 240);
+        pdf.setLineWidth(0.2);
+        pdf.line(14, bottomY - 3, pageWidth - 14, bottomY - 3);
+
+        pdf.text(leftText, 14, bottomY);
+        pdf.text(`Page ${i} of ${totalPages}`, pageWidth - 14, bottomY, { align: 'right' });
+      }
+    }
+
+    await pdf.save(filename);
   } catch (err) {
     console.error('html2pdf export error, falling back to window.print:', err);
     window.print();
