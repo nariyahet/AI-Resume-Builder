@@ -5,7 +5,7 @@ import html2pdf from 'html2pdf.js';
  * Ensures content fits cleanly without generating an unnecessary blank trailing/second page.
  * Allows multi-page resumes to flow naturally when content exceeds a single page.
  */
-export async function exportResumeToPdf(resume, elementId = 'resume-print-area') {
+export async function exportResumeToPdf(resume, elementId = 'resume-print-area', returnPdf = false) {
   const sourceEl = document.getElementById(elementId);
   if (!sourceEl) {
     alert('Resume preview is not ready. Please make sure the resume preview is visible.');
@@ -121,50 +121,82 @@ export async function exportResumeToPdf(resume, elementId = 'resume-print-area')
       el.style.breakBefore = 'avoid';
     });
 
-    // 5. Generic balanced pagination for 2-page & 3-page resumes:
-    // Distribute sections evenly across pages without stranding tiny fragments
-    // or leaving excessive whitespace voids.
+    // 5. Intelligent balanced pagination for 2-page & 3-page resumes:
+    // Page 1: Header + Summary + Work Experience (fits naturally without clipping)
+    // Page 2: Technical Skills at top + Key Projects + Education
     const pageHeight = 1122; // A4 standard pixel height at 794px width
     const totalHeight = clone.offsetHeight;
 
     if (totalHeight > pageHeight && totalHeight <= pageHeight * 2.1) {
-      // 2-page resume: find the natural section closest to the midpoint
-      const targetMidpoint = totalHeight / 2;
       const sections = Array.from(clone.querySelectorAll('.resume-section'));
 
-      let bestSection = null;
-      let minDiff = Infinity;
+      // Look for the Skills section (Technical Skills / Technical Proficiencies / Core Competencies)
+      const skillsSec = sections.find(s => {
+        const titleText = (s.querySelector('.resume-section-title')?.textContent || '').toLowerCase();
+        return titleText.includes('skill') || titleText.includes('proficienc') || titleText.includes('competenc');
+      });
 
-      for (const sec of sections) {
-        const page1H = sec.offsetTop;
+      let breakSection = null;
+
+      // If breaking before Skills allows Page 1 (Header + Summary + Experience)
+      // and Page 2 (Skills + Projects + Education) to both fit within A4 height:
+      if (skillsSec) {
+        const page1H = skillsSec.offsetTop;
         const page2H = totalHeight - page1H;
+        if (page1H < pageHeight - 40 && page2H < pageHeight - 40) {
+          breakSection = skillsSec;
+        }
+      }
 
-        // Both pages must fit comfortably within A4 page height (with a safe margin)
-        if (page1H < pageHeight - 30 && page2H < pageHeight - 30) {
-          const diff = Math.abs(page1H - targetMidpoint);
-          if (diff < minDiff) {
-            minDiff = diff;
-            bestSection = sec;
+      // If skillsSec doesn't fit or doesn't exist, find the section that best balances the two pages
+      if (!breakSection) {
+        const targetMidpoint = totalHeight / 2;
+        let minDiff = Infinity;
+        for (const sec of sections) {
+          const page1H = sec.offsetTop;
+          const page2H = totalHeight - page1H;
+          if (page1H < pageHeight - 40 && page2H < pageHeight - 40) {
+            const diff = Math.abs(page1H - targetMidpoint);
+            if (diff < minDiff) {
+              minDiff = diff;
+              breakSection = sec;
+            }
           }
         }
       }
 
-      if (bestSection) {
-        bestSection.style.pageBreakBefore = 'always';
-        bestSection.style.breakBefore = 'page';
+      if (breakSection) {
+        breakSection.style.pageBreakBefore = 'always';
+        breakSection.style.breakBefore = 'page';
       }
     } else if (totalHeight > pageHeight * 2.1 && totalHeight <= pageHeight * 3.2) {
       // 3-page resume: Page 1 (Header, Summary, Experience), Page 2 (Skills, Projects), Page 3 (Education, etc.)
       const sections = Array.from(clone.querySelectorAll('.resume-section'));
+      const skillsSec = sections.find(s => {
+        const titleText = (s.querySelector('.resume-section-title')?.textContent || '').toLowerCase();
+        return titleText.includes('skill') || titleText.includes('proficienc') || titleText.includes('competenc');
+      });
+
       let page1Break = null;
       let page2Break = null;
 
-      for (const sec of sections) {
-        if (!page1Break && sec.offsetTop >= 550 && sec.offsetTop < pageHeight - 30) {
-          page1Break = sec;
-        } else if (page1Break && !page2Break && (sec.offsetTop - page1Break.offsetTop) >= 550 && (sec.offsetTop - page1Break.offsetTop) < pageHeight - 30) {
-          page2Break = sec;
-        }
+      // Page 1 break before Skills if it fits
+      if (skillsSec && skillsSec.offsetTop < pageHeight - 40) {
+        page1Break = skillsSec;
+      } else {
+        page1Break = sections.find(s => s.offsetTop >= 500 && s.offsetTop < pageHeight - 40);
+      }
+
+      // Page 2 break before Education or project closest to midpoint of remainder
+      const eduSec = sections.find(s => {
+        const titleText = (s.querySelector('.resume-section-title')?.textContent || '').toLowerCase();
+        return titleText.includes('education');
+      });
+
+      if (eduSec && page1Break && (eduSec.offsetTop - page1Break.offsetTop) < pageHeight - 40) {
+        page2Break = eduSec;
+      } else if (page1Break) {
+        page2Break = sections.find(s => (s.offsetTop - page1Break.offsetTop) >= 500 && (s.offsetTop - page1Break.offsetTop) < pageHeight - 40);
       }
 
       if (page1Break) {
@@ -216,33 +248,34 @@ export async function exportResumeToPdf(resume, elementId = 'resume-print-area')
     const worker = html2pdf().set(opt).from(clone);
     const pdf = await worker.toPdf().get('pdf');
 
-    // Add running footer on multi-page resumes (matching user design)
+    // Add running footer on every page (matching reference design)
     const totalPages = pdf.internal.getNumberOfPages();
-    if (totalPages > 1) {
-      const targetRole = resume?.target_role || resume?.role || '';
-      const leftText = `${candidateName}${targetRole ? ` | ${targetRole}` : ''}`;
+    const targetRole = resume?.target_role || resume?.role || '';
+    const leftText = `${candidateName}${targetRole ? ` | ${targetRole}` : ''}`;
 
-      for (let i = 1; i <= totalPages; i++) {
-        pdf.setPage(i);
-        pdf.setFontSize(8.5);
-        pdf.setFont('helvetica', 'normal');
-        pdf.setTextColor(120, 120, 120);
+    for (let i = 1; i <= totalPages; i++) {
+      pdf.setPage(i);
+      pdf.setFontSize(8.5);
+      pdf.setFont('helvetica', 'normal');
+      pdf.setTextColor(120, 120, 120);
 
-        const pageWidth = pdf.internal.pageSize.getWidth();
-        const pHeight = pdf.internal.pageSize.getHeight();
-        const bottomY = pHeight - 8; // 8mm from bottom edge
+      const pageWidth = pdf.internal.pageSize.getWidth();
+      const pHeight = pdf.internal.pageSize.getHeight();
+      const bottomY = pHeight - 8; // 8mm from bottom edge
 
-        // Subtle divider line
-        pdf.setDrawColor(226, 232, 240);
-        pdf.setLineWidth(0.2);
-        pdf.line(14, bottomY - 3, pageWidth - 14, bottomY - 3);
+      // Subtle divider line
+      pdf.setDrawColor(226, 232, 240);
+      pdf.setLineWidth(0.2);
+      pdf.line(14, bottomY - 3, pageWidth - 14, bottomY - 3);
 
-        pdf.text(leftText, 14, bottomY);
-        pdf.text(`Page ${i} of ${totalPages}`, pageWidth - 14, bottomY, { align: 'right' });
-      }
+      pdf.text(leftText, 14, bottomY);
+      pdf.text(`Page ${i} of ${totalPages}`, pageWidth - 14, bottomY, { align: 'right' });
     }
 
     await pdf.save(filename);
+    if (returnPdf) {
+      return pdf.output('datauristring');
+    }
   } catch (err) {
     console.error('html2pdf export error, falling back to window.print:', err);
     window.print();
