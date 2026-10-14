@@ -33,12 +33,13 @@ export async function exportResumeToPdf(resume, elementId = 'resume-print-area')
   clone.style.top = '0';
   clone.style.left = '0';
   clone.style.width = '794px';
-  clone.style.minHeight = 'auto';
+  clone.style.minHeight = '0';
+  clone.style.setProperty('min-height', '0', 'important');
   clone.style.height = 'auto';
   clone.style.margin = '0';
   const isCompact = clone.classList.contains('density-compact') || sourceEl.classList.contains('density-compact');
   const isRelaxed = clone.classList.contains('density-relaxed') || sourceEl.classList.contains('density-relaxed');
-  clone.style.padding = isCompact ? '10mm 14mm' : (isRelaxed ? '14mm 16mm' : '12mm 15mm');
+  clone.style.padding = isCompact ? '8mm 13mm 6mm 13mm' : (isRelaxed ? '14mm 16mm' : '12mm 15mm');
   clone.style.boxSizing = 'border-box';
   clone.style.background = '#ffffff';
   // Remove outer shadows and borders that cause html2canvas canvas overflow onto extra page
@@ -48,12 +49,6 @@ export async function exportResumeToPdf(resume, elementId = 'resume-print-area')
 
   sandbox.appendChild(clone);
   document.body.appendChild(sandbox);
-
-  // If content is just barely spilling over onto a second page (within ~100px), auto-compact into 1 page
-  if (!isRelaxed && !isCompact && clone.offsetHeight > 1123 && clone.offsetHeight <= 1240) {
-    clone.classList.add('density-compact');
-    clone.style.padding = '10mm 14mm';
-  }
 
   try {
     const candidateName = resume?.personal_info?.fullName || resume?.title || 'Resume';
@@ -125,6 +120,27 @@ export async function exportResumeToPdf(resume, elementId = 'resume-print-area')
       el.style.pageBreakBefore = 'avoid';
       el.style.breakBefore = 'avoid';
     });
+
+    // 5. Generic balanced pagination for 2+ page resumes:
+    // If document height exceeds 1 page (1122px), prevent packing 90% of content on Page 1
+    // and stranding a lonely single entry on Page 2 with excessive whitespace.
+    const pageHeight = 1122; // A4 standard pixel height at 794px width
+    if (clone.offsetHeight > pageHeight) {
+      const sections = Array.from(clone.querySelectorAll('.resume-section'));
+      for (const sec of sections) {
+        const secTop = sec.offsetTop;
+        const secH = sec.offsetHeight;
+        const spaceLeft = pageHeight - (secTop % pageHeight);
+
+        // If a section starts when less than 320px remain on the current page, and the section
+        // requires more space than is left, and the section can fit comfortably on the next page (secH < 800px):
+        if (secTop < pageHeight && spaceLeft < 320 && secH > spaceLeft && secH < 800) {
+          sec.style.pageBreakBefore = 'always';
+          sec.style.breakBefore = 'page';
+          break; // Balanced break applied at the natural section boundary
+        }
+      }
+    }
 
     // Remove bottom margin and padding on the last child to prevent trailing blank page creation
     const lastEl = clone.querySelector('.resume-sheet > *:last-child, .resume-section:last-of-type');

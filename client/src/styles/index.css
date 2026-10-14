@@ -1145,7 +1145,7 @@ body {
 /* DENSITY SPACING MODES (1-Page Compact / Balanced Spacing)      */
 /* ============================================================== */
 .resume-sheet.density-compact {
-  padding: 8mm 13mm !important;
+  padding: 8mm 13mm 6mm 13mm !important;
 }
 
 .resume-sheet.density-compact .resume-header {
