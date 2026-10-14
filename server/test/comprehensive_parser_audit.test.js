@@ -1002,3 +1002,61 @@ Bachelor of Science in Software Engineering — University of Washington | 2012 
   assert.equal(parsed.education[1].degree, 'Bachelor of Science in Software Engineering');
   assert.equal(parsed.education[1].institution, 'University of Washington');
 });
+
+test('Audit 21: Table header residue (Degree, Degree — Institution, Degree / Certification) must not map into Education', () => {
+  const tableHeaderSample = `SARAH CONNER
+sarah@example.com | +1 555-019-2834
+EDUCATION
+Degree — Institution
+Degree / Certification
+Degree | Institution | Passing Year
+Bachelor of Science in Computer Science — Boston University | 2018 - 2022
+TECHNICAL PROJECTS
+CyberDyne Guard — Engineered automated intrusion detection sensor using Rust.`;
+
+  const parsed = parseResumeRuleBased(tableHeaderSample);
+
+  assert.equal(parsed.education.length, 1, 'Should only contain the actual degree, zero table header entries');
+  assert.equal(parsed.education[0].degree, 'Bachelor of Science in Computer Science');
+  assert.equal(parsed.education[0].institution, 'Boston University');
+  assert.equal(parsed.education[0].year, '2018 - 2022');
+  assert.ok(!parsed.education.some(ed => /^(?:degree|institution)$/i.test(ed.degree) || /^(?:degree|institution)$/i.test(ed.institution)));
+});
+
+test('Audit 22: Multi-page running headers like "PDF Export Test Pack Page 3" must not pollute Education', () => {
+  const pageHeaderSample = `DAVID MILLER
+david@example.com | +1 415-555-0145
+EDUCATION
+Master of Information Technology — Melbourne Institute of Tech | 2020 - 2022
+PDF Export Test Pack Page 3
+Bachelor of Science in Software Engineering — City University | 2016 - 2020
+Page 3 of 3`;
+
+  const parsed = parseResumeRuleBased(pageHeaderSample);
+
+  assert.equal(parsed.education.length, 2, 'Should only have 2 real degrees and exclude PDF Export Test Pack Page 3');
+  assert.equal(parsed.education[0].degree, 'Master of Information Technology');
+  assert.equal(parsed.education[1].degree, 'Bachelor of Science in Software Engineering');
+  assert.ok(!parsed.education.some(ed => /test\s*pack|page\s*3/i.test(ed.institution) || /test\s*pack|page\s*3/i.test(ed.degree)));
+});
+
+test('Audit 23: Project descriptions and action bullets must not map into Education', () => {
+  const mixedProjectEduSample = `EMMA WATSON
+emma@example.com | +1 212-555-0198
+EDUCATION
+Bachelor of Science in Computer Science — Cornell University | 2019 - 2023
+• Developed responsive full-stack web applications using React, Node.js, and PostgreSQL.
+• Orchestrated Docker containers and AWS ECS clusters for continuous deployment.
+TECHNICAL PROJECTS
+ShopSmart — Built an AI-driven product recommendation engine with 95% relevance score.`;
+
+  const parsed = parseResumeRuleBased(mixedProjectEduSample);
+
+  assert.equal(parsed.education.length, 1, 'Should contain only Cornell University degree');
+  assert.equal(parsed.education[0].degree, 'Bachelor of Science in Computer Science');
+  assert.equal(parsed.education[0].institution, 'Cornell University');
+  assert.ok(!parsed.education.some(ed => /developed|orchestrated|responsive/i.test(ed.institution) || /developed|orchestrated/i.test(ed.degree)));
+
+  assert.ok(parsed.projects.length >= 1, 'Projects should be parsed');
+  assert.ok(parsed.projects.some(pr => pr.name === 'ShopSmart' || pr.description.includes('React')), 'Project details should be captured in projects section');
+});

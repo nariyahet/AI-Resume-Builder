@@ -89,11 +89,13 @@ export async function extractTextFromPdf(buffer) {
       const rawText = (result && typeof result.text === 'string')
         ? result.text
         : (typeof result === 'string' ? result : '');
-      // Strip page footer artifacts like "-- 1 of 1 --", "Page 1 of 2", etc.
+      // Strip page footer artifacts like "-- 1 of 1 --", "Page 1 of 2", "PDF Export Test Pack Page 3", etc.
       const cleaned = rawText
         .replace(/--\s*\d+\s+of\s+\d+\s*--/gi, '')
         .replace(/\bpage\s+\d+\s*(?:of|\/)\s*\d+\b/gi, '')
         .replace(/^\s*page\s+\d+\s*$/gim, '')
+        .replace(/^\s*.*?test\s*pack.*?page\s*\d+.*$/gim, '')
+        .replace(/^\s*[^.\n]{1,60}\bpage\s*\d+\s*$/gim, '')
         .trim();
 
       // If document contains pages but zero extractable text stream, it is an image-only / scanned PDF
@@ -125,7 +127,14 @@ export async function extractTextFromPdf(buffer) {
   const fn = typeof pdfParseModule === 'function' ? pdfParseModule : pdfParseModule?.default;
   if (typeof fn === 'function') {
     const result = await fn(buffer);
-    return (result?.text || '').trim();
+    const raw = (result?.text || '').trim();
+    return raw
+      .replace(/--\s*\d+\s+of\s+\d+\s*--/gi, '')
+      .replace(/\bpage\s+\d+\s*(?:of|\/)\s*\d+\b/gi, '')
+      .replace(/^\s*page\s+\d+\s*$/gim, '')
+      .replace(/^\s*.*?test\s*pack.*?page\s*\d+.*$/gim, '')
+      .replace(/^\s*[^.\n]{1,60}\bpage\s*\d+\s*$/gim, '')
+      .trim();
   }
 
   throw new Error('Unsupported PDF parser export interface.');

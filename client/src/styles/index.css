@@ -2988,7 +2988,29 @@ body {
   box-shadow: var(--shadow-md);
 }
 
-.resume-section-title {
-  page-break-after: avoid;
-  break-after: avoid;
+.resume-section-title,
+.resume-section h2,
+.resume-section h3 {
+  page-break-after: avoid !important;
+  break-after: avoid !important;
+  page-break-inside: avoid !important;
+  break-inside: avoid !important;
+}
+
+.resume-item,
+.job-item,
+.edu-item {
+  page-break-inside: avoid !important;
+  break-inside: avoid !important;
+}
+
+.resume-header {
+  page-break-inside: avoid !important;
+  break-inside: avoid !important;
+  page-break-after: avoid !important;
+  break-after: avoid !important;
+}
+
+.resume-section {
+  page-break-inside: auto;
 }

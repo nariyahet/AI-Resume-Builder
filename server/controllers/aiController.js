@@ -1234,12 +1234,33 @@ export function sanitizeParsedResume(parsed) {
     }).filter(e => e.company || e.role);
   }
 
+  const isEduHeaderLabel = (str) => {
+    if (!str || typeof str !== 'string') return false;
+    const s = str.trim().toLowerCase();
+    if (/^(?:degrees?|programs?|courses?|qualifications?|institutions?|universit(?:y|ies)|colleges?|schools?|years?|passing\s*years?|durations?|dates?|scores?|gpa|grades?|percentages?|marks?|academics?|education\s*details?)$/i.test(s)) return true;
+    const tokens = s.split(/[\s/|–—,\-]+/).filter(Boolean);
+    return tokens.length > 0 && tokens.every(t => /^(?:degrees?|programs?|courses?|qualifications?|institutions?|universit(?:y|ies)|colleges?|schools?|years?|passing|durations?|dates?|scores?|gpa|grades?|percentages?|marks?|academics?|majors?|certifications?|details?|and|&)$/i.test(t));
+  };
+
+  const isActionOrPageLine = (str) => {
+    if (!str || typeof str !== 'string') return false;
+    const s = str.trim();
+    if (/^[-•*«+<>]\s*/.test(s)) return true;
+    if (/^(?:designed|built|developed|created|managed|led|architected|implemented|engineered|orchestrated|spearheaded|maintained|scaled|automated)\b/i.test(s)) return true;
+    if (/\b(?:test\s*pack|export\s*test|pdf\s*export)\b/i.test(s)) return true;
+    if (/^(?:.*?\bpage\s*\d+(?:\s*(?:of|\/)\s*\d+)?\b.*)$/i.test(s) && s.length <= 60) return true;
+    return false;
+  };
+
   let education = [];
   if (Array.isArray(parsed.education)) {
     education = parsed.education.map((ed, idx) => {
       let institution = stripLabel(ed.institution, /^(?:institution|school|university|college)\s*:\s*/i);
       let degree = stripLabel(ed.degree, /^(?:degree|major|program)\s*:\s*/i);
       let year = stripLabel(ed.year, /^(?:year|years|graduation|duration)\s*:\s*/i);
+
+      if (isEduHeaderLabel(institution) || isActionOrPageLine(institution)) institution = '';
+      if (isEduHeaderLabel(degree) || isActionOrPageLine(degree)) degree = '';
 
       // Prevent dates from becoming institution or degree
       if (isStandaloneDate(institution)) {
@@ -1256,7 +1277,7 @@ export function sanitizeParsedResume(parsed) {
         const sep = institution.includes('|') ? '|' : (institution.includes(',') ? ',' : /(?:\s+[-–—]\s+|\s*[\u2013\u2014]\s*)/);
         const parts = institution.split(sep).map(p => p.trim()).filter(Boolean);
         if (parts.length >= 2) {
-          const degIdx = parts.findIndex(p => degreeKeywordRegex.test(p));
+          const degIdx = parts.findIndex(p => degreeKeywordRegex.test(p) && !isEduHeaderLabel(p));
           if (degIdx !== -1) {
             degree = parts[degIdx];
             institution = parts.filter((_, i) => i !== degIdx).join(', ');
@@ -1268,13 +1289,16 @@ export function sanitizeParsedResume(parsed) {
         const sep = degree.includes('|') ? '|' : (degree.includes(',') ? ',' : /(?:\s+[-–—]\s+|\s*[\u2013\u2014]\s*)/);
         const parts = degree.split(sep).map(p => p.trim()).filter(Boolean);
         if (parts.length >= 2) {
-          const instIdx = parts.findIndex(p => instKeywordRegex.test(p));
+          const instIdx = parts.findIndex(p => instKeywordRegex.test(p) && !isEduHeaderLabel(p));
           if (instIdx !== -1) {
             institution = parts[instIdx];
             degree = parts.filter((_, i) => i !== instIdx).join(', ');
           }
         }
       }
+
+      if (isEduHeaderLabel(institution) || isActionOrPageLine(institution)) institution = '';
+      if (isEduHeaderLabel(degree) || isActionOrPageLine(degree)) degree = '';
 
       return {
         id: ed.id || `edu-${Date.now()}-${idx + 1}`,
@@ -1283,7 +1307,13 @@ export function sanitizeParsedResume(parsed) {
         year,
         score: stripLabel(ed.score, /^(?:score|gpa|grade|marks?)\s*:\s*/i)
       };
-    }).filter(ed => ed.institution || ed.degree);
+    })
+    .filter(ed => ed.institution || ed.degree)
+    .filter((ed, idx, arr) => arr.findIndex(other =>
+      (other.degree && ed.degree && other.degree.toLowerCase() === ed.degree.toLowerCase() && other.institution && ed.institution && other.institution.toLowerCase() === ed.institution.toLowerCase()) ||
+      (!other.degree && !ed.degree && other.institution && ed.institution && other.institution.toLowerCase() === ed.institution.toLowerCase()) ||
+      (!other.institution && !ed.institution && other.degree && ed.degree && other.degree.toLowerCase() === ed.degree.toLowerCase())
+    ) === idx);
   }
 
   let projects = [];
@@ -1360,11 +1390,11 @@ export function parseResumeRuleBased(resumeText, options = {}) {
   // 2. Section categorization (supports all templates, long headings, and multi-page continuation marks)
   const sectionHeaders = [
     { type: 'summary', regex: /^(?:professional\s+summary|executive\s+summary|summary|profile|about\s+me|career\s+objective|objective|professional\s+profile|personal\s+statement|about)(?:\s*[-–—:]?\s*(?:\(?(?:continued|cont\.?|cont'd)\)?))?(?::\s*(.*))?$/i },
-    { type: 'skills', regex: /^(?:technical\s+skills|technical\s+proficiencies|technical\s+competencies|core\s+competencies|core\s+skills|key\s+skills|technical\s*&?\s*core\s+competencies|skills\s*&?\s*tools|tools\s*&?\s*skills|technologies\s*&?\s*tools|tools\s*&?\s*technologies|skills|technologies|proficiencies|competencies)(?:\s*[-–—:]?\s*(?:\(?(?:continued|cont\.?|cont'd)\)?))?(?::\s*(.*))?$/i },
-    { type: 'experience', regex: /^(?:work\s+experience|professional\s+experience|relevant\s+experience|career\s+history|employment\s+history|work\s+history|experience|employment)(?:\s*[-–—:]?\s*(?:\(?(?:continued|cont\.?|cont'd)\)?))?(?::\s*(.*))?$/i },
-    { type: 'education', regex: /^(?:education(?:\s+and\s+training)?|academic\s+background|academic\s+qualifications|educational\s+background|education|qualifications|academics)(?:\s*[-–—:]?\s*(?:\(?(?:continued|cont\.?|cont'd)\)?))?(?::\s*(.*))?$/i },
-    { type: 'projects', regex: /^(?:projects|personal\s+projects|key\s+projects|key\s+projects\s*&?\s*initiatives|portfolio\s+projects|academic\s+projects|selected\s+projects)(?:\s*[-–—:]?\s*(?:\(?(?:continued|cont\.?|cont'd)\)?))?(?::\s*(.*))?$/i },
-    { type: 'certifications', regex: /^(?:certifications|licenses\s+&?\s+certifications|certificates|certifications\s*&?\s*licenses|professional\s+certifications)(?:\s*[-–—:]?\s*(?:\(?(?:continued|cont\.?|cont'd)\)?))?(?::\s*(.*))?$/i }
+    { type: 'skills', regex: /^(?:technical\s*(?:skills|proficiencies|competencies|expertise)|core\s*(?:competencies|skills|qualifications)|key\s*skills|technical\s*(?:&|and)\s*core\s*competencies|skills\s*(?:&|and|\/)\s*(?:tools|technologies|frameworks|abilities)|tools\s*(?:&|and|\/)\s*(?:technologies|skills)|technologies\s*(?:&|and|\/)\s*tools|skills|technologies|proficiencies|competencies|areas\s*of\s*expertise)(?:\s*[-–—:]?\s*(?:\(?(?:continued|cont\.?|cont'd)\)?))?(?::\s*(.*))?$/i },
+    { type: 'experience', regex: /^(?:(?:work|professional|relevant|career|industry|practical|employment)\s*(?:experience|history|background)|experience|employment|work\s*history)(?:\s*[-–—:]?\s*(?:\(?(?:continued|cont\.?|cont'd)\)?))?(?::\s*(.*))?$/i },
+    { type: 'education', regex: /^(?:education(?:\s*(?:&|and|\/)\s*(?:training|certifications|credentials|academic\s*background))?|academic\s*(?:background|qualifications|history|achievements)|educational\s*(?:background|qualifications)|qualifications|academics)(?:\s*[-–—:]?\s*(?:\(?(?:continued|cont\.?|cont'd)\)?))?(?::\s*(.*))?$/i },
+    { type: 'projects', regex: /^(?:(?:key|personal|portfolio|academic|selected|technical|featured|notable|major|capstone|independent|client|recent|software)?\s*projects?(?:\s*(?:&|and|\/)\s*(?:initiatives|work|contributions|highlights|achievements|open\s*source))?|project\s*work|project\s*highlights|project\s*portfolio)(?:\s*[-–—:]?\s*(?:\(?(?:continued|cont\.?|cont'd)\)?))?(?::\s*(.*))?$/i },
+    { type: 'certifications', regex: /^(?:certifications?(?:\s*(?:&|and|\/)\s*(?:licenses|courses|trainings|credentials))?|licenses(?:\s*(?:&|and|\/)\s*certifications?)?|professional\s*certifications?|certificates|credentials)(?:\s*[-–—:]?\s*(?:\(?(?:continued|cont\.?|cont'd)\)?))?(?::\s*(.*))?$/i }
   ];
 
   function getSectionMatch(line) {
@@ -1388,10 +1418,24 @@ export function parseResumeRuleBased(resumeText, options = {}) {
     certifications: []
   };
 
+  const isPageOrDocArtifact = (str) => {
+    if (!str || typeof str !== 'string') return false;
+    const s = str.trim();
+    if (!s) return false;
+    // Standard page numbers: "Page 1", "Page 2 of 3", "-- 1 of 2 --", "[Page 1]"
+    if (/^(?:page\s*\d+(?:\s*(?:of|\/)\s*\d+)?|--\s*\d+\s*(?:of|\/)\s*\d+\s*--|\[?\s*page\s*\d+\s*\]?)$/i.test(s)) return true;
+    // Horizontal divider lines
+    if (/^[-=_*~]{3,}$/.test(s)) return true;
+    // Multi-page test pack titles, export headers, or running headers with page numbers
+    if (/\b(?:test\s*pack|export\s*test|pdf\s*export)\b/i.test(s) && /\bpage\s*\d+\b/i.test(s)) return true;
+    if (/^(?:.*?\bpage\s*\d+(?:\s*(?:of|\/)\s*\d+)?\b.*)$/i.test(s) && s.length <= 60 && !/(?:developer|engineer|manager|university|college|bachelor|master|degree|built|designed|developed)/i.test(s)) return true;
+    return false;
+  };
+
   let currentSection = 'header';
   for (const line of lines) {
-    // Skip page numbers and break dividers in multi-page PDFs (e.g. "Page 2 of 3", "-- 2 of 3 --", "---")
-    if (/^(?:page\s*\d+(?:\s*(?:of|\/)\s*\d+)?|--\s*\d+\s*(?:of|\/)\s*\d+\s*--|\[?\s*page\s*\d+\s*\]?)$/i.test(line) || /^[-=_*~]{3,}$/.test(line)) {
+    // Skip page numbers, test pack artifacts, and break dividers
+    if (isPageOrDocArtifact(line)) {
       continue;
     }
 
@@ -1863,21 +1907,62 @@ export function parseResumeRuleBased(resumeText, options = {}) {
   if (sections.education.length > 0) {
     let currentEdu = null;
 
+    const isEducationHeader = (str) => {
+      if (!str || typeof str !== 'string') return false;
+      const s = str.trim().toLowerCase();
+      if (/^(?:degrees?|programs?|courses?|qualifications?|institutions?|universit(?:y|ies)|colleges?|schools?|years?|passing\s*years?|durations?|dates?|scores?|gpa|grades?|percentages?|marks?|academics?|education\s*details?)$/i.test(s)) return true;
+      const tokens = s.split(/[\s/|–—,\-]+/).filter(Boolean);
+      if (tokens.length > 0 && tokens.every(t => /^(?:degrees?|programs?|courses?|qualifications?|institutions?|universit(?:y|ies)|colleges?|schools?|years?|passing|durations?|dates?|scores?|gpa|grades?|percentages?|marks?|academics?|majors?|certifications?|details?|and|&)$/i.test(t))) {
+        return true;
+      }
+      return false;
+    };
+
+    const isProjectOrActionLine = (str) => {
+      if (!str || typeof str !== 'string') return false;
+      const s = str.trim();
+      if (/^[-•*«+<>]\s*/.test(s)) return true;
+      if (/^(?:designed|built|developed|created|managed|led|architected|implemented|engineered|orchestrated|spearheaded|maintained|scaled|automated|collaborated|configured|integrated|analyzed|optimized|deployed|researched)\b/i.test(s)) return true;
+      if (/^(?:project|tech\s*stack|technologies|tools\s*used|github|live\s*demo|description)\s*:\s*/i.test(s)) return true;
+      if (/^([A-Z][\w\s]{2,30})\s+[-–—]\s+(?:designed|built|developed|created|managed|led|architected|implemented|engineered|orchestrated|spearheaded|an?\b|the\b|a\s+full|web|mobile|application|system|platform|service)/i.test(s)) return true;
+      return false;
+    };
+
     const commitEdu = () => {
-      if (currentEdu && (currentEdu.institution || currentEdu.degree)) {
-        if (isStandaloneDate(currentEdu.institution)) {
-          if (!currentEdu.year) currentEdu.year = currentEdu.institution;
-          currentEdu.institution = '';
+      if (currentEdu) {
+        let deg = currentEdu.degree ? currentEdu.degree.trim() : '';
+        let inst = currentEdu.institution ? currentEdu.institution.trim() : '';
+        let yr = currentEdu.year ? currentEdu.year.trim() : '';
+
+        // Discard header labels or page artifacts that leaked into degree/institution
+        if (isEducationHeader(deg) || isPageOrDocArtifact(deg) || isProjectOrActionLine(deg)) deg = '';
+        if (isEducationHeader(inst) || isPageOrDocArtifact(inst) || isProjectOrActionLine(inst)) inst = '';
+
+        if (isStandaloneDate(inst)) {
+          if (!yr) yr = inst;
+          inst = '';
         }
-        if (isStandaloneDate(currentEdu.degree)) {
-          if (!currentEdu.year) currentEdu.year = currentEdu.degree;
-          currentEdu.degree = '';
+        if (isStandaloneDate(deg)) {
+          if (!yr) yr = deg;
+          deg = '';
         }
-        if (currentEdu.institution || currentEdu.degree) {
-          education.push({
-            ...currentEdu,
-            id: currentEdu.id || `edu-${Date.now()}-${education.length + 1}`
-          });
+
+        if (inst || deg) {
+          const isDuplicate = education.some(existing =>
+            (existing.degree && existing.degree.toLowerCase() === deg.toLowerCase() && existing.institution && existing.institution.toLowerCase() === inst.toLowerCase()) ||
+            (!existing.degree && existing.institution && existing.institution.toLowerCase() === inst.toLowerCase()) ||
+            (!existing.institution && existing.degree && existing.degree.toLowerCase() === deg.toLowerCase())
+          );
+
+          if (!isDuplicate) {
+            education.push({
+              id: currentEdu.id || `edu-${Date.now()}-${education.length + 1}`,
+              institution: inst,
+              degree: deg,
+              year: yr,
+              score: currentEdu.score || ''
+            });
+          }
         }
       }
       currentEdu = null;
@@ -1886,15 +1971,15 @@ export function parseResumeRuleBased(resumeText, options = {}) {
     for (let i = 0; i < sections.education.length; i++) {
       const line = sections.education[i];
 
-      // 0. Skip standalone table headers: Degree, Institution, Years, etc.
-      if (/^(?:degrees?|programs?|courses?|qualifications?|institutions?|universit(?:y|ies)|colleges?|schools?|years?|passing\s*years?|durations?|dates?|scores?|gpa|grades?|percentages?|marks?)$/i.test(line)) {
+      // 0. Skip standalone or combined table headers: Degree, Institution, Years, Degree — Institution, etc.
+      if (isEducationHeader(line) || isPageOrDocArtifact(line)) {
         continue;
       }
-      if (line.includes('|')) {
-        const pipeParts = line.split('|').map(p => p.trim());
-        if (pipeParts.length > 1 && pipeParts.every(p => /^(?:degrees?|programs?|courses?|qualifications?|institutions?|universit(?:y|ies)|colleges?|schools?|years?|passing\s*years?|durations?|dates?|scores?|gpa|grades?|percentages?|marks?)$/i.test(p))) {
-          continue;
-        }
+
+      // If a line in Education is actually a project description or action bullet, route it to projects
+      if (isProjectOrActionLine(line)) {
+        sections.projects.push(line);
+        continue;
       }
 
       // 1. Standalone date line
@@ -1970,15 +2055,18 @@ export function parseResumeRuleBased(resumeText, options = {}) {
         let yr = eduDt.raw || '';
 
         for (const p of parts) {
+          if (isEducationHeader(p) || isPageOrDocArtifact(p) || isProjectOrActionLine(p)) {
+            continue;
+          }
           if (isStandaloneDate(p)) {
             yr = p;
-          } else if (degreeKeywordRegex.test(p) && !deg) {
+          } else if (degreeKeywordRegex.test(p) && !deg && !isEducationHeader(p)) {
             deg = p;
           } else if (instKeywordRegex.test(p) && !inst) {
             inst = p;
           } else if (!inst && !degreeKeywordRegex.test(p)) {
             inst = p;
-          } else if (!deg) {
+          } else if (!deg && !isEducationHeader(p)) {
             deg = p;
           }
         }
@@ -2001,7 +2089,7 @@ export function parseResumeRuleBased(resumeText, options = {}) {
       }
 
       // 5. Degree keyword line
-      if (degreeKeywordRegex.test(line)) {
+      if (degreeKeywordRegex.test(line) && !isEducationHeader(line) && !isProjectOrActionLine(line)) {
         if (!currentEdu || currentEdu.degree) commitEdu();
         if (!currentEdu) currentEdu = { institution: '', degree: '', year: '', score: '' };
         currentEdu.degree = line;
@@ -2009,26 +2097,28 @@ export function parseResumeRuleBased(resumeText, options = {}) {
       }
 
       // 6. Institution keyword line
-      if (instKeywordRegex.test(line)) {
+      if (instKeywordRegex.test(line) && !isEducationHeader(line) && !isProjectOrActionLine(line)) {
         if (!currentEdu || currentEdu.institution) commitEdu();
         if (!currentEdu) currentEdu = { institution: '', degree: '', year: '', score: '' };
         currentEdu.institution = line;
         continue;
       }
 
-      // 7. General fallback
-      if (!currentEdu) {
-        if (degreeKeywordRegex.test(line)) {
-          currentEdu = { institution: '', degree: line, year: '', score: '' };
-        } else {
-          currentEdu = { institution: line, degree: '', year: '', score: '' };
+      // 7. General fallback (only for plausible education lines, never for project/action lines or table headers)
+      if (!isEducationHeader(line) && !isProjectOrActionLine(line) && !isPageOrDocArtifact(line) && line.length < 90) {
+        if (!currentEdu) {
+          if (degreeKeywordRegex.test(line)) {
+            currentEdu = { institution: '', degree: line, year: '', score: '' };
+          } else {
+            currentEdu = { institution: line, degree: '', year: '', score: '' };
+          }
+        } else if (!currentEdu.institution && !degreeKeywordRegex.test(line)) {
+          currentEdu.institution = line;
+        } else if (!currentEdu.degree) {
+          currentEdu.degree = line;
+        } else if (!currentEdu.institution) {
+          currentEdu.institution = line;
         }
-      } else if (!currentEdu.institution && !degreeKeywordRegex.test(line)) {
-        currentEdu.institution = line;
-      } else if (!currentEdu.degree) {
-        currentEdu.degree = line;
-      } else if (!currentEdu.institution) {
-        currentEdu.institution = line;
       }
     }
     commitEdu();

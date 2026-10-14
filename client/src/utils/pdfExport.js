@@ -70,7 +70,24 @@ export async function exportResumeToPdf(resume, elementId = 'resume-print-area')
     clone.querySelectorAll('.resume-section-title, h1, h2, h3').forEach(el => {
       el.style.pageBreakAfter = 'avoid';
       el.style.breakAfter = 'avoid';
+      el.style.pageBreakInside = 'avoid';
+      el.style.breakInside = 'avoid';
     });
+
+    // Remove bottom margin and padding on the last child to prevent trailing blank page creation
+    const lastEl = clone.querySelector('.resume-sheet > *:last-child, .resume-section:last-of-type');
+    if (lastEl) {
+      lastEl.style.marginBottom = '0';
+      lastEl.style.paddingBottom = '0';
+    }
+
+    // Constrain height to exact page multiples to prevent 1-2px overflow creating an unnecessary blank page
+    const pageHeightPx = 1122.5; // A4 height at 96 DPI
+    const totalHeight = clone.scrollHeight;
+    if (totalHeight > 0) {
+      const pageCount = Math.max(1, Math.ceil((totalHeight - 20) / pageHeightPx));
+      clone.style.maxHeight = `${pageCount * pageHeightPx}px`;
+    }
 
     const opt = {
       margin: [0, 0, 0, 0],
