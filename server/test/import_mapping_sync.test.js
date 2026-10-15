@@ -1,5 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import path from 'node:path';
 import { parseResumeRuleBased, sanitizeParsedResume, isLikelyLocation, isValidCandidateName } from '../controllers/aiController.js';
 import { extractTextFromPdf, extractTextFromDocx } from '../controllers/uploadController.js';
 
@@ -449,4 +451,106 @@ test('Test F: All 5 resume templates and manual field editing remain intact with
   const resolvedSplit = resolvePreviewHeaders(emptySplitResume);
   assert.equal(resolvedSplit.targetRole, 'Target Role', 'Split template empty role must fall back to Target Role');
 });
+
+// Test G — Critical Bug Reproduction & Fix: Alex_Morgan_Resume.pdf (1-page) extracts all sections, not just Name and Role
+test('Test G: 1-Page Alex_Morgan_Resume.pdf extracts all sections, not just Name and Role', async () => {
+  const alexPath = 'C:/Users/Lenovo/Downloads/Alex_Morgan_Resume.pdf';
+  if (!fs.existsSync(alexPath)) {
+    console.log('Skipping Test G: Alex_Morgan_Resume.pdf not found in Downloads');
+    return;
+  }
+
+  const pdfBuffer = fs.readFileSync(alexPath);
+  const extractedText = await extractTextFromPdf(pdfBuffer);
+  assert.ok(extractedText.length > 200, `Extracted text must be full body, got length ${extractedText.length}`);
+
+  const parsed = sanitizeParsedResume(parseResumeRuleBased(extractedText, { fileName: 'Alex_Morgan_Resume.pdf' }));
+
+  // Header & Contact
+  assert.equal(parsed.personal_info.fullName, 'Alex Morgan', 'Full name must be Alex Morgan');
+  assert.equal(parsed.target_role, 'Frontend Engineer', 'Target role must be Frontend Engineer');
+  assert.equal(parsed.personal_info.email, 'alex@example.com', 'Email must be alex@example.com');
+  assert.equal(parsed.personal_info.phone, '+1 555-0199', 'Phone must be +1 555-0199');
+  assert.equal(parsed.personal_info.location, 'New York, NY', 'Location must be New York, NY');
+  assert.equal(parsed.personal_info.linkedin, 'linkedin.com/in/alexmorgan', 'LinkedIn must be linkedin.com/in/alexmorgan');
+
+  // Core Sections
+  assert.ok(parsed.summary && parsed.summary.length > 20, 'Summary must be extracted');
+  assert.ok(parsed.skills.length >= 5, `Skills must be extracted (found ${parsed.skills.length})`);
+  assert.ok(parsed.experience.length >= 1, `Experience must be extracted (found ${parsed.experience.length})`);
+  assert.ok(parsed.education.length >= 1, `Education must be extracted (found ${parsed.education.length})`);
+  assert.ok(parsed.projects.length >= 1, `Projects must be extracted (found ${parsed.projects.length})`);
+});
+
+// Test H — Multi-Page PDF: 2-Page Resume testB_2page.pdf preserves content across both pages
+test('Test H: 2-Page Resume testB_2page.pdf preserves content across both pages', async () => {
+  const testBPath = path.resolve(process.cwd(), '../scratch/testB_2page.pdf');
+  const fallbackPath = path.resolve(process.cwd(), 'scratch/testB_2page.pdf');
+  const targetPath = fs.existsSync(testBPath) ? testBPath : (fs.existsSync(fallbackPath) ? fallbackPath : null);
+
+  if (!targetPath) {
+    console.log('Skipping Test H: testB_2page.pdf fixture not found');
+    return;
+  }
+
+  const pdfBuffer = fs.readFileSync(targetPath);
+  const extractedText = await extractTextFromPdf(pdfBuffer);
+  assert.ok(extractedText.length > 1000, `2-page PDF must extract body across both pages, got ${extractedText.length}`);
+
+  const parsed = sanitizeParsedResume(parseResumeRuleBased(extractedText, { fileName: 'testB_2page.pdf' }));
+
+  assert.equal(parsed.personal_info.fullName, 'Jordan Lee');
+  assert.equal(parsed.target_role, 'Senior Full Stack Developer');
+  assert.equal(parsed.personal_info.email, 'jordan.lee@example.com');
+  assert.equal(parsed.personal_info.location, 'San Francisco, CA');
+  assert.ok(parsed.experience.length >= 2, `Must extract both experiences across pages (found ${parsed.experience.length})`);
+  assert.ok(parsed.projects.length >= 2, `Must extract projects (found ${parsed.projects.length})`);
+  assert.ok(parsed.skills.length >= 15, `Must extract skills across pages (found ${parsed.skills.length})`);
+});
+
+// Test I — Multi-Page PDF: 3-Page Resume testC_3page.pdf preserves content across all 3 pages
+test('Test I: 3-Page Resume testC_3page.pdf preserves content across all 3 pages', async () => {
+  const testCPath = path.resolve(process.cwd(), '../scratch/testC_3page.pdf');
+  const fallbackPath = path.resolve(process.cwd(), 'scratch/testC_3page.pdf');
+  const targetPath = fs.existsSync(testCPath) ? testCPath : (fs.existsSync(fallbackPath) ? fallbackPath : null);
+
+  if (!targetPath) {
+    console.log('Skipping Test I: testC_3page.pdf fixture not found');
+    return;
+  }
+
+  const pdfBuffer = fs.readFileSync(targetPath);
+  const extractedText = await extractTextFromPdf(pdfBuffer);
+  assert.ok(extractedText.length > 2500, `3-page PDF must extract body across all 3 pages, got ${extractedText.length}`);
+
+  const parsed = sanitizeParsedResume(parseResumeRuleBased(extractedText, { fileName: 'testC_3page.pdf' }));
+
+  assert.equal(parsed.personal_info.fullName, 'Morgan Taylor');
+  assert.equal(parsed.target_role, 'Principal Software Architect & VP Engineering');
+  assert.equal(parsed.personal_info.email, 'morgan.taylor@example.com');
+  assert.equal(parsed.personal_info.location, 'Seattle, WA');
+  assert.ok(parsed.experience.length >= 4, `Must extract experiences continuing across pages 1, 2, and 3 (found ${parsed.experience.length})`);
+  assert.ok(parsed.projects.length >= 3, `Must extract projects on page 3 (found ${parsed.projects.length})`);
+  assert.ok(parsed.skills.length >= 20, `Must extract skills across pages (found ${parsed.skills.length})`);
+});
+
+// Test J — Minimal resume with only name and role never fabricates data
+test('Test J: Minimal resume with only name and role never fabricates data', () => {
+  const text = 'Alex Morgan\nFrontend Engineer';
+  const parsed = sanitizeParsedResume(parseResumeRuleBased(text));
+
+  assert.equal(parsed.personal_info.fullName, 'Alex Morgan');
+  assert.equal(parsed.target_role, 'Frontend Engineer');
+  assert.equal(parsed.personal_info.email, '');
+  assert.equal(parsed.personal_info.phone, '');
+  assert.equal(parsed.personal_info.location, '');
+  assert.equal(parsed.personal_info.linkedin, '');
+  assert.equal(parsed.personal_info.github, '');
+  assert.equal(parsed.personal_info.website, '');
+  assert.deepEqual(parsed.skills, []);
+  assert.deepEqual(parsed.experience, []);
+  assert.deepEqual(parsed.education, []);
+  assert.deepEqual(parsed.projects, []);
+});
+
 

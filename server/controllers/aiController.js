@@ -1107,7 +1107,7 @@ export function isValidCandidateName(str) {
 
 export function isLikelyLocation(str) {
   if (!str || typeof str !== 'string') return false;
-  const s = str.trim();
+  let s = str.trim().replace(/^[\s&©•*·~#<>¢§¶®™:|]+\s*/, '').replace(/[\s&©•*·~#<>¢§¶®™:|]+$/, '').trim();
   if (s.length < 2 || s.length > 60) return false;
   if (/^(?:location|address|city|country|based\s+in)\s*:\s*/i.test(s)) return true;
   if (/@|\bhttps?:\/\/|\bwww\.|\d{3,}/.test(s)) return false;
@@ -1279,6 +1279,7 @@ export function sanitizeParsedResume(parsed) {
   }
 
   let cleanLocation = stripLabel(pInfo.location, /^(?:location|address|city|country|based\s+in)\s*:\s*/i);
+  cleanLocation = cleanLocation.replace(/^[\s&©•*·~#<>¢§¶®™:|]+\s*/, '').replace(/[\s&©•*·~#<>¢§¶®™:|]+$/, '').trim();
   // Guard 1: Never let candidate's name leak into location
   if (cleanLocation && cleanFullName && cleanLocation.toLowerCase() === cleanFullName.toLowerCase()) {
     cleanLocation = '';
@@ -1826,37 +1827,39 @@ export function parseResumeRuleBased(resumeText, options = {}) {
   // Location extraction
   if (!extractedLocation) {
     for (const line of sections.header) {
-      if (line.includes('|') || line.includes('©') || line.includes('&') || line.includes('•')) {
-        const parts = line.split(/[\s]+[|&©•*·~][\s]*|[|•]+/).map(p => p.trim());
+      if (line.includes('|') || line.includes('©') || line.includes('&') || line.includes('•') || line.includes('·') || line.includes('~') || line.includes('¢') || line.includes('%')) {
+        const parts = line.split(/[\s]+[|&©•*·~¢§¶®™<>«»▪▫●✦%#]+\s*|[|•]+/).map(p => p.trim());
         for (const p of parts) {
-          const isUrlOrDomain = websiteRegex.test(p) || /^[a-zA-Z0-9][-a-zA-Z0-9]*\.[a-zA-Z]{2,}/i.test(p) || p.startsWith('http') || p.startsWith('www.');
+          const cleanP = p.replace(/^[\s&©•*·~#<>¢§¶®™:|%]+\s*/, '').replace(/[\s&©•*·~#<>¢§¶®™:|%]+$/, '').trim();
+          const isUrlOrDomain = websiteRegex.test(cleanP) || /^[a-zA-Z0-9][-a-zA-Z0-9]*\.[a-zA-Z]{2,}/i.test(cleanP) || cleanP.startsWith('http') || cleanP.startsWith('www.');
           if (
-            !emailRegex.test(p) &&
-            !phoneRegex.test(p) &&
-            !linkedinRegex.test(p) &&
-            !githubRegex.test(p) &&
+            !emailRegex.test(cleanP) &&
+            !phoneRegex.test(cleanP) &&
+            !linkedinRegex.test(cleanP) &&
+            !githubRegex.test(cleanP) &&
             !isUrlOrDomain &&
-            p.length > 2 &&
-            p.length < 60
+            cleanP.length > 2 &&
+            cleanP.length < 60
           ) {
-            if (extractedName && (p.toLowerCase() === extractedName.toLowerCase() || p.toLowerCase().includes(extractedName.toLowerCase()))) {
+            if (extractedName && (cleanP.toLowerCase() === extractedName.toLowerCase() || cleanP.toLowerCase().includes(extractedName.toLowerCase()))) {
               continue;
             }
-            if (isValidCandidateName(p)) {
+            if (isValidCandidateName(cleanP)) {
               continue;
             }
-            if (roleKeywordRegex.test(p) || /^(?:summary|profile|about)/i.test(p)) {
+            if (roleKeywordRegex.test(cleanP) || /^(?:summary|profile|about)/i.test(cleanP)) {
               continue;
             }
-            if (isLikelyLocation(p)) {
-              extractedLocation = stripLabel(p, /^(?:location|address|city|country|based\s+in):/i);
+            if (isLikelyLocation(cleanP)) {
+              extractedLocation = stripLabel(cleanP, /^(?:location|address|city|country|based\s+in):/i);
               break;
             }
           }
         }
       } else if (isLikelyLocation(line)) {
-        if (!extractedName || (line.toLowerCase() !== extractedName.toLowerCase() && !line.toLowerCase().includes(extractedName.toLowerCase()))) {
-          extractedLocation = stripLabel(line, /^(?:location|address|city|country|based\s+in):/i);
+        const cleanL = line.replace(/^[\s&©•*·~#<>¢§¶®™:|]+\s*/, '').replace(/[\s&©•*·~#<>¢§¶®™:|]+$/, '').trim();
+        if (!extractedName || (cleanL.toLowerCase() !== extractedName.toLowerCase() && !cleanL.toLowerCase().includes(extractedName.toLowerCase()))) {
+          extractedLocation = stripLabel(cleanL, /^(?:location|address|city|country|based\s+in):/i);
         }
       }
       if (extractedLocation) break;

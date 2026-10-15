@@ -34,8 +34,8 @@ async function extractOcrFromPdfBuffer(buffer, parser) {
   }
 
   if (jpegBuffers.length > 0) {
-    // Process up to 3 pages in parallel to keep OCR fast (~10s) and responsive
-    const pagesToOcr = jpegBuffers.slice(0, 3);
+    // Process up to 5 pages in parallel to support 1, 2, and 3+ page documents
+    const pagesToOcr = jpegBuffers.slice(0, 5);
     const pageResults = await Promise.all(
       pagesToOcr.map(jpegBuf =>
         tesseractModule.recognize(jpegBuf, 'eng').then(res => res?.data?.text?.trim() || '').catch(err => {
@@ -99,21 +99,32 @@ export async function extractTextFromPdf(buffer) {
         .replace(/^\s*[^.\n]{1,60}\bpage\s*\d+\s*$/gim, '')
         .trim();
 
-      // If document contains pages but zero extractable text stream, it is an image-only / scanned PDF
-      if (result && typeof result.total === 'number' && result.total > 0 && !cleaned) {
+      const totalPages = (result && typeof result.total === 'number') ? result.total : 1;
+      const hasCoreSections = /(?:experience|education|skills|summary|projects|employment|history|work\s+history|qualifications|academics|certifications)/i.test(cleaned);
+      const isSparseTextStream = !cleaned || (
+        cleaned.length < 160 * Math.max(1, totalPages) && !hasCoreSections
+      );
+
+      // If document contains pages but zero or sparse extractable text stream (e.g. rasterized html2canvas PDFs), run OCR
+      if (isSparseTextStream) {
         try {
           const ocrText = await extractOcrFromPdfBuffer(buffer, parser);
           if (ocrText && ocrText.trim()) {
+            if (cleaned && !ocrText.includes(cleaned)) {
+              return `${cleaned}\n\n${ocrText.trim()}`;
+            }
             return ocrText.trim();
           }
         } catch (ocrErr) {
           console.warn('OCR extraction attempt failed:', ocrErr.message);
         }
 
-        const scanErr = new Error('This PDF appears to be a scanned image or photo without selectable text. Direct image OCR is not supported. Please copy and paste your resume text into the text box below, or upload a text-based document.');
-        scanErr.name = 'ScannedPDFException';
-        scanErr.isScanned = true;
-        throw scanErr;
+        if (!cleaned) {
+          const scanErr = new Error('This PDF appears to be a scanned image or photo without selectable text. Direct image OCR is not supported. Please copy and paste your resume text into the text box below, or upload a text-based document.');
+          scanErr.name = 'ScannedPDFException';
+          scanErr.isScanned = true;
+          throw scanErr;
+        }
       }
 
       return cleaned;
@@ -129,13 +140,42 @@ export async function extractTextFromPdf(buffer) {
   if (typeof fn === 'function') {
     const result = await fn(buffer);
     const raw = (result?.text || '').trim();
-    return raw
+    const cleaned = raw
       .replace(/--\s*\d+\s+of\s+\d+\s*--/gi, '')
       .replace(/\bpage\s+\d+\s*(?:of|\/)\s*\d+\b/gi, '')
       .replace(/^\s*page\s+\d+\s*$/gim, '')
       .replace(/^\s*.*?test\s*pack.*?page\s*\d+.*$/gim, '')
       .replace(/^\s*[^.\n]{1,60}\bpage\s*\d+\s*$/gim, '')
       .trim();
+
+    const totalPages = (result && typeof result.numpages === 'number') ? result.numpages : 1;
+    const hasCoreSections = /(?:experience|education|skills|summary|projects|employment|history|work\s+history|qualifications|academics|certifications)/i.test(cleaned);
+    const isSparseTextStream = !cleaned || (
+      cleaned.length < 160 * Math.max(1, totalPages) && !hasCoreSections
+    );
+
+    if (isSparseTextStream) {
+      try {
+        const ocrText = await extractOcrFromPdfBuffer(buffer, null);
+        if (ocrText && ocrText.trim()) {
+          if (cleaned && !ocrText.includes(cleaned)) {
+            return `${cleaned}\n\n${ocrText.trim()}`;
+          }
+          return ocrText.trim();
+        }
+      } catch (ocrErr) {
+        console.warn('OCR extraction attempt failed:', ocrErr.message);
+      }
+
+      if (!cleaned) {
+        const scanErr = new Error('This PDF appears to be a scanned image or photo without selectable text. Direct image OCR is not supported. Please copy and paste your resume text into the text box below, or upload a text-based document.');
+        scanErr.name = 'ScannedPDFException';
+        scanErr.isScanned = true;
+        throw scanErr;
+      }
+    }
+
+    return cleaned;
   }
 
   throw new Error('Unsupported PDF parser export interface.');
