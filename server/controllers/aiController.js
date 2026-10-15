@@ -205,6 +205,155 @@ Output ONLY the raw JSON array.
   }
 }
 
+// Helper for escaping regex special characters
+function escapeRegex(str) {
+  return (str || '').replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&');
+}
+
+// Normalizes whitespace, slashes, and hyphens (e.g. "CI/CD" -> "ci cd", "CI-CD" -> "ci cd")
+export function normalizeTerm(str) {
+  return (str || '')
+    .toLowerCase()
+    .replace(/[/\\_-]+/g, ' ')
+    .replace(/[^\w\s]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+/**
+ * Checks if a specific keyword matches text using proper token boundaries and punctuation normalization.
+ * - Case-insensitive.
+ * - Uses token boundaries so 'Git' will NOT match 'Digital' or 'GitHub'.
+ * - Normalizes punctuation so 'CI/CD' matches 'CI CD' or 'CI-CD'.
+ */
+export function keywordMatchesText(keyword, text) {
+  if (!keyword || !text) return false;
+  const kw = String(keyword).trim();
+  const tx = String(text).trim();
+  if (!kw || !tx) return false;
+
+  // Exact case-insensitive match
+  if (kw.toLowerCase() === tx.toLowerCase()) return true;
+
+  // 1. Direct case-insensitive token boundary match (e.g. \bGit\b in 'React, Git, Node')
+  const escapedKw = escapeRegex(kw);
+  const wordBoundaryRx = new RegExp('(?:^|[^a-zA-Z0-9])' + escapedKw + '(?![a-zA-Z0-9])', 'i');
+  if (wordBoundaryRx.test(tx)) {
+    return true;
+  }
+
+  // 2. Normalized punctuation match (e.g. 'CI/CD' vs 'CI CD')
+  const normKw = normalizeTerm(kw);
+  const normTx = normalizeTerm(tx);
+  if (normKw && normTx) {
+    if (normKw === normTx) return true;
+    const normBoundaryRx = new RegExp('(?:^|\\s)' + escapeRegex(normKw) + '(?=\\s|$)', 'i');
+    if (normBoundaryRx.test(normTx)) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+/**
+ * Combines all textual content across the candidate resume (role, summary, skills, experience, projects, education, certs)
+ */
+export function getAllResumeText(resume) {
+  if (!resume || typeof resume !== 'object') return '';
+  const parts = [];
+
+  if (resume.target_role) parts.push(String(resume.target_role));
+  if (resume.targetRole) parts.push(String(resume.targetRole));
+  if (resume.summary) parts.push(String(resume.summary));
+
+  if (Array.isArray(resume.skills)) {
+    for (const s of resume.skills) {
+      if (typeof s === 'string') parts.push(s);
+      else if (s && typeof s === 'object') parts.push(s.name || s.skill || '');
+    }
+  } else if (typeof resume.skills === 'string') {
+    parts.push(resume.skills);
+  }
+
+  if (resume.skills_categorized && typeof resume.skills_categorized === 'object') {
+    for (const cat of Object.values(resume.skills_categorized)) {
+      if (Array.isArray(cat)) parts.push(...cat.filter(Boolean));
+    }
+  }
+
+  if (Array.isArray(resume.experience)) {
+    for (const exp of resume.experience) {
+      if (!exp) continue;
+      if (exp.role) parts.push(exp.role);
+      if (exp.company) parts.push(exp.company);
+      if (exp.description) parts.push(exp.description);
+    }
+  }
+
+  if (Array.isArray(resume.projects)) {
+    for (const pr of resume.projects) {
+      if (!pr) continue;
+      if (pr.name) parts.push(pr.name);
+      if (pr.role) parts.push(pr.role);
+      if (pr.description) parts.push(pr.description);
+      if (pr.tech_stack) parts.push(Array.isArray(pr.tech_stack) ? pr.tech_stack.join(' ') : String(pr.tech_stack));
+    }
+  }
+
+  if (Array.isArray(resume.education)) {
+    for (const ed of resume.education) {
+      if (!ed) continue;
+      if (ed.degree) parts.push(ed.degree);
+      if (ed.institution) parts.push(ed.institution);
+      if (ed.coursework) parts.push(ed.coursework);
+    }
+  }
+
+  if (Array.isArray(resume.certifications)) {
+    for (const c of resume.certifications) {
+      if (typeof c === 'string') parts.push(c);
+      else if (c && typeof c === 'object') parts.push(c.name || c.title || '');
+    }
+  }
+
+  return parts.join('\n');
+}
+
+/**
+ * Checks if a candidate resume genuinely contains a given keyword or skill.
+ * Checks structured skills first, then full resume body (summary, experience, projects, etc.).
+ */
+export function isKeywordInResume(keyword, resume) {
+  if (!keyword || !resume) return false;
+  const kw = String(keyword).trim();
+  if (!kw) return false;
+
+  // 1. Structured skills array/string
+  const skillsList = [];
+  if (Array.isArray(resume.skills)) {
+    for (const s of resume.skills) {
+      if (typeof s === 'string') skillsList.push(s);
+      else if (s && typeof s === 'object') skillsList.push(s.name || s.skill || '');
+    }
+  } else if (typeof resume.skills === 'string') {
+    skillsList.push(...resume.skills.split(/[,•|]+/).map(s => s.trim()));
+  }
+  if (resume.skills_categorized && typeof resume.skills_categorized === 'object') {
+    for (const cat of Object.values(resume.skills_categorized)) {
+      if (Array.isArray(cat)) skillsList.push(...cat.filter(Boolean));
+    }
+  }
+
+  for (const s of skillsList) {
+    if (keywordMatchesText(kw, s)) return true;
+  }
+
+  // 2. Full text across all resume sections
+  const allText = getAllResumeText(resume);
+  return keywordMatchesText(kw, allText);
+}
+
 // 3. AI ATS Score & Optimization Calculator (Supports General Mode & Job-Specific Mode)
 export async function calculateAts(req, res) {
   try {
@@ -216,6 +365,8 @@ export async function calculateAts(req, res) {
     const skills = resume?.skills || [];
     const experience = resume?.experience || [];
     const summary = resume?.summary || '';
+    const projects = resume?.projects || [];
+    const education = resume?.education || [];
     const hasJd = !!(jobDescription && jobDescription.trim());
 
     const prompt = `
@@ -230,6 +381,8 @@ Target Role: ${role}
 Summary: ${summary || 'None'}
 Skills: ${JSON.stringify(skills)}
 Experience: ${JSON.stringify(experience)}
+Projects: ${JSON.stringify(projects)}
+Education: ${JSON.stringify(education)}
 
 EVALUATION GUIDELINES:
 - Score realistically from 0 to 100 based strictly on provided facts. Do not artificially inflate or force high scores.
@@ -238,7 +391,7 @@ EVALUATION GUIDELINES:
   2. keywordAlignment: Keyword density and presence of relevant domain terms
   3. experienceRelevance: Relevance, depth, and clarity of work experience
   4. resumeReadability: Chronological formatting, ATS parsability, and structure
-- ${hasJd ? 'Only identify missing keywords that are actually present or directly required in the target Job Description. Do not fabricate keywords.' : 'Identify standard, relevant industry keywords commonly sought for this role that are currently absent from the resume.'}
+- ${hasJd ? 'Only identify missing keywords that are actually present or directly required in the target Job Description, AND that are genuinely ABSENT from the candidate resume (including skills, summary, experience, and projects). Do NOT list any keyword as missing if it is already present in the candidate resume.' : 'Identify standard, relevant industry keywords commonly sought for this role that are currently absent from the resume.'}
 - Suggestions should be actionable and truthful.
 
 Return ONLY a strict JSON object with this exact structure:
@@ -299,14 +452,50 @@ Return ONLY a strict JSON object with this exact structure:
       let missingKeys = [];
 
       if (hasJd) {
-        const jdLower = jobDescription.toLowerCase();
-        const matched = (skills || []).filter(s => jdLower.includes(String(s).toLowerCase()));
+        const candidateSkills = Array.isArray(skills) ? skills : [];
+        const matched = candidateSkills.filter(s => keywordMatchesText(String(s), jobDescription));
         keywordAlignment = Math.min(95, Math.max(25, Math.round((matched.length / Math.max(1, skillsCount)) * 100)));
-        const commonTech = ['Git', 'REST APIs', 'Docker', 'Agile', 'CI/CD', 'Testing', 'Cloud', 'SQL', 'TypeScript'];
-        missingKeys = commonTech.filter(t => jdLower.includes(t.toLowerCase()) && !(skills || []).some(s => String(s).toLowerCase().includes(t.toLowerCase()))).slice(0, 4);
+
+        const techPool = [
+          'Git', 'CI/CD', 'Agile', 'Docker', 'Kubernetes', 'REST APIs', 'GraphQL',
+          'Automated Testing', 'Unit Testing', 'TypeScript', 'JavaScript', 'React',
+          'Node.js', 'SQL', 'Cloud', 'AWS', 'Microservices', 'Tailwind CSS',
+          'Responsive Design', 'Performance Optimization', 'Security'
+        ];
+
+        const jdCandidates = [];
+        for (const t of techPool) {
+          if (keywordMatchesText(t, jobDescription)) {
+            jdCandidates.push(t);
+          }
+        }
+
+        const phraseRegex = /\b(?:agile(?:\s+methodolog(?:y|ies))?|automated\s+testing|unit\s+testing|ci\/cd(?:\s+workflows?|\s+pipelines?)?|continuous\s+integration|cloud\s+infrastructure|rest(?:ful)?\s+apis?|microservices?\s+architecture|performance\s+optimization)\b/gi;
+        let pm;
+        while ((pm = phraseRegex.exec(jobDescription)) !== null) {
+          const phrase = pm[0].trim();
+          if (!jdCandidates.some(c => c.toLowerCase() === phrase.toLowerCase())) {
+            jdCandidates.push(phrase);
+          }
+        }
+
+        const dedupedCandidates = [];
+        for (const cand of jdCandidates) {
+          const cLower = cand.toLowerCase();
+          const alreadyCovered = dedupedCandidates.some(d => {
+            const dLower = d.toLowerCase();
+            return dLower === cLower || (cLower.startsWith(dLower + ' ') || dLower.startsWith(cLower + ' '));
+          });
+          if (!alreadyCovered) {
+            dedupedCandidates.push(cand);
+          }
+        }
+
+        missingKeys = dedupedCandidates.filter(t => !isKeywordInResume(t, resume)).slice(0, 4);
       } else {
         keywordAlignment = Math.min(85, Math.max(35, skillsCount * 8));
-        missingKeys = ['CI/CD Workflow', 'Agile Methodology', 'Automated Testing', 'Performance Optimization'];
+        const generalSuggestions = ['CI/CD Workflow', 'Agile Methodology', 'Automated Testing', 'Performance Optimization'];
+        missingKeys = generalSuggestions.filter(t => !isKeywordInResume(t, resume)).slice(0, 4);
       }
 
       const score = Math.round((skillsAlignment + keywordAlignment + experienceRelevance + resumeReadability) / 4);
@@ -325,7 +514,7 @@ Return ONLY a strict JSON object with this exact structure:
           expCount > 0 ? 'Chronological career progression is parsable' : 'Basic background provided',
           summary ? 'Professional summary provides immediate role context' : 'Clear layout structure'
         ],
-        missingKeywords: missingKeys.length > 0 ? missingKeys : ['Version Control', 'Agile Development'],
+        missingKeywords: missingKeys.length > 0 ? missingKeys : [],
         suggestions: [
           hasJd
             ? 'Add a missing keyword only if it accurately reflects your genuine skills and experience.'
@@ -333,6 +522,11 @@ Return ONLY a strict JSON object with this exact structure:
           'Where applicable, include real quantifiable outcomes in your experience bullet points to demonstrate impact.'
         ]
       };
+    }
+
+    // Crucial: Filter out any missing keywords that are genuinely present in candidate resume
+    if (result && Array.isArray(result.missingKeywords)) {
+      result.missingKeywords = result.missingKeywords.filter(kw => !isKeywordInResume(kw, resume));
     }
 
     if (isAi && userId) {
@@ -540,12 +734,11 @@ Return ONLY a strict JSON object with this exact structure:
 
     if (!result) {
       // Evidence-based JD matching fallback
-      const jdWords = jobDescription.toLowerCase();
       const candidateSkills = (resume?.skills || []).map(s => String(s).trim());
-      const matched = candidateSkills.filter(s => s && jdWords.includes(s.toLowerCase()));
+      const matched = candidateSkills.filter(s => s && keywordMatchesText(s, jobDescription));
 
       const commonTech = ['Git', 'REST APIs', 'Docker', 'Agile', 'CI/CD', 'Testing', 'Cloud', 'SQL', 'TypeScript'];
-      const missing = commonTech.filter(t => jdWords.includes(t.toLowerCase()) && !candidateSkills.some(s => s.toLowerCase() === t.toLowerCase())).slice(0, 5);
+      const missing = commonTech.filter(t => keywordMatchesText(t, jobDescription) && !isKeywordInResume(t, resume)).slice(0, 5);
 
       const ratio = candidateSkills.length > 0 ? (matched.length / candidateSkills.length) : 0;
       const score = Math.min(95, Math.max(20, Math.round(ratio * 70 + (matched.length > 0 ? 25 : 10))));
@@ -561,6 +754,11 @@ Return ONLY a strict JSON object with this exact structure:
           'Highlight your direct experience with the primary responsibilities emphasized in the Job Description.'
         ]
       };
+    }
+
+    // Crucial: Filter out any missing keywords that are genuinely present in candidate resume
+    if (result && Array.isArray(result.missingKeywords)) {
+      result.missingKeywords = result.missingKeywords.filter(kw => !isKeywordInResume(kw, resume));
     }
 
     if (isAi && userId) {

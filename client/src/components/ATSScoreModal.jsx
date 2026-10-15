@@ -13,27 +13,159 @@ import {
 } from 'lucide-react';
 import axiosClient from '../api/axiosClient';
 
+function escapeRegex(str) {
+  return (str || '').replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&');
+}
+
+function normalizeTerm(str) {
+  return (str || '')
+    .toLowerCase()
+    .replace(/[/\\_-]+/g, ' ')
+    .replace(/[^\w\s]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function keywordMatchesText(keyword, text) {
+  if (!keyword || !text) return false;
+  const kw = String(keyword).trim();
+  const tx = String(text).trim();
+  if (!kw || !tx) return false;
+
+  if (kw.toLowerCase() === tx.toLowerCase()) return true;
+
+  const escapedKw = escapeRegex(kw);
+  const wordBoundaryRx = new RegExp('(?:^|[^a-zA-Z0-9])' + escapedKw + '(?![a-zA-Z0-9])', 'i');
+  if (wordBoundaryRx.test(tx)) {
+    return true;
+  }
+
+  const normKw = normalizeTerm(kw);
+  const normTx = normalizeTerm(tx);
+  if (normKw && normTx) {
+    if (normKw === normTx) return true;
+    const normBoundaryRx = new RegExp('(?:^|\\s)' + escapeRegex(normKw) + '(?=\\s|$)', 'i');
+    if (normBoundaryRx.test(normTx)) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+function getAllResumeText(resume) {
+  if (!resume || typeof resume !== 'object') return '';
+  const parts = [];
+
+  if (resume.target_role) parts.push(String(resume.target_role));
+  if (resume.targetRole) parts.push(String(resume.targetRole));
+  if (resume.summary) parts.push(String(resume.summary));
+
+  if (Array.isArray(resume.skills)) {
+    for (const s of resume.skills) {
+      if (typeof s === 'string') parts.push(s);
+      else if (s && typeof s === 'object') parts.push(s.name || s.skill || '');
+    }
+  } else if (typeof resume.skills === 'string') {
+    parts.push(resume.skills);
+  }
+
+  if (resume.skills_categorized && typeof resume.skills_categorized === 'object') {
+    for (const cat of Object.values(resume.skills_categorized)) {
+      if (Array.isArray(cat)) parts.push(...cat.filter(Boolean));
+    }
+  }
+
+  if (Array.isArray(resume.experience)) {
+    for (const exp of resume.experience) {
+      if (!exp) continue;
+      if (exp.role) parts.push(exp.role);
+      if (exp.company) parts.push(exp.company);
+      if (exp.description) parts.push(exp.description);
+    }
+  }
+
+  if (Array.isArray(resume.projects)) {
+    for (const pr of resume.projects) {
+      if (!pr) continue;
+      if (pr.name) parts.push(pr.name);
+      if (pr.role) parts.push(pr.role);
+      if (pr.description) parts.push(pr.description);
+      if (pr.tech_stack) parts.push(Array.isArray(pr.tech_stack) ? pr.tech_stack.join(' ') : String(pr.tech_stack));
+    }
+  }
+
+  if (Array.isArray(resume.education)) {
+    for (const ed of resume.education) {
+      if (!ed) continue;
+      if (ed.degree) parts.push(ed.degree);
+      if (ed.institution) parts.push(ed.institution);
+      if (ed.coursework) parts.push(ed.coursework);
+    }
+  }
+
+  return parts.join('\n');
+}
+
+export function isKeywordInResume(keyword, resume) {
+  if (!keyword || !resume) return false;
+  const kw = String(keyword).trim();
+  if (!kw) return false;
+
+  const skillsList = [];
+  if (Array.isArray(resume.skills)) {
+    for (const s of resume.skills) {
+      if (typeof s === 'string') skillsList.push(s);
+      else if (s && typeof s === 'object') skillsList.push(s.name || s.skill || '');
+    }
+  } else if (typeof resume.skills === 'string') {
+    skillsList.push(...resume.skills.split(/[,•|]+/).map(s => s.trim()));
+  }
+  if (resume.skills_categorized && typeof resume.skills_categorized === 'object') {
+    for (const cat of Object.values(resume.skills_categorized)) {
+      if (Array.isArray(cat)) skillsList.push(...cat.filter(Boolean));
+    }
+  }
+
+  for (const s of skillsList) {
+    if (keywordMatchesText(kw, s)) return true;
+  }
+
+  const allText = getAllResumeText(resume);
+  return keywordMatchesText(kw, allText);
+}
+
 export default function ATSScoreModal({ isOpen, onClose, resume, setResume }) {
   const [loading, setLoading] = useState(false);
   const [atsData, setAtsData] = useState(null);
   const [addedKeywords, setAddedKeywords] = useState([]);
-  const [jobDescription, setJobDescription] = useState('');
-  const [showJdInput, setShowJdInput] = useState(false);
+  const [jobDescription, setJobDescription] = useState(() => {
+    return resume?.target_jd || localStorage.getItem('ai_resume_ats_jd') || '';
+  });
+  const [showJdInput, setShowJdInput] = useState(() => {
+    return Boolean(resume?.target_jd || localStorage.getItem('ai_resume_ats_jd'));
+  });
 
   useEffect(() => {
     if (isOpen) {
-      calculateScore();
+      const activeJd = resume?.target_jd || localStorage.getItem('ai_resume_ats_jd') || jobDescription || '';
+      if (activeJd && !jobDescription) {
+        setJobDescription(activeJd);
+        setShowJdInput(true);
+      }
+      calculateScore(activeJd);
     }
   }, [isOpen]);
 
   const calculateScore = async (customJd = jobDescription) => {
+    const jdToSend = typeof customJd === 'string' ? customJd : (jobDescription || '');
     setLoading(true);
     setAddedKeywords([]);
     try {
       const res = await axiosClient.post('/ai/calculate-ats', {
         targetRole: resume?.target_role || '',
         resume,
-        jobDescription: customJd || ''
+        jobDescription: jdToSend.trim()
       });
       if (res.data?.success) {
         setAtsData(res.data);
@@ -41,7 +173,8 @@ export default function ATSScoreModal({ isOpen, onClose, resume, setResume }) {
           setResume(prev => ({
             ...prev,
             ats_score: res.data.score,
-            ats_feedback: res.data
+            ats_feedback: res.data,
+            target_jd: jdToSend
           }));
         }
       }
@@ -52,8 +185,29 @@ export default function ATSScoreModal({ isOpen, onClose, resume, setResume }) {
     }
   };
 
+  const handleJdChange = (val) => {
+    setJobDescription(val);
+    try {
+      if (val) localStorage.setItem('ai_resume_ats_jd', val);
+      else localStorage.removeItem('ai_resume_ats_jd');
+    } catch (_) {}
+    if (setResume) {
+      setResume(prev => ({ ...prev, target_jd: val }));
+    }
+  };
+
+  const handleClearJd = () => {
+    setJobDescription('');
+    setShowJdInput(false);
+    try { localStorage.removeItem('ai_resume_ats_jd'); } catch (_) {}
+    if (setResume) {
+      setResume(prev => ({ ...prev, target_jd: '' }));
+    }
+    calculateScore('');
+  };
+
   const handleAddKeyword = (keyword) => {
-    if (!resume?.skills?.includes(keyword)) {
+    if (!isKeywordInResume(keyword, resume)) {
       setResume(prev => ({
         ...prev,
         skills: [...(prev.skills || []), keyword]
@@ -141,7 +295,7 @@ export default function ATSScoreModal({ isOpen, onClose, resume, setResume }) {
                 rows={3}
                 placeholder="Paste the target Job Description here for job-specific keyword & skills analysis..."
                 value={jobDescription}
-                onChange={(e) => setJobDescription(e.target.value)}
+                onChange={(e) => handleJdChange(e.target.value)}
                 style={{ fontSize: '0.8rem' }}
               />
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
@@ -149,10 +303,7 @@ export default function ATSScoreModal({ isOpen, onClose, resume, setResume }) {
                   <button
                     type="button"
                     className="btn btn-outline btn-sm"
-                    onClick={() => {
-                      setJobDescription('');
-                      calculateScore('');
-                    }}
+                    onClick={handleClearJd}
                     disabled={loading}
                   >
                     Clear (Switch to General Mode)
@@ -243,32 +394,36 @@ export default function ATSScoreModal({ isOpen, onClose, resume, setResume }) {
             </div>
 
             {/* MISSING KEYWORD SUGGESTIONS (Safe 1-Click Inject) */}
-            {Array.isArray(atsData.missingKeywords) && atsData.missingKeywords.length > 0 && (
-              <div>
-                <h4 className="ats-missing-heading" style={{ fontSize: '0.85rem', fontWeight: 700, marginBottom: '0.25rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                  <AlertTriangle size={15} /> Missing Keywords
-                </h4>
-                <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '0.5rem' }}>
-                  Add a missing keyword only if it accurately reflects your genuine experience or skills.
-                </p>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.45rem' }}>
-                  {atsData.missingKeywords.map((kw, i) => {
-                    const isAdded = addedKeywords.includes(kw) || resume?.skills?.includes(kw);
-                    return (
-                      <button
-                        key={i}
-                        className={`btn btn-outline btn-sm ats-keyword-btn ${isAdded ? 'added' : ''}`}
-                        style={{ fontSize: '0.75rem' }}
-                        onClick={() => handleAddKeyword(kw)}
-                        disabled={isAdded}
-                      >
-                        {isAdded ? <><Check size={12} /> Added</> : `+ ${kw}`}
-                      </button>
-                    );
-                  })}
+            {Array.isArray(atsData.missingKeywords) && atsData.missingKeywords.length > 0 && (() => {
+              const displayList = atsData.missingKeywords.filter(kw => !isKeywordInResume(kw, resume) || addedKeywords.includes(kw));
+              if (displayList.length === 0) return null;
+              return (
+                <div>
+                  <h4 className="ats-missing-heading" style={{ fontSize: '0.85rem', fontWeight: 700, marginBottom: '0.25rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                    <AlertTriangle size={15} /> Missing Keywords
+                  </h4>
+                  <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '0.5rem' }}>
+                    Add a missing keyword only if it accurately reflects your genuine experience or skills.
+                  </p>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.45rem' }}>
+                    {displayList.map((kw, i) => {
+                      const isAdded = addedKeywords.includes(kw) || isKeywordInResume(kw, resume);
+                      return (
+                        <button
+                          key={i}
+                          className={`btn btn-outline btn-sm ats-keyword-btn ${isAdded ? 'added' : ''}`}
+                          style={{ fontSize: '0.75rem' }}
+                          onClick={() => handleAddKeyword(kw)}
+                          disabled={isAdded}
+                        >
+                          {isAdded ? <><Check size={12} /> Added</> : `+ ${kw}`}
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
-              </div>
-            )}
+              );
+            })()}
 
             {/* Strengths */}
             {Array.isArray(atsData.strengths) && atsData.strengths.length > 0 && (
