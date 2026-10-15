@@ -21,7 +21,7 @@ function normalizeTerm(str) {
   return (str || '')
     .toLowerCase()
     .replace(/[/\\_-]+/g, ' ')
-    .replace(/[^\w\s]/g, '')
+    .replace(/[^a-zA-Z0-9\s+#]/g, '')
     .replace(/\s+/g, ' ')
     .trim();
 }
@@ -35,7 +35,7 @@ function keywordMatchesText(keyword, text) {
   if (kw.toLowerCase() === tx.toLowerCase()) return true;
 
   const escapedKw = escapeRegex(kw);
-  const wordBoundaryRx = new RegExp('(?:^|[^a-zA-Z0-9])' + escapedKw + '(?![a-zA-Z0-9])', 'i');
+  const wordBoundaryRx = new RegExp('(?:^|[^a-zA-Z0-9+#])' + escapedKw + '(?![a-zA-Z0-9+#])', 'i');
   if (wordBoundaryRx.test(tx)) {
     return true;
   }
@@ -134,6 +134,52 @@ export function isKeywordInResume(keyword, resume) {
   const allText = getAllResumeText(resume);
   return keywordMatchesText(kw, allText);
 }
+
+export function filterMissingKeywords(keywords, resume) {
+  if (!Array.isArray(keywords) || keywords.length === 0) return [];
+  const result = [];
+  const seen = new Set();
+
+  for (const rawKw of keywords) {
+    if (!rawKw || typeof rawKw !== 'string') continue;
+    const kw = rawKw.trim();
+    if (!kw) continue;
+
+    if (isKeywordInResume(kw, resume)) {
+      continue;
+    }
+
+    const parts = kw.split(/\s+(?:&|and|or|\/)\s+|(?<=[a-zA-Z]{3,})\/(?=[a-zA-Z]{3,})/i).map(p => p.trim()).filter(Boolean);
+    if (parts.length > 1) {
+      const satisfiedParts = parts.filter(p => isKeywordInResume(p, resume));
+      const missingParts = parts.filter(p => !isKeywordInResume(p, resume));
+
+      if (missingParts.length === 0) {
+        continue;
+      }
+
+      if (satisfiedParts.length > 0) {
+        for (const mp of missingParts) {
+          const lower = mp.toLowerCase();
+          if (!seen.has(lower)) {
+            seen.add(lower);
+            result.push(mp);
+          }
+        }
+        continue;
+      }
+    }
+
+    const lower = kw.toLowerCase();
+    if (!seen.has(lower)) {
+      seen.add(lower);
+      result.push(kw);
+    }
+  }
+
+  return result;
+}
+
 
 export default function ATSScoreModal({ isOpen, onClose, resume, setResume }) {
   const [loading, setLoading] = useState(false);
@@ -395,7 +441,7 @@ export default function ATSScoreModal({ isOpen, onClose, resume, setResume }) {
 
             {/* MISSING KEYWORD SUGGESTIONS (Safe 1-Click Inject) */}
             {Array.isArray(atsData.missingKeywords) && atsData.missingKeywords.length > 0 && (() => {
-              const displayList = atsData.missingKeywords.filter(kw => !isKeywordInResume(kw, resume) || addedKeywords.includes(kw));
+              const displayList = filterMissingKeywords(atsData.missingKeywords, resume).filter(kw => !isKeywordInResume(kw, resume) || addedKeywords.includes(kw));
               if (displayList.length === 0) return null;
               return (
                 <div>

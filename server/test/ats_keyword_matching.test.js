@@ -4,7 +4,8 @@ import {
   keywordMatchesText,
   isKeywordInResume,
   calculateAts,
-  normalizeTerm
+  normalizeTerm,
+  filterMissingKeywords
 } from '../controllers/aiController.js';
 
 // Helper to invoke calculateAts in test environment
@@ -204,3 +205,151 @@ test('ATS Test 9: Existing general ATS mode continues to work for standard role'
   assert.equal(data.dimensions.skillsAlignment, 70);
   assert.ok(Array.isArray(data.missingKeywords));
 });
+
+// 10. AI compound output Git / GitHub when candidate has Git -> only GitHub is missing
+test('ATS Test 10: Compound keyword Git / GitHub is decomposed so Git is omitted and GitHub is missing', () => {
+  const resume = {
+    target_role: 'Frontend Engineer',
+    skills: ['JavaScript', 'TypeScript', 'HTML5', 'CSS3', 'React', 'Git']
+  };
+  const rawMissing = ['Git / GitHub', 'CI/CD', 'Agile'];
+  const filtered = filterMissingKeywords(rawMissing, resume);
+
+  assert.ok(!filtered.includes('Git'), 'Git must not appear in missing keywords');
+  assert.ok(!filtered.some(kw => kw.toLowerCase() === 'git'), 'No standalone variation of Git in missing keywords');
+  assert.ok(filtered.includes('GitHub'), 'GitHub must be retained as genuinely missing');
+  assert.ok(filtered.includes('CI/CD'), 'CI/CD must be retained intact');
+  assert.ok(filtered.includes('Agile'), 'Agile must be retained intact');
+});
+
+// 11. AI compound conjunctions: Git & GitHub and Git and GitHub
+test('ATS Test 11: Compound conjunctions Git & GitHub and Git and GitHub credit Git and keep GitHub', () => {
+  const resume = {
+    target_role: 'Frontend Engineer',
+    skills: ['React', 'Git']
+  };
+
+  const ampFiltered = filterMissingKeywords(['Git & GitHub'], resume);
+  assert.deepEqual(ampFiltered, ['GitHub'], 'Git & GitHub should isolate GitHub when Git is present');
+
+  const andFiltered = filterMissingKeywords(['Git and GitHub'], resume);
+  assert.deepEqual(andFiltered, ['GitHub'], 'Git and GitHub should isolate GitHub when Git is present');
+
+  // Both present -> completely omitted
+  const resumeWithBoth = { skills: ['Git', 'GitHub'] };
+  assert.deepEqual(filterMissingKeywords(['Git / GitHub'], resumeWithBoth), [], 'Both present -> nothing missing');
+});
+
+// 12. Legitimate technical acronym CI/CD is never split into CI and CD
+test('ATS Test 12: CI/CD is never split into CI and CD', () => {
+  const resumeWithoutCiCd = {
+    skills: ['JavaScript', 'React', 'Git']
+  };
+  const filtered = filterMissingKeywords(['CI/CD'], resumeWithoutCiCd);
+  assert.deepEqual(filtered, ['CI/CD'], 'CI/CD must remain intact as CI/CD without splitting');
+  assert.ok(!filtered.includes('CI'), 'Must not create bogus CI token');
+  assert.ok(!filtered.includes('CD'), 'Must not create bogus CD token');
+
+  const resumeWithCiCd = {
+    skills: ['JavaScript', 'React', 'Git', 'CI/CD']
+  };
+  assert.deepEqual(filterMissingKeywords(['CI/CD'], resumeWithCiCd), [], 'Candidate with CI/CD has no missing keywords');
+});
+
+// 13. Legitimate symbols and multi-word technologies (C++, C#, Node.js, REST API, Automated Testing)
+test('ATS Test 13: C++, C#, Node.js, REST API, and Automated Testing are preserved intact', () => {
+  const resume = {
+    skills: ['C', 'JavaScript']
+  };
+
+  // C does not satisfy C++
+  assert.equal(keywordMatchesText('C++', 'C'), false, 'C must not satisfy C++');
+  assert.equal(isKeywordInResume('C++', resume), false, 'C in resume must not count as C++');
+
+  const rawKeywords = ['C++', 'C#', 'Node.js', 'REST API', 'Automated Testing'];
+  const filtered = filterMissingKeywords(rawKeywords, resume);
+
+  assert.ok(filtered.includes('C++'), 'C++ must remain intact');
+  assert.ok(filtered.includes('C#'), 'C# must remain intact');
+  assert.ok(filtered.includes('Node.js'), 'Node.js must remain intact with dot');
+  assert.ok(filtered.includes('REST API'), 'REST API must remain intact as multi-word');
+  assert.ok(filtered.includes('Automated Testing'), 'Automated Testing must remain intact as multi-word');
+});
+
+// 14. Dual Match in Rule-Based Mode: JD has both Git and GitHub, candidate has Git
+test('ATS Test 14: Rule-based ATS when JD requires both Git and GitHub and resume has Git -> GitHub missing, Git omitted', async () => {
+  const resume = {
+    target_role: 'Frontend Engineer',
+    skills: ['JavaScript', 'TypeScript', 'HTML5', 'CSS3', 'React', 'Git'],
+    summary: 'Experienced developer.'
+  };
+  const jobDescription = 'Looking for a Frontend Engineer with Git and GitHub repository experience, CI/CD, and Agile.';
+
+  const { data } = await callCalculateAts({
+    targetRole: 'Frontend Engineer',
+    resume,
+    jobDescription
+  });
+
+  assert.equal(data.success, true);
+  assert.ok(!data.missingKeywords.includes('Git'), 'Git must NOT appear in missingKeywords');
+  assert.ok(!data.missingKeywords.some(kw => kw.toLowerCase() === 'git'), 'No variation of Git may appear');
+  assert.ok(data.missingKeywords.includes('GitHub'), 'GitHub must appear as missing in rule-based mode');
+  assert.ok(data.missingKeywords.includes('CI/CD'), 'CI/CD must appear as missing');
+  assert.ok(data.missingKeywords.includes('Agile'), 'Agile must appear as missing');
+});
+
+// 15. Inverse Dual Match: Candidate has GitHub, JD requires Git and GitHub -> Git is missing, GitHub omitted
+test('ATS Test 15: Candidate has GitHub, JD requires Git and GitHub -> Git is missing, GitHub omitted', async () => {
+  const resume = {
+    target_role: 'Frontend Engineer',
+    skills: ['JavaScript', 'React', 'GitHub'],
+    summary: 'Experienced developer with active GitHub profile.'
+  };
+  const jobDescription = 'Looking for a Frontend Engineer with Git CLI and GitHub workflow experience.';
+
+  const { data } = await callCalculateAts({
+    targetRole: 'Frontend Engineer',
+    resume,
+    jobDescription
+  });
+
+  assert.equal(data.success, true);
+  assert.ok(!data.missingKeywords.includes('GitHub'), 'GitHub must NOT appear as missing');
+  assert.ok(data.missingKeywords.some(kw => kw.toLowerCase() === 'git'), 'Git must appear as missing');
+});
+
+// 16. Full pipeline test with Alex Morgan parsed resume
+test('ATS Test 16: Alex Morgan resume with Git under JD with Git and GitHub', async () => {
+  const alexResume = {
+    personal_info: { fullName: 'Alex Morgan' },
+    target_role: 'Frontend Engineer',
+    skills: ['JavaScript', 'TypeScript', 'HTMLS', 'CSS3', 'React', 'Git'],
+    summary: 'Frontend Engineer with experience building responsive web applications using React and modern CSS.',
+    experience: [{ role: 'Frontend Developer', company: 'Digital Solutions LLC', description: 'Developed React web apps.' }],
+    projects: [{ name: 'Portfolio Platform', description: 'Personal web platform. Tech Stack: React, Tailwind CSS' }],
+    education: [{ degree: 'B.S. in Computer Science', institution: 'State University' }]
+  };
+
+  const jobDescription = 'Seeking a Frontend Engineer experienced in Git, GitHub, Agile methodology, automated testing, and CI/CD workflows.';
+
+  const { data } = await callCalculateAts({
+    targetRole: 'Frontend Engineer',
+    resume: alexResume,
+    jobDescription
+  });
+
+  assert.equal(data.success, true);
+  assert.equal(typeof data.score, 'number');
+  assert.ok(data.score > 0);
+  assert.ok(data.dimensions && typeof data.dimensions.skillsAlignment === 'number');
+
+  // Exact missing keywords validation
+  assert.ok(!data.missingKeywords.includes('Git'), 'Git must NOT appear under missingKeywords');
+  assert.ok(!data.missingKeywords.some(kw => kw.toLowerCase() === 'git'), 'No variation of Git under missingKeywords');
+  assert.ok(data.missingKeywords.includes('GitHub'), 'GitHub MUST appear under missingKeywords');
+  assert.ok(data.missingKeywords.some(kw => /ci\/cd/i.test(kw)), 'CI/CD must appear under missingKeywords');
+  assert.ok(data.missingKeywords.some(kw => /agile/i.test(kw)), 'Agile must appear under missingKeywords');
+  assert.ok(data.missingKeywords.some(kw => /automated\s+testing/i.test(kw)), 'Automated Testing must appear under missingKeywords');
+});
+

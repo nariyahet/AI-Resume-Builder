@@ -215,7 +215,7 @@ export function normalizeTerm(str) {
   return (str || '')
     .toLowerCase()
     .replace(/[/\\_-]+/g, ' ')
-    .replace(/[^\w\s]/g, '')
+    .replace(/[^a-zA-Z0-9\s+#]/g, '')
     .replace(/\s+/g, ' ')
     .trim();
 }
@@ -224,6 +224,7 @@ export function normalizeTerm(str) {
  * Checks if a specific keyword matches text using proper token boundaries and punctuation normalization.
  * - Case-insensitive.
  * - Uses token boundaries so 'Git' will NOT match 'Digital' or 'GitHub'.
+ * - Preserves symbols so 'C++' and 'C#' are not confused with 'C'.
  * - Normalizes punctuation so 'CI/CD' matches 'CI CD' or 'CI-CD'.
  */
 export function keywordMatchesText(keyword, text) {
@@ -237,7 +238,7 @@ export function keywordMatchesText(keyword, text) {
 
   // 1. Direct case-insensitive token boundary match (e.g. \bGit\b in 'React, Git, Node')
   const escapedKw = escapeRegex(kw);
-  const wordBoundaryRx = new RegExp('(?:^|[^a-zA-Z0-9])' + escapedKw + '(?![a-zA-Z0-9])', 'i');
+  const wordBoundaryRx = new RegExp('(?:^|[^a-zA-Z0-9+#])' + escapedKw + '(?![a-zA-Z0-9+#])', 'i');
   if (wordBoundaryRx.test(tx)) {
     return true;
   }
@@ -354,6 +355,66 @@ export function isKeywordInResume(keyword, resume) {
   return keywordMatchesText(kw, allText);
 }
 
+/**
+ * Filters and sanitizes candidate missing keywords against candidate resume.
+ * - Discards any keyword genuinely present in the resume.
+ * - Safely handles compound conjunctions ('Git / GitHub', 'Git & GitHub', 'Git and GitHub')
+ *   without splitting legitimate technical acronyms like 'CI/CD', 'TCP/IP' or multi-word
+ *   terms like 'REST API' and 'Automated Testing'.
+ */
+export function filterMissingKeywords(keywords, resume) {
+  if (!Array.isArray(keywords) || keywords.length === 0) return [];
+  const result = [];
+  const seen = new Set();
+
+  for (const rawKw of keywords) {
+    if (!rawKw || typeof rawKw !== 'string') continue;
+    const kw = rawKw.trim();
+    if (!kw) continue;
+
+    // Direct check: if resume already has the whole keyword, discard it
+    if (isKeywordInResume(kw, resume)) {
+      continue;
+    }
+
+    // Check if it's a compound phrase with conjunctions or slash between words >= 3 chars
+    // Protects CI/CD (2 chars on each side) and intact multi-word terms without conjunctions
+    const parts = kw.split(/\s+(?:&|and|or|\/)\s+|(?<=[a-zA-Z]{3,})\/(?=[a-zA-Z]{3,})/i).map(p => p.trim()).filter(Boolean);
+    if (parts.length > 1) {
+      const satisfiedParts = parts.filter(p => isKeywordInResume(p, resume));
+      const missingParts = parts.filter(p => !isKeywordInResume(p, resume));
+
+      // If all parts are satisfied, skip entirely
+      if (missingParts.length === 0) {
+        continue;
+      }
+
+      // If some parts are satisfied (e.g. candidate has 'Git' in 'Git / GitHub'),
+      // emit only the genuinely missing parts ('GitHub')
+      if (satisfiedParts.length > 0) {
+        for (const mp of missingParts) {
+          const lower = mp.toLowerCase();
+          if (!seen.has(lower)) {
+            seen.add(lower);
+            result.push(mp);
+          }
+        }
+        continue;
+      }
+    }
+
+    // Candidate has none of the parts (or it's an intact term like 'CI/CD')
+    const lower = kw.toLowerCase();
+    if (!seen.has(lower)) {
+      seen.add(lower);
+      result.push(kw);
+    }
+  }
+
+  return result;
+}
+
+
 // 3. AI ATS Score & Optimization Calculator (Supports General Mode & Job-Specific Mode)
 export async function calculateAts(req, res) {
   try {
@@ -457,7 +518,7 @@ Return ONLY a strict JSON object with this exact structure:
         keywordAlignment = Math.min(95, Math.max(25, Math.round((matched.length / Math.max(1, skillsCount)) * 100)));
 
         const techPool = [
-          'Git', 'CI/CD', 'Agile', 'Docker', 'Kubernetes', 'REST APIs', 'GraphQL',
+          'Git', 'GitHub', 'CI/CD', 'Agile', 'Docker', 'Kubernetes', 'REST APIs', 'GraphQL',
           'Automated Testing', 'Unit Testing', 'TypeScript', 'JavaScript', 'React',
           'Node.js', 'SQL', 'Cloud', 'AWS', 'Microservices', 'Tailwind CSS',
           'Responsive Design', 'Performance Optimization', 'Security'
@@ -491,11 +552,11 @@ Return ONLY a strict JSON object with this exact structure:
           }
         }
 
-        missingKeys = dedupedCandidates.filter(t => !isKeywordInResume(t, resume)).slice(0, 4);
+        missingKeys = filterMissingKeywords(dedupedCandidates, resume).slice(0, 4);
       } else {
         keywordAlignment = Math.min(85, Math.max(35, skillsCount * 8));
         const generalSuggestions = ['CI/CD Workflow', 'Agile Methodology', 'Automated Testing', 'Performance Optimization'];
-        missingKeys = generalSuggestions.filter(t => !isKeywordInResume(t, resume)).slice(0, 4);
+        missingKeys = filterMissingKeywords(generalSuggestions, resume).slice(0, 4);
       }
 
       const score = Math.round((skillsAlignment + keywordAlignment + experienceRelevance + resumeReadability) / 4);
@@ -526,7 +587,7 @@ Return ONLY a strict JSON object with this exact structure:
 
     // Crucial: Filter out any missing keywords that are genuinely present in candidate resume
     if (result && Array.isArray(result.missingKeywords)) {
-      result.missingKeywords = result.missingKeywords.filter(kw => !isKeywordInResume(kw, resume));
+      result.missingKeywords = filterMissingKeywords(result.missingKeywords, resume);
     }
 
     if (isAi && userId) {
@@ -737,8 +798,8 @@ Return ONLY a strict JSON object with this exact structure:
       const candidateSkills = (resume?.skills || []).map(s => String(s).trim());
       const matched = candidateSkills.filter(s => s && keywordMatchesText(s, jobDescription));
 
-      const commonTech = ['Git', 'REST APIs', 'Docker', 'Agile', 'CI/CD', 'Testing', 'Cloud', 'SQL', 'TypeScript'];
-      const missing = commonTech.filter(t => keywordMatchesText(t, jobDescription) && !isKeywordInResume(t, resume)).slice(0, 5);
+      const commonTech = ['Git', 'GitHub', 'REST APIs', 'Docker', 'Agile', 'CI/CD', 'Testing', 'Cloud', 'SQL', 'TypeScript'];
+      const missing = filterMissingKeywords(commonTech.filter(t => keywordMatchesText(t, jobDescription)), resume).slice(0, 5);
 
       const ratio = candidateSkills.length > 0 ? (matched.length / candidateSkills.length) : 0;
       const score = Math.min(95, Math.max(20, Math.round(ratio * 70 + (matched.length > 0 ? 25 : 10))));
@@ -758,7 +819,7 @@ Return ONLY a strict JSON object with this exact structure:
 
     // Crucial: Filter out any missing keywords that are genuinely present in candidate resume
     if (result && Array.isArray(result.missingKeywords)) {
-      result.missingKeywords = result.missingKeywords.filter(kw => !isKeywordInResume(kw, resume));
+      result.missingKeywords = filterMissingKeywords(result.missingKeywords, resume);
     }
 
     if (isAi && userId) {
