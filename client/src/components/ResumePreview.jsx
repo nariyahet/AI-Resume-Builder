@@ -97,11 +97,28 @@ export default function ResumePreview({ resume, setResume, onOpenShare, readOnly
 
   const parseProjectEntry = (proj) => {
     if (!proj) return { title: '', subtitle: '', body: '', techStack: null, date: '' };
-    const name = proj.name || 'Project';
+    let rawName = (proj.name || 'Project').trim();
     let subtitle = proj.role || proj.subtitle || '';
     let body = proj.description || '';
     let techStack = formatTechStack(proj);
     let date = proj.date || (proj.startDate && proj.endDate ? `${proj.startDate} – ${proj.endDate}` : (proj.startDate || proj.endDate || proj.year || ''));
+
+    // If date is embedded in title (e.g. "TaskFlow | Mar 2024 - Jun 2024")
+    if (rawName.includes('|')) {
+      const parts = rawName.split('|').map(s => s.trim());
+      const dt = parts.find(p => /\b(?:19|20)\d{2}\b/i.test(p) || /(?:present|current)\b/i.test(p));
+      if (dt && !date) date = dt;
+      rawName = parts.find(p => p !== dt) || parts[0];
+    }
+
+    // Split title and subtitle if dash/em-dash present
+    if (!subtitle && (rawName.includes('—') || rawName.includes('–') || rawName.includes(' - ') || /[\u2013\u2014]/.test(rawName))) {
+      const parts = rawName.split(/(?:\s+[-–—]\s+|\s*[\u2013\u2014]\s*)/).map(s => s.trim()).filter(Boolean);
+      if (parts.length >= 2) {
+        rawName = parts[0];
+        subtitle = parts.slice(1).join(' — ');
+      }
+    }
 
     // If subtitle is not set, extract leading tagline/role from description before action verb
     if (!subtitle && body) {
@@ -121,25 +138,40 @@ export default function ResumePreview({ resume, setResume, onOpenShare, readOnly
       }
     }
 
-    // Default dates and tech stack for test pack / reference projects if not provided
-    const nameLower = name.toLowerCase();
-    if (nameLower.includes('taskflow')) {
-      if (!techStack) techStack = 'React, Node.js, Express, MySQL, Tailwind CSS';
-      if (!date) date = 'Mar 2024 – Jun 2024';
-    } else if (nameLower.includes('invoicehub')) {
-      if (!techStack) techStack = 'React, Node.js, Express, MySQL, Chart.js';
-      if (!date) date = 'Sep 2023 – Jan 2024';
-    } else if (nameLower.includes('api monitor')) {
-      if (!techStack) techStack = 'React, Node.js, Express, MongoDB, Chart.js';
-      if (!date) date = 'Apr 2023 – Aug 2023';
-    }
-
-    return { title: name, subtitle, body, techStack, date, link: proj.link };
+    return { title: rawName, subtitle, body, techStack, date, link: proj.link };
   };
 
-  const formatProjectDesc = (desc) => {
-    if (!desc || typeof desc !== 'string') return '';
-    return desc;
+  const renderFormattedBullets = (desc) => {
+    if (!desc || typeof desc !== 'string') return null;
+    const lines = desc.split('\n').map(l => l.trim()).filter(Boolean);
+    if (lines.length === 0) return null;
+
+    const hasBullets = lines.some(l => /^[-•*«»›➢▪▫●✦<>\u2022\u2023\u25E6\u2043\u2219]+/.test(l));
+
+    if (hasBullets || lines.length > 1) {
+      return (
+        <div style={{ marginTop: '0.22rem', display: 'flex', flexDirection: 'column', gap: '3px' }}>
+          {lines.map((line, idx) => {
+            const cleanText = line.replace(/^[-•*«»›➢▪▫●✦<>\s\u2022\u2023\u25E6\u2043\u2219]+/, '').trim();
+            if (!cleanText) return null;
+            return (
+              <div key={idx} style={{ display: 'flex', alignItems: 'baseline', gap: '6px' }}>
+                <span style={{ color: '#2563eb', fontSize: '0.82rem', lineHeight: '1', userSelect: 'none', flexShrink: 0 }}>•</span>
+                <span style={{ fontSize: '0.8rem', color: '#334155', lineHeight: 1.48, flex: 1, textAlign: 'left' }}>
+                  {cleanText}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+      );
+    }
+
+    return (
+      <div className="resume-item-desc">
+        {desc}
+      </div>
+    );
   };
 
   const getFlatSkillsList = (skillsInput, resumeInput) => {
@@ -266,14 +298,7 @@ export default function ResumePreview({ resume, setResume, onOpenShare, readOnly
 
   const formatCoursework = (edu) => {
     const raw = edu?.coursework || edu?.relevant_coursework || edu?.courses;
-    if (!raw) {
-      const instLower = (edu?.institution || '').toLowerCase();
-      const degLower = (edu?.degree || '').toLowerCase();
-      if (instLower.includes('metro') || degLower.includes('computer science')) {
-        return 'Relevant Coursework: Data Structures, Algorithms, Database Systems, Web Development';
-      }
-      return null;
-    }
+    if (!raw) return null;
     let text = '';
     if (Array.isArray(raw)) {
       const filtered = raw.filter(Boolean).map(String);
@@ -851,49 +876,41 @@ export default function ResumePreview({ resume, setResume, onOpenShare, readOnly
                     <h2 className="resume-section-title">
                       {template_id === 'harvard' ? 'PROFESSIONAL EXPERIENCE' : 'Work Experience'}
                     </h2>
-                    <div key={experience[0].id || 0} className="resume-item job-item">
+                    <div key={experience[0].id || 0} className="resume-item job-item" style={{ marginBottom: '16px' }}>
                       <div className="resume-item-top">
                         <div>
-                          <span className="resume-item-title">{experience[0].role || 'Role'}</span>
+                          <span className="resume-item-title" style={{ fontWeight: 700, color: '#0f172a' }}>{experience[0].role || 'Role'}</span>
                           {experience[0].company && (
-                            <span className="resume-item-company"> — {experience[0].company}</span>
+                            <span className="resume-item-company" style={{ fontWeight: 500, color: '#0f172a' }}> — {experience[0].company}</span>
                           )}
                           {experience[0].location && (
                             <span style={{ fontSize: '0.775rem', color: '#64748b' }}> ({experience[0].location})</span>
                           )}
                         </div>
-                        <span className="resume-item-date">
-                          {experience[0].startDate && experience[0].endDate ? `${experience[0].startDate} - ${experience[0].endDate}` : (experience[0].startDate || experience[0].endDate || '')}
+                        <span className="resume-item-date" style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: 500 }}>
+                          {experience[0].startDate && experience[0].endDate ? `${experience[0].startDate} – ${experience[0].endDate}` : (experience[0].startDate || experience[0].endDate || experience[0].year || '')}
                         </span>
                       </div>
-                      {experience[0].description && (
-                        <div className="resume-item-desc">
-                          {experience[0].description}
-                        </div>
-                      )}
+                      {experience[0].description && renderFormattedBullets(experience[0].description)}
                     </div>
                   </div>
                   {experience.slice(1).map((exp, i) => (
-                    <div key={exp.id || (i + 1)} className="resume-item job-item">
+                    <div key={exp.id || (i + 1)} className="resume-item job-item" style={{ marginBottom: '16px' }}>
                       <div className="resume-item-top">
                         <div>
-                          <span className="resume-item-title">{exp.role || 'Role'}</span>
+                          <span className="resume-item-title" style={{ fontWeight: 700, color: '#0f172a' }}>{exp.role || 'Role'}</span>
                           {exp.company && (
-                            <span className="resume-item-company"> — {exp.company}</span>
+                            <span className="resume-item-company" style={{ fontWeight: 500, color: '#0f172a' }}> — {exp.company}</span>
                           )}
                           {exp.location && (
                             <span style={{ fontSize: '0.775rem', color: '#64748b' }}> ({exp.location})</span>
                           )}
                         </div>
-                        <span className="resume-item-date">
-                          {exp.startDate && exp.endDate ? `${exp.startDate} - ${exp.endDate}` : (exp.startDate || exp.endDate || '')}
+                        <span className="resume-item-date" style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: 500 }}>
+                          {exp.startDate && exp.endDate ? `${exp.startDate} – ${exp.endDate}` : (exp.startDate || exp.endDate || exp.year || '')}
                         </span>
                       </div>
-                      {exp.description && (
-                        <div className="resume-item-desc">
-                          {exp.description}
-                        </div>
-                      )}
+                      {exp.description && renderFormattedBullets(exp.description)}
                     </div>
                   ))}
                 </section>
@@ -934,8 +951,8 @@ export default function ResumePreview({ resume, setResume, onOpenShare, readOnly
                           return (
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.55rem', marginTop: '0.45rem' }}>
                               {Object.entries(catData).map(([catName, catSkills]) => (
-                                <div key={catName} style={{ display: 'grid', gridTemplateColumns: '125px 1fr', alignItems: 'center', gap: '0.5rem' }}>
-                                  <span style={{ fontSize: '0.8rem', fontWeight: 700, color: '#0f172a' }}>{catName}</span>
+                                <div key={catName} style={{ display: 'grid', gridTemplateColumns: '125px 1fr', alignItems: 'flex-start', gap: '0.5rem' }}>
+                                  <span style={{ fontSize: '0.8rem', fontWeight: 700, color: '#0f172a', paddingTop: '2px' }}>{catName}</span>
                                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.35rem' }}>
                                     {catSkills.map((s, si) => (
                                       <span key={si} className="resume-skill-badge">{s}</span>
@@ -972,14 +989,14 @@ export default function ResumePreview({ resume, setResume, onOpenShare, readOnly
                     {(() => {
                       const p0 = parseProjectEntry(projects[0]);
                       return (
-                        <div key={projects[0].id || 0} className="resume-item project-item">
+                        <div key={projects[0].id || 0} className="resume-item project-item" style={{ marginBottom: '26px' }}>
                           <div className="resume-item-top" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', pageBreakAfter: 'avoid', breakAfter: 'avoid' }}>
                             <div>
                               <span className="resume-item-title" style={{ color: theme_color, fontWeight: 700 }}>
                                 {p0.title}
                               </span>
                               {p0.subtitle && (
-                                <span style={{ color: '#0f172a', fontWeight: 600 }}> — {p0.subtitle}</span>
+                                <span style={{ color: '#0f172a', fontWeight: 700 }}> — {p0.subtitle}</span>
                               )}
                               {p0.link && (
                                 <span style={{ fontSize: '0.75rem', color: '#64748b', marginLeft: '6px' }}>
@@ -994,12 +1011,12 @@ export default function ResumePreview({ resume, setResume, onOpenShare, readOnly
                             )}
                           </div>
                           {p0.body && (
-                            <div className="resume-item-desc" style={{ pageBreakBefore: 'avoid', breakBefore: 'avoid' }}>
+                            <div className="resume-item-desc" style={{ pageBreakBefore: 'avoid', breakBefore: 'avoid', textAlign: 'left' }}>
                               {p0.body}
                             </div>
                           )}
                           {p0.techStack && (
-                            <div style={{ fontSize: '0.75rem', color: '#475569', marginTop: '4px' }}>
+                            <div style={{ fontSize: '0.75rem', color: '#475569', marginTop: '5px' }}>
                               <strong style={{ color: '#0f172a' }}>Tech Stack:</strong> {p0.techStack}
                             </div>
                           )}
@@ -1010,14 +1027,14 @@ export default function ResumePreview({ resume, setResume, onOpenShare, readOnly
                   {projects.slice(1).map((proj, i) => {
                     const p = parseProjectEntry(proj);
                     return (
-                      <div key={proj.id || (i + 1)} className="resume-item project-item">
+                      <div key={proj.id || (i + 1)} className="resume-item project-item" style={{ marginBottom: '26px' }}>
                         <div className="resume-item-top" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', pageBreakAfter: 'avoid', breakAfter: 'avoid' }}>
                           <div>
                             <span className="resume-item-title" style={{ color: theme_color, fontWeight: 700 }}>
                               {p.title}
                             </span>
                             {p.subtitle && (
-                              <span style={{ color: '#0f172a', fontWeight: 600 }}> — {p.subtitle}</span>
+                              <span style={{ color: '#0f172a', fontWeight: 700 }}> — {p.subtitle}</span>
                             )}
                             {p.link && (
                               <span style={{ fontSize: '0.75rem', color: '#64748b', marginLeft: '6px' }}>
@@ -1032,12 +1049,12 @@ export default function ResumePreview({ resume, setResume, onOpenShare, readOnly
                           )}
                         </div>
                         {p.body && (
-                          <div className="resume-item-desc" style={{ pageBreakBefore: 'avoid', breakBefore: 'avoid' }}>
+                          <div className="resume-item-desc" style={{ pageBreakBefore: 'avoid', breakBefore: 'avoid', textAlign: 'left' }}>
                             {p.body}
                           </div>
                         )}
                         {p.techStack && (
-                          <div style={{ fontSize: '0.75rem', color: '#475569', marginTop: '4px' }}>
+                          <div style={{ fontSize: '0.75rem', color: '#475569', marginTop: '5px' }}>
                             <strong style={{ color: '#0f172a' }}>Tech Stack:</strong> {p.techStack}
                           </div>
                         )}
@@ -1059,7 +1076,7 @@ export default function ResumePreview({ resume, setResume, onOpenShare, readOnly
                         <div>
                           <span className="resume-item-title" style={{ fontWeight: 700, color: '#0f172a' }}>{education[0].degree || 'Degree'}</span>
                           {education[0].institution && (
-                            <span className="resume-item-company" style={{ fontWeight: 600, color: '#0f172a' }}> — {education[0].institution}</span>
+                            <span className="resume-item-company" style={{ fontWeight: 700, color: '#0f172a' }}> — {education[0].institution}</span>
                           )}
                         </div>
                         <span className="resume-item-date" style={{ color: '#64748b', fontSize: '0.75rem' }}>
@@ -1067,7 +1084,7 @@ export default function ResumePreview({ resume, setResume, onOpenShare, readOnly
                         </span>
                       </div>
                       {formatCoursework(education[0]) && (
-                        <div style={{ fontSize: '0.75rem', color: '#475569', marginTop: '4px' }}>
+                        <div style={{ fontSize: '0.775rem', color: '#475569', marginTop: '5px' }}>
                           {formatCoursework(education[0])}
                         </div>
                       )}
@@ -1079,7 +1096,7 @@ export default function ResumePreview({ resume, setResume, onOpenShare, readOnly
                         <div>
                           <span className="resume-item-title" style={{ fontWeight: 700, color: '#0f172a' }}>{edu.degree || 'Degree'}</span>
                           {edu.institution && (
-                            <span className="resume-item-company" style={{ fontWeight: 600, color: '#0f172a' }}> — {edu.institution}</span>
+                            <span className="resume-item-company" style={{ fontWeight: 700, color: '#0f172a' }}> — {edu.institution}</span>
                           )}
                         </div>
                         <span className="resume-item-date" style={{ color: '#64748b', fontSize: '0.75rem' }}>
@@ -1087,7 +1104,7 @@ export default function ResumePreview({ resume, setResume, onOpenShare, readOnly
                         </span>
                       </div>
                       {formatCoursework(edu) && (
-                        <div style={{ fontSize: '0.75rem', color: '#475569', marginTop: '4px' }}>
+                        <div style={{ fontSize: '0.775rem', color: '#475569', marginTop: '5px' }}>
                           {formatCoursework(edu)}
                         </div>
                       )}

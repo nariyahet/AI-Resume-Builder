@@ -39,7 +39,7 @@ export async function exportResumeToPdf(resume, elementId = 'resume-print-area',
   clone.style.margin = '0';
   const isCompact = clone.classList.contains('density-compact') || sourceEl.classList.contains('density-compact');
   const isRelaxed = clone.classList.contains('density-relaxed') || sourceEl.classList.contains('density-relaxed');
-  clone.style.padding = isCompact ? '8mm 13mm 6mm 13mm' : (isRelaxed ? '14mm 16mm 15mm 16mm' : '12mm 15mm 14mm 15mm');
+  clone.style.padding = isCompact ? '8mm 13mm 6mm 13mm' : (isRelaxed ? '14mm 16mm 15mm 16mm' : '14mm 15.5mm 12mm 15.5mm');
   clone.style.boxSizing = 'border-box';
   clone.style.background = '#ffffff';
   // Remove outer shadows and borders that cause html2canvas canvas overflow onto extra page
@@ -56,6 +56,11 @@ export async function exportResumeToPdf(resume, elementId = 'resume-print-area',
 
     // Strip preview guide lines before capturing PDF
     clone.querySelectorAll('.preview-page-break-indicator').forEach(el => el.remove());
+
+    // Guarantee custom fonts are fully loaded before capturing
+    if (typeof document !== 'undefined' && document.fonts) {
+      await document.fonts.ready;
+    }
 
     // Ensure all images (profile photo, logos) are loaded before capturing
     const images = Array.from(clone.querySelectorAll('img'));
@@ -169,8 +174,8 @@ export async function exportResumeToPdf(resume, elementId = 'resume-print-area',
         breakSection.style.pageBreakBefore = 'always';
         breakSection.style.breakBefore = 'page';
       }
-    } else if (totalHeight > pageHeight * 2.1 && totalHeight <= pageHeight * 3.2) {
-      // 3-page resume: Page 1 (Header, Summary, Experience), Page 2 (Skills, Projects), Page 3 (Education, etc.)
+    } else if (totalHeight > pageHeight * 2.1) {
+      // 3+ page resume: Page 1 (Header, Summary, Experience), Page 2 (Skills, Projects), Page 3+ (Education, etc.)
       const sections = Array.from(clone.querySelectorAll('.resume-section'));
       const skillsSec = sections.find(s => {
         const titleText = (s.querySelector('.resume-section-title')?.textContent || '').toLowerCase();
@@ -257,19 +262,15 @@ export async function exportResumeToPdf(resume, elementId = 'resume-print-area',
       pdf.setPage(i);
       pdf.setFontSize(8.5);
       pdf.setFont('helvetica', 'normal');
-      pdf.setTextColor(120, 120, 120);
+      pdf.setTextColor(100, 116, 139);
 
       const pageWidth = pdf.internal.pageSize.getWidth();
       const pHeight = pdf.internal.pageSize.getHeight();
-      const bottomY = pHeight - 8; // 8mm from bottom edge
-
-      // Subtle divider line
-      pdf.setDrawColor(226, 232, 240);
-      pdf.setLineWidth(0.2);
-      pdf.line(14, bottomY - 3, pageWidth - 14, bottomY - 3);
-
-      pdf.text(leftText, 14, bottomY);
-      pdf.text(`Page ${i} of ${totalPages}`, pageWidth - 14, bottomY, { align: 'right' });
+      const marginX = 15.5;
+      const bottomY = pHeight - 8.5; // ~0.335 inches from bottom edge
+      // Footer text matching reference placement without line
+      pdf.text(leftText, marginX, bottomY);
+      pdf.text(`Page ${i} of ${totalPages}`, pageWidth - marginX, bottomY, { align: 'right' });
     }
 
     await pdf.save(filename);

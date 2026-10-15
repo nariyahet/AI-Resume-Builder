@@ -1109,6 +1109,11 @@ function sanitizeTargetRole(val) {
   if (/\b(?:resume\s*studio|pdf\s*export|test\s*pack|export\s*test|test\s*checklist|consolidated|sample\s*resume)\b/i.test(cleaned)) {
     return '';
   }
+  if (cleaned.includes('|')) {
+    const parts = cleaned.split('|').map(s => s.trim()).filter(Boolean);
+    const rolePart = parts.find(p => /(?:developer|engineer|manager|lead|analyst|designer|consultant|specialist|architect|intern|director|officer|executive|administrator)/i.test(p)) || parts[parts.length - 1];
+    cleaned = rolePart || cleaned;
+  }
   return cleaned;
 }
 
@@ -1144,10 +1149,11 @@ export function splitSkillsString(line) {
   text = text.replace(/[:.]+$/, '').replace(/\bCl\/CD\b/gi, 'CI/CD').trim();
 
   const compounds = [
+    'Tailwind CSS', 'Tailwind',
     'REST APIs', 'REST API', 'RESTful APIs', 'RESTful API',
     'Unit Testing', 'Integration Testing', 'End-to-End Testing', 'E2E Testing',
     'Responsive Design', 'Performance Optimization',
-    'Data Modeling', 'SQL Optimization',
+    'Database Design', 'Data Modeling', 'SQL Optimization',
     'Machine Learning', 'Deep Learning', 'Artificial Intelligence',
     'Google Cloud', 'Amazon Web Services', 'Spring Boot', 'React Native',
     'Next.js', 'Vue.js', 'Node.js', 'Express.js',
@@ -1403,7 +1409,8 @@ export function sanitizeParsedResume(parsed) {
         institution,
         degree,
         year,
-        score: stripLabel(ed.score, /^(?:score|gpa|grade|marks?)\s*:\s*/i)
+        score: stripLabel(ed.score, /^(?:score|gpa|grade|marks?)\s*:\s*/i),
+        coursework: ed.coursework ? stripLabel(ed.coursework, /^(?:coursework|relevant\s+coursework)\s*:\s*/i) : undefined
       };
     })
     .filter(ed => {
@@ -1423,8 +1430,11 @@ export function sanitizeParsedResume(parsed) {
     projects = parsed.projects.map((pr, idx) => ({
       id: pr.id || `proj-${Date.now()}-${idx + 1}`,
       name: stripLabel(pr.name, /^(?:project\s*name|project|title)\s*:\s*/i),
+      role: pr.role || undefined,
+      date: pr.date || undefined,
       description: cleanBulletText(pr.description),
-      link: stripLabel(pr.link, /^(?:link|url|github)\s*:\s*/i)
+      link: stripLabel(pr.link, /^(?:link|url|github)\s*:\s*/i),
+      tech_stack: pr.tech_stack || undefined
     })).filter(pr => pr.name);
   }
 
@@ -1440,6 +1450,7 @@ export function sanitizeParsedResume(parsed) {
     personal_info: cleanedPersonalInfo,
     summary,
     skills,
+    skills_categorized: parsed.skills_categorized || undefined,
     experience,
     education,
     projects
@@ -1546,6 +1557,21 @@ export function parseResumeRuleBased(resumeText, options = {}) {
     return false;
   };
 
+  // Pre-scan candidate name to filter running headers/footers on subsequent pages
+  let preCandidateName = '';
+  for (let i = 0; i < Math.min(6, lines.length); i++) {
+    const l = lines[i];
+    if (/^(?:name|full\s*name|candidate\s*name)\s*:\s*/i.test(l)) {
+      preCandidateName = stripLabel(l, /^(?:name|full\s*name|candidate\s*name)\s*:\s*/i);
+      break;
+    }
+    const cleanCand = l.split(/\s+[-–—|]\s+/)[0].trim();
+    if (isValidCandidateName(cleanCand)) {
+      preCandidateName = cleanCand;
+      break;
+    }
+  }
+
   let currentSection = 'header';
   for (const line of lines) {
     // Skip page numbers, test pack artifacts, and break dividers
@@ -1553,9 +1579,14 @@ export function parseResumeRuleBased(resumeText, options = {}) {
       continue;
     }
 
-    // Skip running contact headers repeated on pages 2+ in multi-page resumes
-    if (currentSection !== 'header' && (emailRegex.test(line) && (phoneRegex.test(line) || line.includes('|')))) {
-      continue;
+    // Skip running headers or footers repeated on pages 2+ in multi-page resumes
+    if (currentSection !== 'header') {
+      if (emailRegex.test(line) && (phoneRegex.test(line) || line.includes('|'))) {
+        continue;
+      }
+      if (preCandidateName && (line.toLowerCase() === preCandidateName.toLowerCase() || line.toLowerCase().startsWith(preCandidateName.toLowerCase() + ' |') || line.toLowerCase().startsWith(preCandidateName.toLowerCase() + ' —') || line.toLowerCase().startsWith(preCandidateName.toLowerCase() + ' -'))) {
+        continue;
+      }
     }
 
     const detected = getSectionMatch(line);
@@ -1704,6 +1735,9 @@ export function parseResumeRuleBased(resumeText, options = {}) {
         for (const p of parts) {
           const isUrlOrDomain = websiteRegex.test(p) || /^[a-zA-Z0-9][-a-zA-Z0-9]*\.[a-zA-Z]{2,}/i.test(p) || p.startsWith('http') || p.startsWith('www.');
           if (!emailRegex.test(p) && !phoneRegex.test(p) && !linkedinRegex.test(p) && !githubRegex.test(p) && !isUrlOrDomain && p.length > 2 && p.length < 50) {
+            if (extractedName && (p.toLowerCase() === extractedName.toLowerCase() || p.toLowerCase().includes(extractedName.toLowerCase()))) {
+              continue;
+            }
             if (!roleKeywordRegex.test(p) && !/^(?:summary|profile|about)/i.test(p)) {
               extractedLocation = stripLabel(p, /^(?:location|address):/i);
               break;
@@ -1723,12 +1757,32 @@ export function parseResumeRuleBased(resumeText, options = {}) {
 
   // 5. Skills Parsing
   const skills = [];
+  const skills_categorized = {};
   if (sections.skills.length > 0) {
     for (const line of sections.skills) {
-      const lineSkills = splitSkillsString(line);
+      const catMatch = line.match(/^(Languages|Frontend|Backend|Database(?:s)?|Tools\s*(?:&|and)\s*Others|Tools|Frameworks|Libraries|Cloud|DevOps|Core\s*Competencies)\b\s*[:—–-]?\s*(.*)$/i);
+      let catName = '';
+      let skillsLine = line;
+      if (catMatch && catMatch[2].trim()) {
+        const rawCat = catMatch[1].trim();
+        if (/^languages$/i.test(rawCat)) catName = 'Languages';
+        else if (/^frontend$/i.test(rawCat)) catName = 'Frontend';
+        else if (/^backend$/i.test(rawCat)) catName = 'Backend';
+        else if (/^database/i.test(rawCat)) catName = 'Database';
+        else if (/^tools/i.test(rawCat)) catName = 'Tools & Others';
+        else catName = rawCat;
+        skillsLine = catMatch[2].trim();
+      }
+      const lineSkills = splitSkillsString(skillsLine);
       for (const sk of lineSkills) {
         if (!skills.includes(sk)) {
           skills.push(sk);
+        }
+        if (catName) {
+          if (!skills_categorized[catName]) skills_categorized[catName] = [];
+          if (!skills_categorized[catName].includes(sk)) {
+            skills_categorized[catName].push(sk);
+          }
         }
       }
     }
@@ -1866,6 +1920,14 @@ export function parseResumeRuleBased(resumeText, options = {}) {
             r = p;
           } else if (!loc) {
             loc = p;
+          }
+        }
+
+        if (r && !c && (r.includes('—') || r.includes('–') || r.includes(' - ') || /[\u2013\u2014]/.test(r))) {
+          const sub = r.split(/(?:\s+[-–—]\s+|\s*[\u2013\u2014]\s*)/).map(s => s.trim()).filter(Boolean);
+          if (sub.length >= 2) {
+            r = sub[0];
+            c = sub.slice(1).join(' — ');
           }
         }
 
@@ -2091,7 +2153,8 @@ export function parseResumeRuleBased(resumeText, options = {}) {
               institution: inst,
               degree: deg,
               year: yr,
-              score: currentEdu.score || ''
+              score: currentEdu.score || '',
+              coursework: currentEdu.coursework || ''
             });
           }
         }
@@ -2104,6 +2167,14 @@ export function parseResumeRuleBased(resumeText, options = {}) {
 
       // 0. Skip standalone or combined table headers: Degree, Institution, Years, Degree — Institution, etc.
       if (isEducationHeader(line) || isPageOrDocArtifact(line) || isTestOrInstructionLine(line)) {
+        continue;
+      }
+
+      // Coursework line
+      if (/^(?:relevant\s+coursework|coursework|courses)\s*:\s*/i.test(line)) {
+        if (currentEdu) {
+          currentEdu.coursework = line.trim();
+        }
         continue;
       }
 
@@ -2302,12 +2373,34 @@ export function parseResumeRuleBased(resumeText, options = {}) {
         commitProj();
         const parts = line.split('|').map(p => p.trim());
         const linkPart = parts.find(p => /(?:https?:\/\/|github\.com)/i.test(p)) || '';
-        const namePart = parts[0] !== linkPart ? parts[0] : (parts[1] || parts[0]);
+        const datePart = parts.find(p => isStandaloneDate(p) || extractDateTokens(p).raw) || '';
+        const namePart = parts.find(p => p !== linkPart && p !== datePart) || parts[0];
+        let pName = namePart;
+        let pRole = '';
+        if (pName && (pName.includes('—') || pName.includes('–') || pName.includes(' - ') || /[\u2013\u2014]/.test(pName))) {
+          const sub = pName.split(/(?:\s+[-–—]\s+|\s*[\u2013\u2014]\s*)/).map(s => s.trim()).filter(Boolean);
+          if (sub.length >= 2) {
+            pName = sub[0];
+            pRole = sub.slice(1).join(' — ');
+          }
+        }
         currentProj = {
-          name: namePart || '',
+          name: pName || '',
+          role: pRole || '',
+          date: datePart ? (extractDateTokens(datePart).raw || datePart) : '',
           description: '',
-          link: linkPart
+          link: linkPart,
+          tech_stack: ''
         };
+        continue;
+      }
+
+      // Tech Stack line: "Tech Stack: React, Node.js, Express..."
+      if (/^(?:tech\s*stack|technologies|built\s*with)\s*:\s*/i.test(line)) {
+        const stackStr = stripLabel(line, /^(?:tech\s*stack|technologies|built\s*with)\s*:\s*/i);
+        if (currentProj) {
+          currentProj.tech_stack = stackStr;
+        }
         continue;
       }
 
@@ -2415,6 +2508,7 @@ export function parseResumeRuleBased(resumeText, options = {}) {
     },
     summary,
     skills,
+    skills_categorized: Object.keys(skills_categorized).length > 0 ? skills_categorized : undefined,
     experience,
     education,
     projects
