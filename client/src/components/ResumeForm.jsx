@@ -480,8 +480,8 @@ export default function ResumeForm({ resume, setResume, onSwitchToPreview }) {
                   type="text"
                   className="form-input"
                   placeholder="e.g. Full Stack Developer"
-                  value={resume.target_role || ''}
-                  onChange={(e) => setResume(prev => ({ ...prev, target_role: e.target.value }))}
+                  value={resume.target_role || resume.targetRole || ''}
+                  onChange={(e) => setResume(prev => ({ ...prev, target_role: e.target.value, targetRole: e.target.value }))}
                 />
               </div>
             </div>
@@ -492,8 +492,8 @@ export default function ResumeForm({ resume, setResume, onSwitchToPreview }) {
                 <input
                   type="text"
                   className="form-input"
-                  placeholder="Darshan Patel"
-                  value={resume.personal_info?.fullName || ''}
+                  placeholder="e.g. John Doe"
+                  value={resume.personal_info?.fullName || resume.personal_info?.name || resume.fullName || ''}
                   onChange={(e) => handlePersonalChange('fullName', e.target.value)}
                 />
               </div>
@@ -503,8 +503,8 @@ export default function ResumeForm({ resume, setResume, onSwitchToPreview }) {
                 <input
                   type="email"
                   className="form-input"
-                  placeholder="darshan@example.com"
-                  value={resume.personal_info?.email || ''}
+                  placeholder="e.g. john@example.com"
+                  value={resume.personal_info?.email || resume.email || ''}
                   onChange={(e) => handlePersonalChange('email', e.target.value)}
                 />
               </div>
@@ -516,8 +516,8 @@ export default function ResumeForm({ resume, setResume, onSwitchToPreview }) {
                 <input
                   type="text"
                   className="form-input"
-                  placeholder="+91 98765 43210"
-                  value={resume.personal_info?.phone || ''}
+                  placeholder="e.g. +1 (555) 000-0000"
+                  value={resume.personal_info?.phone || resume.phone || ''}
                   onChange={(e) => handlePersonalChange('phone', e.target.value)}
                 />
               </div>
@@ -527,8 +527,8 @@ export default function ResumeForm({ resume, setResume, onSwitchToPreview }) {
                 <input
                   type="text"
                   className="form-input"
-                  placeholder="Ahmedabad, Gujarat"
-                  value={resume.personal_info?.location || ''}
+                  placeholder="e.g. San Francisco, CA"
+                  value={resume.personal_info?.location || resume.personal_info?.address || resume.location || ''}
                   onChange={(e) => handlePersonalChange('location', e.target.value)}
                 />
               </div>

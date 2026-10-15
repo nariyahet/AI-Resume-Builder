@@ -404,24 +404,29 @@ export default function App() {
       const cleanField = (val) => (typeof val === 'string' ? val.trim() : '');
 
       const mergedPersonalInfo = {
-        fullName: cleanField(incomingPersonal.fullName),
-        email: cleanField(incomingPersonal.email),
-        phone: cleanField(incomingPersonal.phone),
-        location: cleanField(incomingPersonal.location),
-        linkedin: cleanField(incomingPersonal.linkedin),
-        github: cleanField(incomingPersonal.github),
-        website: cleanField(incomingPersonal.website),
-        profile_photo: prev.personal_info?.profile_photo || '',
+        fullName: cleanField(incomingPersonal.fullName || incomingPersonal.name || parsedData.fullName || parsedData.name || parsedData.full_name),
+        email: cleanField(incomingPersonal.email || parsedData.email),
+        phone: cleanField(incomingPersonal.phone || incomingPersonal.phone_number || parsedData.phone),
+        location: cleanField(incomingPersonal.location || incomingPersonal.address || parsedData.location),
+        linkedin: cleanField(incomingPersonal.linkedin || parsedData.linkedin),
+        github: cleanField(incomingPersonal.github || parsedData.github),
+        website: cleanField(incomingPersonal.website || parsedData.website),
+        profile_photo: '',
         photo_shape: prev.personal_info?.photo_shape || 'circle'
       };
+
+      const extractedTargetRole = cleanField(parsedData.target_role || parsedData.targetRole || parsedData.role);
 
       return {
         ...prev,
         title: (parsedData.title && parsedData.title !== 'Imported Resume' && parsedData.title !== 'Extracted Resume')
           ? parsedData.title
-          : (cleanField(parsedData.target_role) ? `${cleanField(parsedData.target_role)} Resume` : 'Imported Resume'),
-        target_role: (parsedData.target_role && parsedData.target_role.trim() && parsedData.target_role !== 'Professional')
-          ? parsedData.target_role.trim()
+          : (extractedTargetRole ? `${extractedTargetRole} Resume` : 'Imported Resume'),
+        target_role: (extractedTargetRole && extractedTargetRole !== 'Professional')
+          ? extractedTargetRole
+          : '',
+        targetRole: (extractedTargetRole && extractedTargetRole !== 'Professional')
+          ? extractedTargetRole
           : '',
         personal_info: mergedPersonalInfo,
         summary: cleanField(parsedData.summary),
@@ -431,7 +436,7 @@ export default function App() {
         projects: Array.isArray(parsedData.projects) ? parsedData.projects : [],
         certifications: Array.isArray(parsedData.certifications) ? parsedData.certifications : [],
         // Strictly preserve visual styling choices and version history
-        custom_sections: prev.custom_sections || [],
+        custom_sections: [],
         template_id: prev.template_id,
         theme_color: prev.theme_color,
         page_style: prev.page_style,

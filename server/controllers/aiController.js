@@ -1090,6 +1090,32 @@ export function extractDateTokens(str) {
 export const degreeKeywordRegex = /\b(?:bca|mca|b\.?tech|btech|m\.?tech|mtech|b\.?e\.?|be|m\.?e\.?|me|b\.?sc|bsc|m\.?sc|msc|b\.?com|bcom|m\.?com|mcom|bba|mba|b\.?s\.?|bs|b\.?a\.?|ba|m\.?s\.?|ms|m\.?a\.?|ma|bachelor(?:'s)?|master(?:'s)?|phd|doctorate|diploma|associate|degree|matriculation|secondary|high\s*school)\b/i;
 export const instKeywordRegex = /\b(?:college|university|institute|school|academy|vidyalaya|campus|polytechnic|faculty|department|iit|nit|iiit|bits|mit)\b/i;
 export const roleKeywordRegex = /\b(?:developer|engineer|manager|lead|analyst|designer|consultant|specialist|architect|intern|director|officer|executive|administrator|scientist|programmer|coordinator|assistant|associate|representative|technician|supervisor|founder|co-founder|cto|ceo|vp|head\s+of)\b/i;
+export const emailRegex = /[\w.+-]+@[\w.-]+\.[a-zA-Z]{2,}/;
+export const phoneRegex = /(?:(?:\+?\d{1,3}[\s.-]?)?(?:\(?\d{2,4}\)?[\s.-]?)?\d{3,4}[\s.-]?\d{3,4}(?:[\s.-]?\d{1,5})?|\+?\d[\d\s().-]{6,16}\d)/;
+
+export function isValidCandidateName(str) {
+  if (!str || typeof str !== 'string') return false;
+  const s = str.trim();
+  if (s.length < 3 || s.length > 45) return false;
+  if (/\b(?:resume\s*studio|pdf\s*export|test\s*pack|export\s*test|test\s*checklist|consolidated|template|curriculum\s*vitae|resume|sample|draft|preview|remote|hybrid)\b/i.test(s)) return false;
+  if (/@|\bhttps?:\/\/|\bwww\.|\d{2,}/.test(s)) return false;
+  if (/^(?:un|the|and|for|page|with|from|role|title|status|result|check|checklist)$/i.test(s)) return false;
+  if (roleKeywordRegex.test(s)) return false;
+  if (/^[a-zA-ZÀ-ÿ\s.-]+,\s*[a-zA-ZÀ-ÿ\s.-]+$/.test(s)) return false;
+  return /^[a-zA-ZÀ-ÿ\s.'-]+$/.test(s);
+}
+
+export function isLikelyLocation(str) {
+  if (!str || typeof str !== 'string') return false;
+  const s = str.trim();
+  if (s.length < 2 || s.length > 60) return false;
+  if (/^(?:location|address|city|country|based\s+in)\s*:\s*/i.test(s)) return true;
+  if (/@|\bhttps?:\/\/|\bwww\.|\d{3,}/.test(s)) return false;
+  if (roleKeywordRegex.test(s)) return false;
+  if (/^[a-zA-ZÀ-ÿ\s.'-]+,\s*[a-zA-ZÀ-ÿ\s.'-]+(?:,\s*[a-zA-ZÀ-ÿ\s.'-]+)?$/i.test(s)) return true;
+  if (/\b(?:remote|hybrid|relocate|relocation|usa|united states|uk|united kingdom|india|canada|australia|germany|france|singapore|uae|dubai|tokyo|london|new york|san francisco|austin|seattle|boston|chicago|los angeles|ahmedabad|mumbai|bangalore|delhi|pune|hyderabad|toronto|vancouver)\b/i.test(s)) return true;
+  return false;
+}
 
 function sanitizeTargetRole(val) {
   let cleaned = stripLabel(val, /^(?:target\s*role|target\s*job\s*role|job\s*title|role|position|title)\s*:\s*/i);
@@ -1105,13 +1131,17 @@ function sanitizeTargetRole(val) {
   if (/^[\s\d+().-]{7,}$/.test(cleaned) || /^(?:phone|tel|email|mobile):/i.test(val)) {
     return '';
   }
+  // Never allow locations to bleed into target_role
+  if (isLikelyLocation(cleaned)) {
+    return '';
+  }
   // Reject document titles, test packs, or export header artifacts
   if (/\b(?:resume\s*studio|pdf\s*export|test\s*pack|export\s*test|test\s*checklist|consolidated|sample\s*resume)\b/i.test(cleaned)) {
     return '';
   }
   if (cleaned.includes('|')) {
     const parts = cleaned.split('|').map(s => s.trim()).filter(Boolean);
-    const rolePart = parts.find(p => /(?:developer|engineer|manager|lead|analyst|designer|consultant|specialist|architect|intern|director|officer|executive|administrator)/i.test(p)) || parts[parts.length - 1];
+    const rolePart = parts.find(p => roleKeywordRegex.test(p)) || parts[parts.length - 1];
     cleaned = rolePart || cleaned;
   }
   return cleaned;
@@ -1205,7 +1235,16 @@ export function splitSkillsString(line) {
 export function sanitizeParsedResume(parsed) {
   if (!parsed || typeof parsed !== 'object') return parsed;
 
-  const pInfo = parsed.personal_info || {};
+  const rawPersonalInfo = (parsed.personal_info && typeof parsed.personal_info === 'object') ? parsed.personal_info : {};
+  const pInfo = {
+    fullName: rawPersonalInfo.fullName || rawPersonalInfo.name || parsed.fullName || parsed.name || parsed.full_name || '',
+    email: rawPersonalInfo.email || parsed.email || '',
+    phone: rawPersonalInfo.phone || rawPersonalInfo.phone_number || parsed.phone || parsed.phone_number || '',
+    location: rawPersonalInfo.location || rawPersonalInfo.address || parsed.location || parsed.address || '',
+    linkedin: rawPersonalInfo.linkedin || parsed.linkedin || '',
+    github: rawPersonalInfo.github || parsed.github || '',
+    website: rawPersonalInfo.website || parsed.website || ''
+  };
   const isInvalidLink = (val) => !val || typeof val !== 'string' || /^(?:n\/?a|none|not\s*provided|null|undefined|yourname|username)$/i.test(val.trim());
 
   let cleanLinkedin = stripLabel(pInfo.linkedin, /^(?:linkedin|linkedin\s*url|linkedin\s*profile)\s*:\s*/i);
@@ -1232,11 +1271,33 @@ export function sanitizeParsedResume(parsed) {
     }
   }
 
+  let cleanFullName = stripLabel(pInfo.fullName, /^(?:name|full\s*name|candidate\s*name)\s*:\s*/i);
+  if (!isValidCandidateName(cleanFullName)) {
+    if (roleKeywordRegex.test(cleanFullName) || isLikelyLocation(cleanFullName)) {
+      cleanFullName = '';
+    }
+  }
+
+  let cleanLocation = stripLabel(pInfo.location, /^(?:location|address|city|country|based\s+in)\s*:\s*/i);
+  // Guard 1: Never let candidate's name leak into location
+  if (cleanLocation && cleanFullName && cleanLocation.toLowerCase() === cleanFullName.toLowerCase()) {
+    cleanLocation = '';
+  }
+  // Guard 2: If location is actually a phone number, move to phone
+  if (cleanLocation && /^[\s\d+().-]{7,}$/.test(cleanLocation) && /\d{4,}/.test(cleanLocation)) {
+    if (!cleanPhone) cleanPhone = cleanLocation;
+    cleanLocation = '';
+  }
+  // Guard 3: If location is not a likely location and looks like a candidate name or role, clear it
+  if (cleanLocation && !isLikelyLocation(cleanLocation) && (isValidCandidateName(cleanLocation) || roleKeywordRegex.test(cleanLocation))) {
+    cleanLocation = '';
+  }
+
   const cleanedPersonalInfo = {
-    fullName: stripLabel(pInfo.fullName, /^(?:name|full\s*name|candidate\s*name)\s*:\s*/i),
+    fullName: cleanFullName,
     email: stripLabel(pInfo.email, /^(?:email|email\s*address|e-mail)\s*:\s*/i),
     phone: cleanPhone,
-    location: stripLabel(pInfo.location, /^(?:location|address|city|country)\s*:\s*/i),
+    location: cleanLocation,
     linkedin: cleanLinkedin,
     github: cleanGithub,
     website: cleanWebsite
@@ -1248,7 +1309,16 @@ export function sanitizeParsedResume(parsed) {
     if (emMatch) cleanedPersonalInfo.email = emMatch[0];
   }
 
-  const targetRole = sanitizeTargetRole(parsed.target_role || '');
+  let targetRole = sanitizeTargetRole(parsed.target_role || parsed.targetRole || parsed.role || '');
+  if (targetRole) {
+    if (
+      (cleanedPersonalInfo.fullName && targetRole.toLowerCase() === cleanedPersonalInfo.fullName.toLowerCase()) ||
+      (cleanedPersonalInfo.location && targetRole.toLowerCase() === cleanedPersonalInfo.location.toLowerCase()) ||
+      (!roleKeywordRegex.test(targetRole) && !/^(?:intern|lead|founder|specialist|consultant)\b/i.test(targetRole))
+    ) {
+      targetRole = '';
+    }
+  }
   const summary = sanitizeSummary(parsed.summary || '');
 
   let skills = [];
@@ -1458,8 +1528,17 @@ export function sanitizeParsedResume(parsed) {
 }
 
 export function parseResumeRuleBased(resumeText, options = {}) {
-  const fileName = typeof options === 'string' ? options : (options?.fileName || '');
-  const lines = resumeText.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+  const rawLines = (resumeText || '').replace(/\f/g, '\n').split(/\r?\n/);
+  const lines = [];
+  for (const rl of rawLines) {
+    if (rl.includes('\t') && (emailRegex.test(rl) || phoneRegex.test(rl) || roleKeywordRegex.test(rl) || isLikelyLocation(rl))) {
+      const sub = rl.split(/\t+/).map(s => s.trim()).filter(Boolean);
+      lines.push(...sub);
+    } else {
+      const trimmed = rl.trim();
+      if (trimmed) lines.push(trimmed);
+    }
+  }
   if (lines.length === 0) {
     return {
       title: 'Imported Resume',
@@ -1474,8 +1553,6 @@ export function parseResumeRuleBased(resumeText, options = {}) {
   }
 
   // 1. Regular expression matches for contact details
-  const emailRegex = /[\w.+-]+@[\w.-]+\.[a-zA-Z]{2,}/;
-  const phoneRegex = /(?:\+?\d{1,3}[-.\s]?)?\(?\d{2,4}\)?[-.\s]?\d{3,4}[-.\s]?\d{3,5}/;
   const linkedinRegex = /(?:https?:\/\/)?(?:www\.)?linkedin\.com\/in\/[\w.-]+/i;
   const githubRegex = /(?:https?:\/\/)?(?:www\.)?github\.com\/[\w.-]+/i;
   const websiteRegex = /(?:https?:\/\/)?(?:www\.)?[a-zA-Z0-9][-a-zA-Z0-9]{0,62}\.(?:com|org|net|io|dev|me|app|tech|ai|co|in|xyz|site|info|design|cloud|store|agency|space|online)(?:\/[^\s]*)?/i;
@@ -1619,8 +1696,8 @@ export function parseResumeRuleBased(resumeText, options = {}) {
       extractedEmail = stripLabel(line, /^(?:email|email\s*address|e-mail)\s*:\s*/i);
     } else if (/^(?:phone|phone\s*number|tel|telephone|mobile|cell)\s*:\s*/i.test(line)) {
       extractedPhone = stripLabel(line, /^(?:phone|phone\s*number|tel|telephone|mobile|cell)\s*:\s*/i);
-    } else if (/^(?:location|address|city|country)\s*:\s*/i.test(line)) {
-      extractedLocation = stripLabel(line, /^(?:location|address|city|country)\s*:\s*/i);
+    } else if (/^(?:location|address|city|country|based\s*in)\s*:\s*/i.test(line)) {
+      extractedLocation = stripLabel(line, /^(?:location|address|city|country|based\s*in)\s*:\s*/i);
     } else if (/^(?:linkedin|linkedin\s*url|linkedin\s*profile)\s*:\s*/i.test(line)) {
       extractedLinkedin = stripLabel(line, /^(?:linkedin|linkedin\s*url|linkedin\s*profile)\s*:\s*/i);
     } else if (/^(?:github|github\s*url|github\s*profile)\s*:\s*/i.test(line)) {
@@ -1630,25 +1707,43 @@ export function parseResumeRuleBased(resumeText, options = {}) {
     }
   }
 
-  function isValidCandidateName(str) {
-    if (!str || typeof str !== 'string') return false;
-    const s = str.trim();
-    if (s.length < 3 || s.length > 45) return false;
-    if (/\b(?:resume\s*studio|pdf\s*export|test\s*pack|export\s*test|test\s*checklist|consolidated|template|curriculum\s*vitae|resume|sample|draft|preview)\b/i.test(s)) return false;
-    if (/@|\bhttps?:\/\/|\bwww\.|\d{3,}/.test(s)) return false;
-    if (/^(?:un|the|and|for|page|with|from|role|title|status|result|check|checklist)$/i.test(s)) return false;
-    return /^[a-zA-ZÀ-ÿ\s.'-]+$/.test(s);
-  }
-
+  // Candidate Name extraction
   if (!extractedName && sections.header.length > 0) {
     for (let i = 0; i < Math.min(4, sections.header.length); i++) {
       const line = sections.header[i];
+      if (!line) continue;
+
+      // 1. Check for labeled name
+      if (/^(?:name|full\s*name|candidate\s*name)\s*:\s*/i.test(line)) {
+        const cand = stripLabel(line, /^(?:name|full\s*name|candidate\s*name)\s*:\s*/i);
+        if (isValidCandidateName(cand)) {
+          extractedName = cand;
+          break;
+        }
+      }
+
+      // 2. Check for compound line (e.g. Name | Role or Name - Role)
+      if (line.includes(' | ') || line.includes(' - ') || line.includes(' – ') || line.includes(' — ')) {
+        const parts = line.split(/\s+[-–—|]\s+/).map(p => p.trim()).filter(Boolean);
+        if (parts.length >= 2) {
+          const firstPart = stripLabel(parts[0], /^(?:name|full\s*name):\s*/i);
+          if (isValidCandidateName(firstPart)) {
+            extractedName = firstPart;
+            if (!extractedRole && roleKeywordRegex.test(parts[1]) && parts[1].length < 75) {
+              extractedRole = sanitizeTargetRole(parts[1]);
+            }
+            break;
+          }
+        }
+      }
+
+      // 3. Skip contact lines, location lines, and purely role lines
       if (
         emailRegex.test(line) ||
         phoneRegex.test(line) ||
         linkedinRegex.test(line) ||
         githubRegex.test(line) ||
-        roleKeywordRegex.test(line) ||
+        isLikelyLocation(line) ||
         /^(?:target\s*role|role|title|location|address):/i.test(line)
       ) {
         if (!extractedRole && roleKeywordRegex.test(line) && line.length < 60) {
@@ -1656,16 +1751,15 @@ export function parseResumeRuleBased(resumeText, options = {}) {
         }
         continue;
       }
-      let cand = stripLabel(line, /^(?:name|full\s*name):\s*/i);
-      if (cand && (cand.includes(' - ') || cand.includes(' – ') || cand.includes(' — ') || cand.includes(' | '))) {
-        const parts = cand.split(/\s+[-–—|]\s+/);
-        if (parts.length >= 2) {
-          cand = parts[0].trim();
-          if (!extractedRole) {
-            extractedRole = sanitizeTargetRole(parts[1].trim());
-          }
+
+      if (roleKeywordRegex.test(line)) {
+        if (!extractedRole && line.length < 60) {
+          extractedRole = sanitizeTargetRole(line);
         }
+        continue;
       }
+
+      const cand = stripLabel(line, /^(?:name|full\s*name):\s*/i);
       if (isValidCandidateName(cand)) {
         extractedName = cand;
         break;
@@ -1698,7 +1792,8 @@ export function parseResumeRuleBased(resumeText, options = {}) {
     }
   }
 
-  if (!extractedRole && sections.header.length > 1) {
+  // Target Role extraction
+  if (!extractedRole && sections.header.length > 0) {
     for (let i = 0; i < sections.header.length; i++) {
       const line = sections.header[i];
       if (
@@ -1714,35 +1809,54 @@ export function parseResumeRuleBased(resumeText, options = {}) {
         linkedinRegex.test(line) ||
         githubRegex.test(line) ||
         /^(?:phone|email|location|address):/i.test(line) ||
-        /^[A-Za-z\s]+,\s*[A-Za-z\s]+$/.test(line)
+        isLikelyLocation(line)
       ) {
-        if (!extractedLocation && /^[A-Za-z\s]+,\s*[A-Za-z\s]+$/.test(line)) {
+        if (!extractedLocation && isLikelyLocation(line)) {
           extractedLocation = line;
         }
         continue;
       }
-      if (line.length < 60 && !line.includes('|')) {
+      if (line.length < 75 && !line.includes('|') && roleKeywordRegex.test(line)) {
         extractedRole = sanitizeTargetRole(line);
         break;
       }
     }
   }
 
+  // Location extraction
   if (!extractedLocation) {
     for (const line of sections.header) {
       if (line.includes('|') || line.includes('©') || line.includes('&') || line.includes('•')) {
         const parts = line.split(/[\s]+[|&©•*·~][\s]*|[|•]+/).map(p => p.trim());
         for (const p of parts) {
           const isUrlOrDomain = websiteRegex.test(p) || /^[a-zA-Z0-9][-a-zA-Z0-9]*\.[a-zA-Z]{2,}/i.test(p) || p.startsWith('http') || p.startsWith('www.');
-          if (!emailRegex.test(p) && !phoneRegex.test(p) && !linkedinRegex.test(p) && !githubRegex.test(p) && !isUrlOrDomain && p.length > 2 && p.length < 50) {
+          if (
+            !emailRegex.test(p) &&
+            !phoneRegex.test(p) &&
+            !linkedinRegex.test(p) &&
+            !githubRegex.test(p) &&
+            !isUrlOrDomain &&
+            p.length > 2 &&
+            p.length < 60
+          ) {
             if (extractedName && (p.toLowerCase() === extractedName.toLowerCase() || p.toLowerCase().includes(extractedName.toLowerCase()))) {
               continue;
             }
-            if (!roleKeywordRegex.test(p) && !/^(?:summary|profile|about)/i.test(p)) {
-              extractedLocation = stripLabel(p, /^(?:location|address):/i);
+            if (isValidCandidateName(p)) {
+              continue;
+            }
+            if (roleKeywordRegex.test(p) || /^(?:summary|profile|about)/i.test(p)) {
+              continue;
+            }
+            if (isLikelyLocation(p)) {
+              extractedLocation = stripLabel(p, /^(?:location|address|city|country|based\s+in):/i);
               break;
             }
           }
+        }
+      } else if (isLikelyLocation(line)) {
+        if (!extractedName || (line.toLowerCase() !== extractedName.toLowerCase() && !line.toLowerCase().includes(extractedName.toLowerCase()))) {
+          extractedLocation = stripLabel(line, /^(?:location|address|city|country|based\s+in):/i);
         }
       }
       if (extractedLocation) break;

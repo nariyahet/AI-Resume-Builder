@@ -95,6 +95,10 @@ export default function ResumePreview({ resume, setResume, onOpenShare, readOnly
     page_style = 'modern'
   } = resume;
 
+  const candidateFullName = personal_info.fullName || personal_info.name || resume.fullName || resume.name || '';
+  const candidateRole = target_role || resume.targetRole || resume.role || '';
+  const candidateLocation = personal_info.location || personal_info.address || resume.location || '';
+
   const parseProjectEntry = (proj) => {
     if (!proj) return { title: '', subtitle: '', body: '', techStack: null, date: '' };
     let rawName = (proj.name || 'Project').trim();
@@ -607,10 +611,10 @@ export default function ResumePreview({ resume, setResume, onOpenShare, readOnly
 
                 <div style={{ borderBottom: `2px solid ${theme_color}`, paddingBottom: '10px', marginBottom: '15px' }}>
                   <h1 style={{ fontSize: '1.45rem', fontWeight: 800, color: '#0f172a', lineHeight: 1.15 }}>
-                    {personal_info.fullName || 'Your Name'}
+                    {candidateFullName || 'Your Name'}
                   </h1>
                   <div style={{ fontSize: '0.85rem', color: theme_color, fontWeight: 600, marginTop: '4px' }}>
-                    {target_role || 'Target Role'}
+                    {candidateRole || 'Target Role'}
                   </div>
                 </div>
 
@@ -618,7 +622,7 @@ export default function ResumePreview({ resume, setResume, onOpenShare, readOnly
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '0.75rem', color: '#475569', marginBottom: '20px' }}>
                   {personal_info.email && <div><Mail size={11} style={{ color: theme_color, display: 'inline', marginRight: '4px' }} />{personal_info.email}</div>}
                   {personal_info.phone && <div><Phone size={11} style={{ color: theme_color, display: 'inline', marginRight: '4px' }} />{personal_info.phone}</div>}
-                  {personal_info.location && <div><MapPin size={11} style={{ color: theme_color, display: 'inline', marginRight: '4px' }} />{personal_info.location}</div>}
+                  {candidateLocation && <div><MapPin size={11} style={{ color: theme_color, display: 'inline', marginRight: '4px' }} />{candidateLocation}</div>}
                   {personal_info.website && <div><Globe size={11} style={{ color: theme_color, display: 'inline', marginRight: '4px' }} />{personal_info.website}</div>}
                   {personal_info.linkedin && <div><LinkIcon size={11} style={{ color: theme_color, display: 'inline', marginRight: '4px' }} />{personal_info.linkedin}</div>}
                 </div>
@@ -814,10 +818,10 @@ export default function ResumePreview({ resume, setResume, onOpenShare, readOnly
                 )}
                 <div className="resume-header-text" style={{ flex: 1 }}>
                   <h1 className="resume-name">
-                    {personal_info.fullName || 'Your Name'}
+                    {candidateFullName || 'Your Name'}
                   </h1>
                   <div className="resume-role">
-                    {target_role || 'Target Job Title'}
+                    {candidateRole || 'Target Job Title'}
                   </div>
 
                   <div className="resume-contacts">
@@ -831,9 +835,9 @@ export default function ResumePreview({ resume, setResume, onOpenShare, readOnly
                         <Phone size={12} style={{ color: theme_color }} /> {personal_info.phone}
                       </span>
                     )}
-                    {personal_info.location && (
+                    {candidateLocation && (
                       <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                        <MapPin size={12} style={{ color: theme_color }} /> {personal_info.location}
+                        <MapPin size={12} style={{ color: theme_color }} /> {candidateLocation}
                       </span>
                     )}
                     {personal_info.website && (
